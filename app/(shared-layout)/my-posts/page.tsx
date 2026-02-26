@@ -1,86 +1,165 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useConvexAuth, useQuery, useMutation } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Loader2, Edit2, Trash2, Plus, BookText, NotebookPen, Pencil } from "lucide-react";
-import { toast } from "sonner";
+import {
+  Loader2, Trash2, Plus, BookText, Pencil,
+  Calendar, ClockFading, BookType,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Footer from "@/components/web/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
+import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
+import { deletePostAction } from "@/app/actions";
+import { FieldLabel } from "@/components/ui/field";
 
 export default function MyPostsPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  const user = useQuery(api.auth.getCurrentUser);
-  const posts = useQuery(api.posts.getPosts);
-  const deletePost = useMutation(api.posts.deletePost);
+  const user  = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
+  const posts = useQuery(api.posts.getPosts,       isAuthenticated ? undefined : "skip");
+
+  // Delete modal state
+  const [pendingDelete, setPendingDelete] = useState<{ _id: string; title: string } | null>(null);
+  const [isDeleting, setIsDeleting]       = useState(false);
+
+  // Lock scroll when modal is open
+  useEffect(() => {
+    if (pendingDelete) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [pendingDelete]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
-    }
+    if (!isLoading && !isAuthenticated) router.push("/auth/login");
   }, [isAuthenticated, isLoading, router]);
 
-  const handleDeletePost = async (postId: string) => {
-    if (!confirm("Are you sure you want to delete this post?")) {
-      return;
-    }
-
-    setIsDeleting(postId);
+  const handleDeleteConfirm = async () => {
+    if (!pendingDelete) return;
+    setIsDeleting(true);
     try {
-      await deletePost({ postId: postId as any });
-      toast.success("Post deleted successfully");
+      // Server action revalidates the "blog" cache tag so the post
+      // disappears from the posts page immediately after deletion.
+      await deletePostAction(pendingDelete._id);
+      showSuccessToast("Post deleted successfully");
+      setPendingDelete(null);
     } catch (error: any) {
-      toast.error(error?.message || "Failed to delete post");
+      showErrorToast(error?.message || "Failed to delete post");
     } finally {
-      setIsDeleting(null);
+      setIsDeleting(false);
     }
   };
 
-  const handleEditPost = (postId: string) => {
-    router.push(`/edit/${postId}`);
-  };
+  if (isLoading || !isAuthenticated) return null;
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  // Filter posts by current user
-  const userPosts = posts?.filter((post: any) => post.authorId === user?._id) || [];
+  const postsReady = posts !== undefined && user !== undefined;
+  const userPosts  = postsReady
+    ? posts.filter((post: any) => post.authorId === user._id)
+    : [];
 
   return (
     <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4">
+
+      {/* ── Delete confirmation modal ── */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 min-w-[320px]">
+          <div className="bg-white dark:bg-[#111] rounded-2xl shadow-2xl max-w-sm w-full p-8 flex flex-col gap-6">
+            <div className="space-y-1">
+              <h2 className="text-xl font-extrabold text-destructive">
+                Delete post?
+              </h2>
+              <p className="text-sm text-paragraph leading-relaxed">
+                This will permanently delete{" "}
+                <span className="font-semibold text-black dark:text-white">
+                  "{pendingDelete.title}".
+                </span> <br />
+                 This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setPendingDelete(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {isDeleting && <Loader2 className="size-4 animate-spin" />}
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full space-y-6">
         <div className="flex flex-col items-start justify-center">
           <h1 className="text-4xl font-extrabold text-primary">My Posts</h1>
-          <p className="text-paragraph mt-2">
-            {userPosts.length === 0
-              ? "You haven't created any posts yet"
-              : `You have created ${userPosts.length} post${userPosts.length !== 1 ? "s" : ""}`}
-          </p>
+          <div className="text-paragraph mt-2">
+            {!postsReady ? (
+              <Skeleton className="h-4 w-48 mt-2" />
+            ) : userPosts.length === 0 ? (
+              "You haven't created any posts yet."
+            ) : (
+              `You have created ${userPosts.length} post${userPosts.length !== 1 ? "s" : ""}.`
+            )}
+          </div>
         </div>
 
-        {userPosts.length === 0 ? (
-          <Card className="text-center py-12">
+        {!postsReady ? (
+          <div className="grid gap-6">
+            {[1, 2].map((i) => (
+              <Skeleton
+                key={i}
+                className="overflow-hidden flex flex-col sm:flex-row w-full h-full px-3 sm:px-4 py-6 rounded-2xl"
+              >
+                <div className="relative w-full h-48 sm:w-1/3 flex-shrink-0">
+                  <div className="flex w-full h-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-md" />
+                </div>
+                <div className="flex flex-col w-full h-full px-3">
+                  <div className="flex flex-col w-full h-full px-8 py-6 gap-4">
+                    <div className="flex flex-col flex-1 space-y-3">
+                      <div className="h-8 w-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
+                      <div className="h-4 w-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
+                    </div>
+                    <div className="flex gap-2">
+                      {[1,2,3].map((j) => (
+                        <div key={j} className="flex gap-2">
+                          <div className="h-5 w-5 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-full" />
+                          <div className="h-5 w-20 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-4 px-3 sm:px-10 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
+                    {[1,2,3].map((j) => (
+                      <div key={j} className="h-7 w-18 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
+                    ))}
+                  </div>
+                </div>
+              </Skeleton>
+            ))}
+          </div>
+        ) : userPosts.length === 0 ? (
+          <Card className="text-center py-20">
             <CardContent className="space-y-4">
-              <p className="text-lg font-medium">No posts yet</p>
-              <p className="text-muted-foreground">
-                Start creating your first post to share your thoughts with the community.
-              </p>
+              <p className="text-lg font-medium">No posts yet.</p>
               <Link href="/create" className={buttonVariants()}>
                 <Plus className="size-4 mr-2" />
                 Create Your First Post
@@ -90,8 +169,10 @@ export default function MyPostsPage() {
         ) : (
           <div className="grid gap-6">
             {userPosts.map((post: any) => (
-              <Card key={post._id} className="overflow-hidden flex flex-col sm:flex-row px-3 sm:px-4">
-                {/* IMAGE */}
+              <Card
+                key={post._id}
+                className="overflow-hidden flex flex-col sm:flex-row px-3 sm:px-4"
+              >
                 <div className="relative w-full h-48 sm:h-auto sm:w-1/3 flex-shrink-0">
                   <Image
                     src={
@@ -101,79 +182,62 @@ export default function MyPostsPage() {
                     alt="post image"
                     fill
                     sizes="100%"
+                    loading="eager"
                     className="object-cover rounded-md"
                   />
                 </div>
 
-                {/* CONTENT */}
                 <div className="flex flex-col flex-1">
                   <CardContent className="flex-1 pt-6 pb-4 px-4 sm:px-6">
                     <div className="space-y-2">
                       <h3 className="text-xl font-bold text-black dark:text-white line-clamp-2">
                         {post.title}
                       </h3>
-
                       <p className="text-sm text-paragraph line-clamp-2">{post.subtitle}</p>
-
                       <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-paragraph">
-                        <div className="flex gap-2 items-center">
-                          <p className="font-medium">Published</p>
-                          <p className="text-black dark:text-white">
-                            {new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}
-                          </p>
+                        <div className="flex gap-2 items-center text-black dark:text-white">
+                          <Calendar className="size-4" />
+                          <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
                         </div>
-
                         <span>|</span>
-
                         <div className="flex gap-2 items-center">
-                          <p className="font-medium">Topic</p>
+                          <BookType className="size-4 text-black dark:text-white" />
                           <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                             {post.topic}
                           </span>
+                        </div>
+                        <span>|</span>
+                        <div className="flex gap-2 items-center text-black dark:text-white">
+                          <ClockFading className="size-4" />
+                          <p>{post.minRead} min read</p>
                         </div>
                       </div>
                     </div>
                   </CardContent>
 
-                  {/* BUTTONS */}
                   <CardFooter className="flex flex-wrap gap-2 pt-4 px-3 sm:px-6 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
                     <Link
-                      href={`/posts/${post._id}`}
-                      className={buttonVariants({
-                        variant: "outline",
-                        size: "sm",
-                        className: "text-black dark:text-white bg-white dark:bg-black cursor-pointer",
-                      })}
+                      href={`/posts/${post.slug}`}
+                      className={buttonVariants({ variant: "secondary", size: "sm" })}
                     >
                       <BookText className="size-3" />
                       View
                     </Link>
-
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleEditPost(post._id)}
-                      className="text-black dark:text-white bg-white dark:bg-black cursor-pointer"
+                    <Link
+                      href={`/edit/${post.slug}`}
+                      className={buttonVariants({ variant: "secondary", size: "sm" })}
                     >
                       <Pencil className="size-3" />
                       Edit
-                    </Button>
-
+                    </Link>
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeletePost(post._id)}
-                      disabled={isDeleting === post._id}
+                      onClick={() => setPendingDelete({ _id: post._id, title: post.title })}
                       className="h-7"
                     >
-                      {isDeleting === post._id ? (
-                        <Loader2 className="size-3 animate-spin" />
-                      ) : (
-                        <>
-                          <Trash2 className="size-3" />
-                          Delete
-                        </>
-                      )}
+                      <Trash2 className="size-3" />
+                      Delete
                     </Button>
                   </CardFooter>
                 </div>

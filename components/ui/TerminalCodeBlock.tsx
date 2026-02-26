@@ -106,7 +106,7 @@ export default function TerminalCodeBlockComponent({
   const commonFont = "font-mono text-[13px] leading-[20px]";
 
   return (
-    <NodeViewWrapper className="my-8 rounded-lg overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <NodeViewWrapper className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
       {/* HEADER */}
       <div
         contentEditable={false}

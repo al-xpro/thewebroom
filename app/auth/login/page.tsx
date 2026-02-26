@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import z from "zod";
 import Link from "next/link";
 import { useConvex } from "convex/react";
+import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
 export default function LoginPage() {
   const [isPending, startTransition] = useTransition();
@@ -44,8 +45,7 @@ export default function LoginPage() {
         password: data.password,
         fetchOptions: {
           onSuccess: async () => {
-            console.log("[Login] Success - refreshing Convex auth");
-            toast.success("Logged in successfully");
+            showSuccessToast("Logged in successfully");
             
             // Force Convex to re-fetch auth state
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -55,7 +55,7 @@ export default function LoginPage() {
           },
           onError: (error) => {
             console.error("[Login] Error:", error);
-            toast.error(error.error.message);
+            showErrorToast(error.error.message);
           },
         },
       });

@@ -4,8 +4,10 @@ import { v } from "convex/values";
 export default defineSchema({
   posts: defineTable({
     title: v.string(),
+    slug: v.optional(v.string()),
     body: v.string(),
     subtitle: v.string(),
+    minRead: v.optional(v.number()),
     authorId: v.string(),
     authorName: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
@@ -18,14 +20,15 @@ export default defineSchema({
     ),
     contentHtml: v.optional(v.string()),
     topic: v.union(
-      v.literal("Web Development"),
-      v.literal("Design & UI"),
-      v.literal("AI"),
-      v.literal("Engineering")
+      v.literal("Web Architecture"),
+      v.literal("UI Engineering"),
+      v.literal("AI for Developers"),
+      v.literal("Productivity")
     ),
   })
     .searchIndex("search_title", { searchField: "title" })
-    .searchIndex("search_body", { searchField: "body" }),
+    .searchIndex("search_body", { searchField: "body" })
+    .index("by_slug", ["slug"]),
 
   presences: defineTable({
     userId: v.string(),

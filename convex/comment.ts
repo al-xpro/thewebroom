@@ -4,7 +4,22 @@ import { authComponent } from "./auth";
 
 const ADMIN_USER_ID = process.env.ADMIN_USER_ID || "";
 
-const isAdmin = (userId: string) => userId === ADMIN_USER_ID;
+const isAdmin = (userId: string) => userId.toString() === ADMIN_USER_ID;
+
+export const getIsAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch {
+      return false;
+    }
+    if (!user) return false;
+
+    return user._id.toString() === ADMIN_USER_ID;
+  },
+});
 
 export const getCommentsByPostId = query({
   args: {
@@ -28,7 +43,7 @@ export const getVisibleCommentsByPostId = query({
   handler: async (ctx, args) => {
     const data = await ctx.db
       .query("comments")
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.eq(q.field("postId"), args.postId),
           q.eq(q.field("status"), "visible")
@@ -52,19 +67,19 @@ export const createComment = mutation({
       throw new ConvexError("Not authenticated");
     }
 
-    // Check rate limit
     const rateLimit = await ctx.db
       .query("rateLimits")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .first();
 
     const now = Date.now();
-    const COMMENT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
-    const COMMENT_RATE_LIMIT = 3; // per day
+    const COMMENT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+    const COMMENT_RATE_LIMIT = 3;
 
     if (rateLimit) {
       const timeSinceLastComment = now - (rateLimit.lastCommentTime || 0);
-      const dailyCount = timeSinceLastComment > COMMENT_COOLDOWN_MS ? 0 : rateLimit.hourlyCommentCount || 0;
+      const dailyCount =
+        timeSinceLastComment > COMMENT_COOLDOWN_MS ? 0 : rateLimit.hourlyCommentCount || 0;
 
       if (dailyCount >= COMMENT_RATE_LIMIT) {
         throw new ConvexError(
@@ -106,12 +121,12 @@ export const updateComment = mutation({
     }
 
     const comment = await ctx.db.get(args.commentId);
-
     if (!comment) {
       throw new ConvexError("Comment not found");
     }
 
-    if (comment.authorId !== user._id && !isAdmin(user._id)) {
+    const isOwner = comment.authorId.toString() === user._id.toString();
+    if (!isOwner && !isAdmin(user._id.toString())) {
       throw new ConvexError("Not authorized to edit this comment");
     }
 
@@ -129,12 +144,12 @@ export const deleteComment = mutation({
     }
 
     const comment = await ctx.db.get(args.commentId);
-
     if (!comment) {
       throw new ConvexError("Comment not found");
     }
 
-    if (comment.authorId !== user._id && !isAdmin(user._id)) {
+    const isOwner = comment.authorId.toString() === user._id.toString();
+    if (!isOwner && !isAdmin(user._id.toString())) {
       throw new ConvexError("Not authorized to delete this comment");
     }
 

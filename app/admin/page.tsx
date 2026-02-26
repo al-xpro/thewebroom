@@ -10,6 +10,7 @@ import { useState, useTransition, useEffect } from "react";
 import { toast } from "sonner";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -40,10 +41,10 @@ export default function AdminPage() {
     startTransition(async () => {
       try {
         await deletePost({ postId: postId as any });
-        toast.success("Post deleted successfully");
+        showSuccessToast("Post deleted successfully");
         setSelectedPostId(null);
       } catch (error) {
-        toast.error(
+        showErrorToast(
           error instanceof Error ? error.message : "Failed to delete post"
         );
       }
@@ -59,11 +60,11 @@ export default function AdminPage() {
           postId: postId as any,
           status: newStatus as "published" | "hidden",
         });
-        toast.success(
+        showSuccessToast(
           newStatus === "published" ? "Post published" : "Post hidden"
         );
       } catch (error) {
-        toast.error(
+        showErrorToast(
           error instanceof Error ? error.message : "Failed to update post"
         );
       }
@@ -152,7 +153,7 @@ export default function AdminPage() {
                     <tr key={post._id} className="border-b hover:bg-muted/50">
                       <td className="py-3 px-2 font-medium">
                         <Link
-                          href={`/posts/${post._id}`}
+                          href={`/posts/${post.slug || post._id}`}
                           className="hover:text-primary hover:underline"
                         >
                           {post.title}

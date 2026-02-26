@@ -5,7 +5,7 @@ import TerminalCodeBlockComponent from "@/components/ui/TerminalCodeBlock";
 export const TerminalCodeBlock = Node.create({
   name: "terminalBlock",
   group: "block",
-  content: "text*", 
+  content: "text*",
   defining: true,
   code: true,
 
@@ -13,16 +13,19 @@ export const TerminalCodeBlock = Node.create({
     return {
       packageManager: {
         default: "npm",
+        parseHTML: (el) => el.getAttribute("data-package-manager") ?? "npm",
       },
-      // Hidden storage for the tabs
       npmContent: {
         default: "",
+        parseHTML: (el) => el.getAttribute("data-npm-content") ?? "",
       },
       pnpmContent: {
         default: "",
+        parseHTML: (el) => el.getAttribute("data-pnpm-content") ?? "",
       },
       yarnContent: {
         default: "",
+        parseHTML: (el) => el.getAttribute("data-yarn-content") ?? "",
       },
     };
   },
@@ -31,10 +34,24 @@ export const TerminalCodeBlock = Node.create({
     return [{ tag: 'div[data-type="terminal-block"]' }];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ node, HTMLAttributes }) {
+    // Flush the live text of the active tab back into its slot
+    const mgr = node.attrs.packageManager as string;
+    const live = node.textContent;
+
+    const npmContent  = mgr === "npm"  ? live : (node.attrs.npmContent  as string);
+    const pnpmContent = mgr === "pnpm" ? live : (node.attrs.pnpmContent as string);
+    const yarnContent = mgr === "yarn" ? live : (node.attrs.yarnContent as string);
+
     return [
       "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "terminal-block" }),
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "terminal-block",
+        "data-package-manager": mgr,
+        "data-npm-content":  npmContent,
+        "data-pnpm-content": pnpmContent,
+        "data-yarn-content": yarnContent,
+      }),
       0,
     ];
   },
@@ -57,3 +74,4 @@ export const TerminalCodeBlock = Node.create({
     };
   },
 });
+

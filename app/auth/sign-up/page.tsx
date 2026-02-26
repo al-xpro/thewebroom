@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import z from "zod";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
 export default function SignUpPage() {
   const [isPending, startTransition] = useTransition();
@@ -50,11 +51,11 @@ export default function SignUpPage() {
             } catch {
               // ignore
             }
-            toast.success("Account created successfully");
+            showSuccessToast("Account created successfully");
             router.push("/");
           },
           onError: (error) => {
-            toast.error(error.error.message);
+            showErrorToast(error.error.message);
           },
         },
       });

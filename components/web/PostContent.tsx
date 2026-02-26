@@ -1,0 +1,477 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Copy, Check, Terminal } from "lucide-react";
+import { SiNextdotjs, SiReact } from "react-icons/si";
+import { BiLogoTypescript, BiLogoJavascript } from "react-icons/bi";
+import { motion, AnimatePresence } from "framer-motion";
+import { highlighterPromise } from "@/lib/extension/shiki";
+
+// ─── Copy button ──────────────────────────────────────────────────────────────
+
+function CopyButton({ getText }: { getText: () => string }) {
+  const [copied, setCopied] = useState(false);
+  const handle = async () => {
+    await navigator.clipboard.writeText(getText());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  };
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E]"
+    >
+      <AnimatePresence mode="wait">
+        {copied ? (
+          <motion.div
+            key="check"
+            initial={{ scale: 0.1 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0.1 }}
+            transition={{ duration: 0.25 }}
+          >
+            <Check className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="copy"
+            initial={{ scale: 0.1 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0.1 }}
+            transition={{ duration: 0.25 }}
+          >
+            <Copy className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </button>
+  );
+}
+
+// ─── Terminal Block ───────────────────────────────────────────────────────────
+
+const MANAGERS = ["npm", "pnpm", "yarn"] as const;
+type Manager = (typeof MANAGERS)[number];
+
+const CMD_RE = /^(npm|pnpm|yarn|npx|cd|git|rm|mv|touch|mkdir|ls|echo|cat)\b/;
+
+function TerminalLine({ line }: { line: string }) {
+  const match = line.match(CMD_RE);
+  if (!match) return <div className="text-[#397C3B] dark:text-[#58C760]">{line || <br />}</div>;
+  const prefix = match[0];
+  const rest = line.slice(prefix.length);
+  return (
+    <div>
+      <span className="text-[#7200C4] dark:text-[#B675F1]">{prefix}</span>
+      <span className="text-[#397C3B] dark:text-[#58C760]">{rest}</span>
+    </div>
+  );
+}
+
+interface TerminalData {
+  activeManager: Manager;
+  // Each slot holds the raw text for that tab.
+  // Empty string means the user never typed anything there — shown as empty.
+  npm: string;
+  pnpm: string;
+  yarn: string;
+}
+
+function TerminalBlock({ data }: { data: TerminalData }) {
+  const [active, setActive] = useState<Manager>(data.activeManager);
+  const contents: Record<Manager, string> = {
+    npm: data.npm,
+    pnpm: data.pnpm,
+    yarn: data.yarn,
+  };
+  const text = contents[active];
+  const lines = text ? text.split("\n") : [];
+
+  return (
+    <div className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Terminal className="size-4 text-neutral-500" />
+          <div className="flex gap-1 text-xs font-mono">
+            {MANAGERS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setActive(m)}
+                className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer ${
+                  active === m
+                    ? "bg-black text-white dark:bg-white dark:text-black"
+                    : "dark:bg-[#181818] bg-[#E8E8E8]"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+        <CopyButton getText={() => text} />
+      </div>
+
+      {/* Body */}
+      <div className="bg-white dark:bg-[#0A0A0A] w-full p-4 font-mono text-[13px] leading-[20px] overflow-x-auto">
+        <div className="whitespace-pre min-w-max">
+          {lines.length > 0 ? (
+            lines.map((line, i) => <TerminalLine key={i} line={line} />)
+          ) : (
+            <span className="text-paragraph opacity-40 italic">No content for {active}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── File Code Block ──────────────────────────────────────────────────────────
+
+// Reuse the exact same highlighter instance the editor already set up.
+// This guarantees vercel-light / vercel-dark are registered and avoids
+// a second download of the shiki bundle.
+function getHighlighter() {
+  return highlighterPromise;
+}
+
+interface FileData {
+  filename: string;
+  fileIcon: string;
+  highlightedLines: number[];
+  code: string;
+}
+
+function FileCodeBlock({ data }: { data: FileData }) {
+  const [lightHtml, setLightHtml] = useState<string | null>(null);
+  const [darkHtml, setDarkHtml] = useState<string | null>(null);
+
+  const getFileIcon = (lang: string) => {
+    switch (lang) {
+      case "ts":
+        return <BiLogoTypescript className="size-4 scale-130" />;
+      case "tsx":
+        return <SiNextdotjs className="size-4 scale-110" />;
+      case "js":
+        return <BiLogoJavascript className="size-4 scale-130" />;
+      case "jsx":
+        return <SiReact className="size-4 scale-130" />;
+      default:
+        return null;
+    }
+  };
+
+  const languages = ["ts", "tsx", "js", "jsx"];
+
+  useEffect(() => {
+    if (!data.code) return;
+    let active = true;
+    (async () => {
+      try {
+        const hl = await getHighlighter();
+        const opts = { defaultColor: false } as const;
+
+        const light = hl.codeToHtml(data.code, {
+          lang: languages.includes(data.fileIcon) ? data.fileIcon : "text",
+          themes: { light: "vercel-light", dark: "vercel-dark" },
+          ...opts,
+        });
+        const dark = hl.codeToHtml(data.code, {
+          lang: languages.includes(data.fileIcon) ? data.fileIcon : "text",
+          themes: { light: "vercel-light", dark: "vercel-dark" },
+          ...opts,
+        });
+
+        if (active) {
+          setLightHtml(light);
+          setDarkHtml(dark);
+        }
+      } catch (e) {
+        console.warn("Shiki highlight failed:", e);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [data.code]);
+
+  const lines = data.code.split("\n");
+  const commonFont = "font-mono text-[13px] leading-[20px]";
+
+  return (
+    <div className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="shrink-0 text-paragraph">{getFileIcon(data.fileIcon)}</span>
+          <span className={`${commonFont} text-paragraph truncate text-xs font-sans`}>
+            {data.filename}
+          </span>
+        </div>
+        <CopyButton getText={() => data.code} />
+      </div>
+
+      {/* Body */}
+      <div className="relative flex w-full overflow-x-auto bg-white dark:bg-[#0A0A0A]">
+        {/* Line numbers */}
+        <div className={`hidden sm:flex flex-col pt-5 pb-5 shrink-0 select-none ${commonFont}`}>
+          {lines.map((_: string, i: number) => {
+            const hl = data.highlightedLines?.includes(i);
+            return (
+              <div
+                key={i}
+                className={`pl-4 pr-3 text-right border-l-2 ${
+                  hl
+                    ? "border-[#0068D6] bg-[#EAF5FF] dark:border-[#52A8FF] dark:bg-[#0F233D] text-[#666666] dark:text-[#A0A0A0]"
+                    : "border-transparent text-paragraph"
+                }`}
+              >
+                {i + 1}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Grid stack: highlight bg (layer 0) + shiki (layer 1) */}
+        <div className={`relative min-w-max  grid grid-cols-1 grid-rows-1 flex-1 ${commonFont}`}>
+          {/* Layer 0 — highlight strip */}
+          <div className="col-start-1 row-start-1 pt-5 pb-5 pointer-events-none select-none flex flex-col z-0">
+            {lines.map((_: string, i: number) => {
+              const hl = data.highlightedLines?.includes(i);
+              return (
+                <div
+                  key={i}
+                  className={`w-full min-h-[20px] ${hl ? "bg-[#EAF5FF] dark:bg-[#0F233D] border-l-2 border-[#0068D6] dark:border-[#52A8FF] sm:border-none" : ""}`}
+                />
+              );
+            })}
+          </div>
+
+          {/* Layer 1 — Shiki light (hidden in dark mode) */}
+          <div
+            className={`col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-4 sm:pl-2 whitespace-pre overflow-visible min-w-max z-10 dark:hidden
+              [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:m-0!
+              [&>pre]:font-mono! [&>pre]:text-[13px]! [&>pre]:leading-[20px]! [&>pre]:whitespace-pre! [&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!
+              [&>pre>code]:font-mono! [&>pre>code]:text-[13px]! [&>pre>code]:leading-[20px]!
+              [&>pre>code]:whitespace-pre! [&>pre>code]:block! ${commonFont}`}
+          >
+            {lightHtml ? (
+              <div dangerouslySetInnerHTML={{ __html: lightHtml }} />
+            ) : (
+              <pre className="m-0 bg-transparent text-foreground">{data.code}</pre>
+            )}
+          </div>
+
+          {/* Layer 1 — Shiki dark (hidden in light mode) */}
+          <div
+            className={`col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-4 sm:pl-2 whitespace-pre overflow-visible min-w-max z-10 hidden dark:block
+              [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:m-0!
+              [&>pre]:font-mono! [&>pre]:text-[13px]! [&>pre]:leading-[20px]! [&>pre]:whitespace-pre! [&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!
+              [&>pre>code]:font-mono! [&>pre>code]:text-[13px]! [&>pre>code]:leading-[20px]!
+              [&>pre>code]:whitespace-pre! [&>pre>code]:block! ${commonFont}`}
+          >
+            {darkHtml ? (
+              <div
+                dangerouslySetInnerHTML={{ __html: darkHtml }}
+                className="[&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!"
+              />
+            ) : (
+              <pre className="m-0 bg-transparent text-foreground ">{data.code}</pre>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── HTML chunk (everything that isn't a custom block) ───────────────────────
+
+function HtmlChunk({ html }: { html: string }) {
+  return (
+    <div
+      className="
+        [&_strong]:font-bold [&_strong]:text-paragraph
+        [&_b]:font-bold [&_b]:text-paragraph
+        [&_em]:italic [&_i]:italic
+
+        [&_p]:my-2 [&_p]:leading-relaxed
+
+        [&_ul]:pl-4 [&_ul]:list-disc  [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-2
+        [&_ol]:pl-4 [&_ol]:list-decimal [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-2
+
+        [&_h1]:text-3xl    [&_h1]:font-black    [&_h1]:text-black dark:[&_h1]:text-white [&_h1]:leading-tight [&_h1]:my-4
+        [&_h2]:text-2xl    [&_h2]:font-bold     [&_h2]:text-black dark:[&_h2]:text-white [&_h2]:my-3
+        [&_h3]:text-xl     [&_h3]:font-semibold [&_h3]:text-black dark:[&_h3]:text-white [&_h3]:my-3
+
+        [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm
+        [&_pre_code]:bg-transparent [&_pre_code]:p-0
+
+        [&_blockquote]:border-l-4 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-6
+        [&_blockquote]:border-[#EAEAEA] dark:[&_blockquote]:border-[#1E1E1E]
+
+        [&_hr]:my-8 [&_hr]:border-t-2 [&_hr]:border-[#EAEAEA] dark:[&_hr]:border-[#1E1E1E]
+
+        [&_a]:text-primary [&_a:hover]:underline
+
+        [&_.badge]:inline-flex [&_.badge]:items-center [&_.badge]:px-2 [&_.badge]:py-0.5
+        [&_.badge]:rounded [&_.badge]:text-xs [&_.badge]:font-medium
+        [&_.badge]:bg-primary/10 [&_.badge]:text-primary
+
+        [&_.caption]:block [&_.caption]:my-4 [&_.caption]:text-sm [&_.caption]:italic
+        [&_.caption]:text-paragraph [&_.caption]:text-center
+
+        [&_table]:table-fixed [&_table]:my-16 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative 
+        [&_table]:border-separate [&_table]:border-spacing-0 [&_table]:[scrollbar-width:none] [&_table]:[-ms-overflow-style:none] [&_table]:[&::-webkit-scrollbar]:hidden
+        [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden [&_table]:justify-center-safe
+        [&_table]:mask-[linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
+        [&_table]:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
+        [&_td]:min-w-[150px] [&_td]:max-w-[150px]
+        [&_th]:min-w-[150px] [&_th]:max-w-[150px]
+
+        [&_td]:h-16 [&_th]:h-16
+
+        [&_th]:border-t [&_th]:border-l [&_th]:border-[#EAEAEA] dark:[&_th]:border-[#1E1E1E]
+        [&_td]:border-t [&_td]:border-l [&_td]:border-[#EAEAEA] dark:[&_td]:border-[#1E1E1E]
+        [&_tr_th:last-child]:border-r [&_tr_td:last-child]:border-r
+        [&_tr:last-child_td]:border-b [&_tr:last-child_th]:border-b
+
+        [&_tr:first-child_th:first-child]:rounded-tl-xl [&_tr:first-child_td:first-child]:rounded-tl-xl
+        [&_tr:first-child_th:last-child]:rounded-tr-xl  [&_tr:first-child_td:last-child]:rounded-tr-xl
+        [&_tr:last-child_th:first-child]:rounded-bl-xl  [&_tr:last-child_td:first-child]:rounded-bl-xl
+        [&_tr:last-child_th:last-child]:rounded-br-xl   [&_tr:last-child_td:last-child]:rounded-br-xl
+
+        [&_th]:bg-[#FAFAFA] dark:[&_th]:bg-black [&_th]:font-bold [&_th]:align-middle [&_th]:text-center
+        [&_td]:bg-white dark:[&_td]:bg-[#0A0A0A] [&_td]:align-middle [&_td]:text-center
+      "
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+// ─── Parser ───────────────────────────────────────────────────────────────────
+
+type PostNode =
+  | { kind: "html"; html: string }
+  | { kind: "terminal"; data: TerminalData }
+  | { kind: "file"; data: FileData };
+
+function parsePostHtml(html: string): PostNode[] {
+  if (typeof window === "undefined") return [{ kind: "html", html }];
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  const nodes: PostNode[] = [];
+  let htmlBuffer = "";
+
+  const flush = () => {
+    if (htmlBuffer.trim()) {
+      nodes.push({ kind: "html", html: htmlBuffer });
+      htmlBuffer = "";
+    }
+  };
+
+  Array.from(doc.body.childNodes).forEach((child) => {
+    // Text nodes — accumulate as HTML
+    if (child.nodeType !== Node.ELEMENT_NODE) {
+      htmlBuffer += (child as Text).textContent ?? "";
+      return;
+    }
+
+    const el = child as Element;
+
+    // ── Terminal block ────────────────────────────────────────────────────────
+    if (el.getAttribute("data-type") === "terminal-block") {
+      flush();
+      const mgr = (el.getAttribute("data-package-manager") ?? "npm") as Manager;
+      // The active tab's live text is inside the element's textContent.
+      // The other tabs are stored in data attributes (set by renderHTML).
+      const live = el.textContent ?? "";
+
+      // Build each slot: if this is the active manager use live text,
+      // otherwise pull from the data attribute (which may be "" if never filled).
+      const npm = mgr === "npm" ? live : (el.getAttribute("data-npm-content") ?? "");
+      const pnpm = mgr === "pnpm" ? live : (el.getAttribute("data-pnpm-content") ?? "");
+      const yarn = mgr === "yarn" ? live : (el.getAttribute("data-yarn-content") ?? "");
+
+      nodes.push({ kind: "terminal", data: { activeManager: mgr, npm, pnpm, yarn } });
+      return;
+    }
+
+    // ── File code block ───────────────────────────────────────────────────────
+    // renderHTML produces: <pre data-type="file-code-block" data-*="..."><code>…</code></pre>
+    if (el.tagName === "PRE" && el.getAttribute("data-type") === "file-code-block") {
+      flush();
+      const codeEl = el.querySelector("code");
+
+      let highlightedLines: number[] = [];
+      try {
+        const raw = el.getAttribute("data-highlighted-lines") ?? "[]";
+        const parsed = JSON.parse(raw);
+        // Guard against double-encoded arrays stored as strings
+        highlightedLines = Array.isArray(parsed) ? parsed : JSON.parse(parsed);
+      } catch {
+        /* empty array fallback */
+      }
+
+      nodes.push({
+        kind: "file",
+        data: {
+          filename: el.getAttribute("data-filename") ?? "example.tsx",
+          fileIcon: el.getAttribute("data-file-icon") ?? "tsx",
+          highlightedLines,
+          code: codeEl?.textContent ?? "",
+        },
+      });
+      return;
+    }
+
+    // ── Everything else ───────────────────────────────────────────────────────
+    htmlBuffer += el.outerHTML;
+  });
+
+  flush();
+  return nodes;
+}
+
+// ─── PostContent ──────────────────────────────────────────────────────────────
+
+interface PostContentProps {
+  html: string;
+  className?: string;
+}
+
+export function PostContent({ html, className = "" }: PostContentProps) {
+  const [mounted, setMounted] = useState(false);
+  const [nodes, setNodes] = useState<PostNode[]>([]);
+
+  useEffect(() => {
+    setNodes(parsePostHtml(html));
+    setMounted(true);
+  }, [html]);
+
+  const base = `text-lg leading-relaxed text-paragraph w-full ${className}`;
+
+  if (!mounted) {
+    return (
+      <div
+        className={base}
+        style={{ visibility: "hidden" }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  }
+
+  return (
+    <article className={base}>
+      {nodes.map((node, i) => {
+        if (node.kind === "html") return <HtmlChunk key={i} html={node.html} />;
+        if (node.kind === "terminal") return <TerminalBlock key={i} data={node.data} />;
+        if (node.kind === "file") return <FileCodeBlock key={i} data={node.data} />;
+        return null;
+      })}
+    </article>
+  );
+}

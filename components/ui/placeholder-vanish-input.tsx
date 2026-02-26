@@ -131,12 +131,14 @@ export function PlaceholdersAndVanishInput({
         ref={inputRef}
         value={value}
         type="email"
+        name="email"
+        autoComplete="email"
         required
         placeholder={placeholder}
         pattern={EMAIL_REGEX.source}
         onChange={(e) => !animating && setValue(e.target.value)}
         className={cn(
-          "w-full h-full bg-transparent pl-4 pr-32 text-sm sm:text-base text-paragraph outline-none truncate",
+          "w-full h-full bg-transparent pl-4 pr-32 text-sm sm:text-base text-black dark:text-white outline-none truncate",
           animating && "text-transparent"
         )}
       />

@@ -17,15 +17,36 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
     setMounted(true);
   }, []);
 
+  function normalizeLang(lang?: string) {
+    if (!lang) return "tsx";
+
+    const map: Record<string, string> = {
+      typescriptreact: "tsx",
+      javascriptreact: "jsx",
+      typescript: "ts",
+      javascript: "js",
+    };
+
+    return map[lang] ?? lang;
+  }
+
   useEffect(() => {
     let isActive = true;
     async function highlight() {
       const highlighter = await highlighterPromise;
+
+      let lang = normalizeLang(node.attrs.language);
+
+      if (!highlighter.getLoadedLanguages().includes(lang)) {
+        lang = "tsx";
+      }
+
       const result = highlighter.codeToHtml(node.textContent || "", {
-        lang: node.attrs.language,
+        lang,
         themes: { light: "vercel-light", dark: "vercel-dark" },
         defaultColor: false,
       });
+
       if (isActive) setHtml(result);
     }
     highlight();
@@ -63,13 +84,13 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
   const getFileIcon = (lang: string) => {
     switch (lang) {
       case "ts":
-        return <BiLogoTypescript className="size-4" />;
+        return <BiLogoTypescript className="size-4 scale-130" />;
       case "tsx":
-        return <SiNextdotjs className="size-4" />;
+        return <SiNextdotjs className="size-4 scale-110" />;
       case "js":
-        return <BiLogoJavascript className="size-4" />;
+        return <BiLogoJavascript className="size-4 scale-130" />;
       case "jsx":
-        return <SiReact className="size-4" />;
+        return <SiReact className="size-4 scale-130" />;
       default:
         return null;
     }
@@ -82,7 +103,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
   const lines = node.textContent.split("\n");
 
   return (
-    <NodeViewWrapper className="my-8 rounded-lg overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <NodeViewWrapper className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
       {/* HEADER */}
       <div
         contentEditable={false}
@@ -106,8 +127,9 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
           </button>
           <input
             value={node.attrs.filename}
+            name="code block"
             onChange={(e) => updateAttributes({ filename: e.target.value })}
-            className="bg-transparent text-[14px] w-30 sm:w-60 outline-none text-paragraph focus:text-black dark:focus:text-white font-sans truncate"
+            className="bg-transparent text-xs w-30 sm:w-60 outline-none text-paragraph focus:text-black dark:focus:text-white font-sans truncate"
           />
         </div>
         <button
@@ -172,13 +194,13 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
         </div>
 
         {/* CODE STACK (GRID) */}
-        <div className="relative min-w-0 grid grid-cols-1 grid-rows-1 flex-1">
+        <div className="relative min-w-max grid grid-cols-1 grid-rows-1 flex-1">
           {/* LAYER 0: HIGHLIGHT BACKGROUND */}
           {/* This layer sits behind text and renders the color strip for the selected line */}
           <div
             className={`
-            col-start-1 row-start-1 pt-5 pb-5 pr-4 z-0
-            pointer-events-none min-w-max select-none
+            col-start-1 row-start-1 pt-5 pb-5 z-0
+            pointer-events-none min-w-max! select-none
             flex flex-col
             ${commonFont}
           `}
@@ -201,7 +223,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
           <div
             className={`
               shiki-block col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-2 !bg-transparent z-10
-              pointer-events-none whitespace-pre overflow-visible min-w-max
+              pointer-events-none whitespace-pre overflow-visible min-w-max [&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!
               [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!font-mono [&>pre]:!text-[13px] [&>pre]:!leading-[20px] [&>pre]:!whitespace-pre
               [&>pre>code]:!font-mono [&>pre>code]:!text-[13px] [&>pre>code]:!leading-[20px] [&>pre>code]:!whitespace-pre [&>pre>code]:!block
               ${commonFont}
@@ -214,10 +236,10 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
             as="pre"
             className={`
               col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-2
-              whitespace-pre outline-none min-w-max
+              whitespace-pre outline-none min-w-max 
               text-transparent !bg-transparent z-20
               caret-black dark:caret-white
-              !m-0
+              !m-0 [&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!
               [&>code]:!m-0 [&>code]:!p-0 [&>code]:!font-mono [&>code]:!text-[13px] [&>code]:!leading-[20px] [&>code]:!bg-transparent [&>code]:!block [&>code]:!whitespace-pre
               ${commonFont}
             `}

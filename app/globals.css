@@ -58,7 +58,6 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --table-border: #EAEAEA;
 }
 
 :root {
@@ -67,8 +66,8 @@
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
+  --popover: #FFFFFF;
+  --popover-foreground: #0A0A0A;
   --primary: oklch(0.66 0.23 41);
   --primary-foreground: oklch(0.98 0.01 95);
   --secondary: oklch(0.967 0.001 286.375);
@@ -77,8 +76,8 @@
   --muted-foreground: oklch(0.552 0.016 285.938);
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
+  --destructive: #CB2A2E;
+  --border: #EAEAEA;
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.72 0.19 41);
   --chart-1: oklch(0.82 0.13 41);
@@ -94,6 +93,8 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.72 0.19 41);
+    --table-border: #EAEAEA;
+
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation: none;
@@ -106,8 +107,8 @@
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.21 0.006 285.885);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
+  --popover: #000000;
+  --popover-foreground: #FAFAFA;
   --primary: oklch(0.69 0.22 41);
   --primary-foreground: oklch(0.98 0.01 95);
   --secondary: oklch(0.274 0.006 286.033);
@@ -116,8 +117,8 @@
   --muted-foreground: oklch(0.705 0.015 286.067);
   --accent: oklch(0.274 0.006 286.033);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --destructive: #FF6166;
+  --border: #1E1E1E;
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.55 0.18 41);
   --chart-1: oklch(0.82 0.13 41);
@@ -133,7 +134,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.55 0.18 41);
-  --table-border: #1E1E1E:
+  --table-border: #1E1E1E;
 
   ::selection {
     background-color: #FF5800;
@@ -197,4 +198,16 @@ html:not(.dark) .shiki,
 html:not(.dark) .shiki span {
   color: var(--shiki-light) !important;
   background-color: transparent !important;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #A0A0A0;
+  pointer-events: none;
+  height: 0;
+}
+
+.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: #666666;
 }

@@ -48,17 +48,24 @@ import {
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./input";
+import { LimitTableRows } from "@/lib/extension/limit-table-rows";
 
 interface RichTextEditorProps {
   value?: string;
   onChange?: (content: string, html: string) => void;
   placeholder?: string;
+  hasError?: boolean;
+  name?: string;
+  id?: string;
 }
 
 export function RichTextEditor({
   value,
   onChange,
   placeholder = "Start writing...",
+  hasError = false,
+  name,
+  id,
 }: RichTextEditorProps) {
   const [, forceUpdate] = useState(0);
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -67,7 +74,6 @@ export function RichTextEditor({
   const [isLinkOpen, setIsLinkOpen] = useState(false);
   const [linkValue, setLinkValue] = useState("");
   const [isLinkExsists, setIsLinkExists] = useState(false);
-  const [isEditorFocused, setIsEditorFocused] = useState(false);
 
   // Table Configuration State
   const [tableRows, setTableRows] = useState(3);
@@ -77,9 +83,7 @@ export function RichTextEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
+        heading: { levels: [1, 2, 3] },
         codeBlock: false,
         link: false,
       }),
@@ -103,9 +107,8 @@ export function RichTextEditor({
         },
       }),
       TableDeleteExtension,
-      Placeholder.configure({
-        placeholder,
-      }),
+      LimitTableRows,
+      Placeholder.configure({ placeholder }),
       Link.configure({
         openOnClick: false,
         linkOnPaste: true,
@@ -114,25 +117,23 @@ export function RichTextEditor({
         types: ["heading", "paragraph", "caption"],
       }),
     ],
-    onFocus: () => {
-      setIsEditorFocused(true);
+    editorProps: {
+      attributes: {
+        ...(id ? { id } : {}),
+        ...(name ? { name } : {}),
+        role: "textbox",
+        "aria-multiline": "true",
+      },
     },
-    onBlur: ({ event }) => {
-      const relatedTarget = event.relatedTarget as HTMLElement | null;
-
-      if (!editorRef.current?.contains(relatedTarget)) {
-        setIsEditorFocused(false);
-      }
-    },
-    content: value || "<p></p>",
-    onSelectionUpdate: () => {
-      forceUpdate((n) => n + 1);
-    },
+    content: value ?? "",
+    onSelectionUpdate: () => forceUpdate((n) => n + 1),
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       const text = editor.getText();
       onChange?.(text, html);
     },
+    // Required for SSR — prevents TipTap from rendering on the server
+    // which causes hydration mismatches in both Chrome and Safari.
     immediatelyRender: false,
   });
 
@@ -150,10 +151,7 @@ export function RichTextEditor({
         setIsInputFocused(true);
       }
     };
-
-    const handleFocusOut = () => {
-      setIsInputFocused(false);
-    };
+    const handleFocusOut = () => setIsInputFocused(false);
 
     const el = editorRef.current;
     if (el) {
@@ -168,16 +166,18 @@ export function RichTextEditor({
     };
   }, []);
 
-  if (!editor) {
-    return null;
-  }
+  if (!editor) return null;
 
   const isFormattingDisabled =
     editor.isActive("fileCodeBlock") ||
     editor.isActive("terminalBlock") ||
     editor.isActive("table");
 
-  const isToolbarDisabled = !isEditorFocused || isFormattingDisabled;
+  // Do NOT gate on isEditorFocused — in Safari, blur fires before the button click,
+  // so isEditorFocused is already false when the handler runs, disabling the button
+  // and swallowing the click. Keyboard shortcuts worked because they bypass disabled.
+  // Only disable when the action is genuinely impossible (wrong node type).
+  const isToolbarDisabled = isFormattingDisabled;
 
   const handleRowChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value);
@@ -198,23 +198,13 @@ export function RichTextEditor({
   const isTableActive = editor.isActive("table");
 
   const insertCustomTable = () => {
-    editor
-      .chain()
-      .focus()
-      .insertTable({
-        rows: tableRows,
-        cols: tableCols,
-        withHeaderRow: withHeaderRow,
-      })
-      .run();
+    editor.chain().focus().insertTable({ rows: tableRows, cols: tableCols, withHeaderRow }).run();
     setShowTableMenu(false);
   };
 
   const handleToggleLink = () => {
     if (!editor || isFormattingDisabled) return;
-
     const previousUrl = editor.getAttributes("link").href as string | undefined;
-
     setLinkValue(previousUrl ?? "https://");
     setIsLinkOpen(true);
     setIsLinkExists(previousUrl ? true : false);
@@ -222,26 +212,28 @@ export function RichTextEditor({
 
   const handleConfirmLink = () => {
     if (!editor) return;
-
     if (!linkValue.trim()) {
       editor.chain().focus().unsetLink().run();
     } else {
       editor.chain().focus().extendMarkRange("link").setLink({ href: linkValue }).run();
     }
-
     setIsLinkOpen(false);
   };
 
   return (
     <div
       ref={editorRef}
-      className="border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg overflow-hidden"
+      className={`border rounded-lg overflow-hidden ${
+        hasError
+          ? "border-[#CB2A2E] dark:border-[#FF6166] hover:border-[#CB2A2E] hover:dark:border-[#FF6166] hover:outline-[#F9B9BA] hover:dark:outline-[#822125] outline-[#FFE6E6] dark:outline-[#561A1E] focus:outline-[#FFE6E6] focus:dark:outline-[#561A1E] outline-3 focus:border-[#CB2A2E] focus:dark:border-[#FF6166]"
+          : "border-[#EAEAEA] dark:border-[#1E1E1E]"
+      }`}
     >
       <div className="flex items-center gap-1 sm:gap-2 bg-white/50 dark:bg-black/50 p-2 flex-wrap border-b border-[#EAEAEA] dark:border-[#1E1E1E]">
         <Button
           type="button"
           onClick={() => editor.chain().focus().undo().run()}
-          disabled={!isEditorFocused || !editor.can().chain().focus().undo().run()}
+          disabled={!editor.can().chain().focus().undo().run()}
           variant="outline"
           size="sm"
           title="Undo"
@@ -251,7 +243,7 @@ export function RichTextEditor({
         <Button
           type="button"
           onClick={() => editor.chain().focus().redo().run()}
-          disabled={!isEditorFocused || !editor.can().chain().focus().redo().run()}
+          disabled={!editor.can().chain().focus().redo().run()}
           variant="outline"
           size="sm"
           title="Redo"
@@ -261,7 +253,6 @@ export function RichTextEditor({
 
         <div className="hidden sm:block w-px h-6 bg-border" />
 
-        {/* TEXT STYLES */}
         <Button
           type="button"
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -424,7 +415,6 @@ export function RichTextEditor({
 
         <div className="hidden sm:block w-px h-6 bg-border" />
 
-        {/* INSERTS */}
         <Button
           type="button"
           onClick={() => editor.chain().focus().insertContent({ type: "fileCodeBlock" }).run()}
@@ -446,7 +436,6 @@ export function RichTextEditor({
           <Terminal className="h-4 w-4" />
         </Button>
 
-        {/* TABLE DROPDOWN */}
         <div className="relative">
           <Popover>
             <PopoverTrigger asChild>
@@ -467,9 +456,15 @@ export function RichTextEditor({
                 </div>
                 <div className="flex gap-2">
                   <div className="flex flex-col gap-1 flex-1">
-                    <label className="text-[10px] uppercase font-bold text-paragraph">Rows</label>
+                    <label
+                      htmlFor="rows"
+                      className="text-[10px] uppercase font-bold text-paragraph"
+                    >
+                      Rows
+                    </label>
                     <input
                       type="number"
+                      id="rows"
                       min="1"
                       max="20"
                       value={tableRows}
@@ -484,9 +479,15 @@ export function RichTextEditor({
                     />
                   </div>
                   <div className="flex flex-col gap-1 flex-1">
-                    <label className="text-[10px] uppercase font-bold text-paragraph">Cols</label>
+                    <label
+                      htmlFor="cols"
+                      className="text-[10px] uppercase font-bold text-paragraph"
+                    >
+                      Cols
+                    </label>
                     <input
                       type="number"
+                      id="cols"
                       min="2"
                       max="6"
                       value={tableCols}
@@ -501,18 +502,20 @@ export function RichTextEditor({
                     />
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-2 pt-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer transition-colors w-26">
+                  <label
+                    htmlFor="checkbox"
+                    className="flex items-center gap-2 text-sm cursor-pointer transition-colors w-26"
+                  >
                     <Checkbox
                       checked={withHeaderRow}
+                      id="checkbox"
                       onCheckedChange={(checked) => setWithHeaderRow(checked === true)}
                       className="accent-primary cursor-pointer"
                     />
                     Header Row
                   </label>
                 </div>
-
                 <Button
                   type="button"
                   onClick={insertCustomTable}
@@ -535,6 +538,9 @@ export function RichTextEditor({
 
       <EditorContent
         editor={editor}
+        id={id}
+        name={name}
+        onMouseDown={() => editor.chain().focus().run()}
         className="
           relative prose prose-neutral dark:prose-invert max-w-none
           px-4 py-6 h-[500px] overflow-y-auto cursor-text text-paragraph
@@ -596,22 +602,16 @@ export function RichTextEditor({
           [&_.ProseMirror_a:hover]:underline
           hover:[&_.ProseMirror_a]:cursor-pointer
 
-          [&_.ProseMirror_table]:table-fixed
-          [&_.ProseMirror_table]:my-4
-          [&_.ProseMirror_table]:rounded-xl
-          [&_.ProseMirror_table]:border-separate
-          [&_.ProseMirror_table]:border-spacing-0
+          [&_table]:table-fixed [&_table]:my-16 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative
+          [&_table]:border-separate [&_table]:border-spacing-0
+          [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden [&_table]:justify-center-safe
+          [&_table]:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
+          [&_table]:[mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
+          [&_table]:[scrollbar-width:none] [&_table]:[-ms-overflow-style:none] [&_table]:[&::-webkit-scrollbar]:hidden
+          [&_td]:min-w-[150px] [&_td]:max-w-[150px]
+          [&_th]:min-w-[150px] [&_th]:max-w-[150px]
+          [&_td]:h-16 [&_th]:h-16
 
-          [&_.ProseMirror_table]:flex
-          [&_.ProseMirror_table]:justify-center-safe
-
-          [&_.ProseMirror_table]:w-full
-
-          [&_.ProseMirror_table]:overflow-x-auto           
-
-          [&_.ProseMirror_table]:mask-[linear-gradient(to_right,black_90%,transparent_100%)]
-          [&_.ProseMirror_table]:webk-mask-[linear-gradient(to_right,black_90%,transparent_100%)]
-          
           [&_.ProseMirror_td]:min-w-[150px]
           [&_.ProseMirror_td]:max-w-[150px]
           [&_.ProseMirror_th]:min-w-[150px]
@@ -629,35 +629,32 @@ export function RichTextEditor({
 
           [&_.ProseMirror_tr_th:last-child]:border-r
           [&_.ProseMirror_tr_td:last-child]:border-r
-          
+
           [&_.ProseMirror_tr:last-child_td]:border-b
           [&_.ProseMirror_tr:last-child_th]:border-b
 
           [&_.ProseMirror_tr:first-child_th:first-child]:rounded-tl-xl
           [&_.ProseMirror_tr:first-child_td:first-child]:rounded-tl-xl
-
           [&_.ProseMirror_tr:first-child_th:last-child]:rounded-tr-xl
           [&_.ProseMirror_tr:first-child_td:last-child]:rounded-tr-xl
-
           [&_.ProseMirror_tr:last-child_th:first-child]:rounded-bl-xl
           [&_.ProseMirror_tr:last-child_td:first-child]:rounded-bl-xl
-
           [&_.ProseMirror_tr:last-child_th:last-child]:rounded-br-xl
           [&_.ProseMirror_tr:last-child_td:last-child]:rounded-br-xl
 
           [&_.ProseMirror_th]:bg-[#FAFAFA]
           dark:[&_.ProseMirror_th]:bg-black
           [&_.ProseMirror_th]:font-bold
-          [&_.ProseMirror_th]:p-2
+          [&_.ProseMirror_th]:py-4
           [&_.ProseMirror_th]:align-middle
           [&_.ProseMirror_th]:text-center
 
           [&_.ProseMirror_td]:bg-white
           dark:[&_.ProseMirror_td]:bg-[#0A0A0A]
-          [&_.ProseMirror_td]:p-2
+          [&_.ProseMirror_td]:py-4
           [&_.ProseMirror_td]:align-middle
           [&_.ProseMirror_td]:text-center
-          "
+        "
       />
 
       <AlertDialog open={isLinkOpen} onOpenChange={setIsLinkOpen}>
@@ -668,27 +665,14 @@ export function RichTextEditor({
               Enter a new link for the selected text
             </AlertDialogDescription>
           </AlertDialogHeader>
-
+          <label htmlFor="link-url"></label>
           <Input
+            id="link-url"
             value={linkValue}
             onChange={(e) => setLinkValue(e.target.value)}
             placeholder="https://example.com"
-            autoFocus
           />
-
           <AlertDialogFooter>
-            {isLinkExsists && (
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  editor?.chain().focus().unsetLink().run();
-                  setIsLinkOpen(false);
-                }}
-                className="h-9"
-              >
-                Remove
-              </Button>
-            )}
             <AlertDialogCancel variant="secondary">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmLink}
@@ -702,6 +686,18 @@ export function RichTextEditor({
             >
               Save
             </AlertDialogAction>
+            {isLinkExsists && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  editor?.chain().focus().unsetLink().run();
+                  setIsLinkOpen(false);
+                }}
+                className="h-8.5"
+              >
+                Remove
+              </Button>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

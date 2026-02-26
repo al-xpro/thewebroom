@@ -3,7 +3,7 @@ import { Extension } from "@tiptap/core";
 export const TableDeleteExtension = Extension.create({
   name: "tableDelete",
   
-  priority: 1000, // High priority to run before other extensions
+  priority: 1000,
 
   addKeyboardShortcuts() {
     return {

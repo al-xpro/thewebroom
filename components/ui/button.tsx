@@ -5,17 +5,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center cursor-pointer gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center cursor-pointer gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
-        default: "bg-primary border border-transparent text-primary-foreground bg-[#FFEEE8] dark:bg-[#1C0600] text-primary border-primary hover:bg-primary/30 dark:hover:bg-primary/20",
+        default: "bg-primary border border-transparent text-primary-foreground bg-[#FFEEE8] dark:bg-[#1C0600] text-primary border-primary enabled:hover:bg-primary/30 dark:enabled:hover:bg-primary/20",
         destructive:
-          "bg-destructive text-white cursor-pointer dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 hover:bg-[#AE2A2E] bg-[#DA2E34] dark:hover:bg-[#FF6166] dark:bg-[#D93036]",
+          "text-destructive bg-destructive text-white dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 enabled:hover:bg-[#AE2A2E] bg-[#DA2E34] dark:enabled:hover:bg-[#FF6166] dark:bg-[#D93036]",
         outline:
           "border bg-transparent shadow-xs hover:bg-accent hover:text-primary dark:focus-visible:border-primary dark:border-input hover:bg-[#FFEEE8] dark:hover:bg-[#1C0600]",
         secondary:
-          "text-black dark:text-white border border-[#EAEAEA] dark:border-[#282828] bg-white dark:bg-black hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E]",
+          "text-black dark:text-white border border-[#EAEAEA] dark:border-[#282828] bg-white dark:bg-black hover:bg-[#d9d9d9] dark:hover:bg-[#1E1E1E]",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",

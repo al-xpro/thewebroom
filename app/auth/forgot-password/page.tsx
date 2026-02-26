@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import z from "zod";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -36,9 +37,9 @@ export default function ForgotPasswordPage() {
       await requestPasswordReset({ email: values.email });
       setSubmittedEmail(values.email);
       setSubmitted(true);
-      toast.success("Check your email for the password reset code");
+      showSuccessToast("Check your email for the password reset code");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send reset email");
+      showErrorToast(error instanceof Error ? error.message : "Failed to send reset email");
     }
   }
 

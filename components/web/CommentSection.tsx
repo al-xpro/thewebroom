@@ -1,31 +1,41 @@
 "use client";
 
-import { Loader2, MessageSquare, Edit2, Trash2, MessageCircle, MessagesSquare } from "lucide-react";
+import { Loader2, Edit2, Trash2, MessagesSquare, ArrowUp } from "lucide-react";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { commentSchema } from "@/app/schemas/comment";
-import { Field, FieldError, FieldLabel } from "../ui/field";
+import { Field, FieldError } from "../ui/field";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
-import { useParams } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import z from "zod";
-import { toast } from "sonner";
 import { useTransition, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Separator } from "../ui/separator";
 import { Preloaded, usePreloadedQuery } from "convex/react";
 import { useConvexAuth } from "convex/react";
-import Link from "next/link";
-import { buttonVariants } from "../ui/button";
+import { showErrorToast, showSuccessToast } from "../ui/toast";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { formatDistanceToNow } from "date-fns";
 
 export function CommentSection(props: {
   preloadedComments: Preloaded<typeof api.comment.getCommentsByPostId>;
+  postId: Id<"posts">;
+  postAuthorId: string;
 }) {
-  const params = useParams<{ postId: Id<"posts"> }>();
   const data = usePreloadedQuery(props.preloadedComments);
   const { isAuthenticated, isLoading } = useConvexAuth();
   const [isPending, startTransition] = useTransition();
@@ -33,36 +43,65 @@ export function CommentSection(props: {
   const [editingId, setEditingId] = useState<Id<"comments"> | null>(null);
   const [editText, setEditText] = useState("");
 
-  const currentUser = useQuery(api.auth.getCurrentUser);
+  // Same pattern as the comment form: errors only shown on submit,
+  // cleared immediately when the user starts typing.
+  const [visibleErrors, setVisibleErrors] = useState<{ body?: string }>({});
+  // Separate error state for the edit textarea
+  const [editVisibleError, setEditVisibleError] = useState<string | undefined>();
+
+  const currentUser = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
+
+  const isAdminUser =
+    useQuery(api.comment.getIsAdmin, isAuthenticated ? undefined : "skip") ?? false;
   const createComment = useMutation(api.comment.createComment);
   const updateComment = useMutation(api.comment.updateComment);
   const deleteComment = useMutation(api.comment.deleteComment);
 
-  const form = useForm({
+  const form = useForm<z.infer<typeof commentSchema>>({
     resolver: zodResolver(commentSchema),
     defaultValues: {
       body: "",
-      postId: params.postId,
+      postId: props.postId,
     },
   });
 
-  async function onSubmit(data: z.infer<typeof commentSchema>) {
+  async function onSubmit(values: z.infer<typeof commentSchema>) {
     startSubmit(async () => {
       try {
-        await createComment(data);
+        await createComment(values);
         form.reset();
-        toast.success("Comment posted");
+        setVisibleErrors({});
+        showSuccessToast("Comment posted");
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Failed to create comment"
-        );
+        const msg = error instanceof Error ? error.message : "Failed to create comment";
+        // Rate limit errors come back from the server with a specific message.
+        // Show them inline under the textarea so the user understands why
+        // their comment wasn't posted rather than seeing a generic toast.
+        if (msg.toLowerCase().includes("rate limit")) {
+          setVisibleErrors({ body: msg });
+        } else {
+          showErrorToast(msg);
+        }
       }
     });
   }
 
+  function onInvalid(fieldErrors: typeof form.formState.errors) {
+    setVisibleErrors({ body: fieldErrors.body?.message });
+  }
+
   async function handleEditComment(commentId: Id<"comments">) {
-    if (!editText.trim()) {
-      toast.error("Comment cannot be empty");
+    // Use flatten() to safely extract field-level error messages.
+    // Zod's raw .issues array contains all errors across all fields with
+    // path arrays — flatten() maps them to { fieldErrors, formErrors }
+    // making it safe to pull the body message without path traversal.
+    const result = commentSchema.safeParse({ body: editText, postId: props.postId });
+    if (!result.success) {
+      const msg =
+        result.error.flatten().fieldErrors.body?.[0] ??
+        result.error.flatten().formErrors[0] ??
+        "Invalid comment";
+      setEditVisibleError(msg);
       return;
     }
 
@@ -71,26 +110,21 @@ export function CommentSection(props: {
         await updateComment({ commentId, body: editText });
         setEditingId(null);
         setEditText("");
-        toast.success("Comment updated");
+        setEditVisibleError(undefined);
+        showSuccessToast("Comment updated");
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Failed to update comment"
-        );
+        showErrorToast(error instanceof Error ? error.message : "Failed to update comment");
       }
     });
   }
 
   async function handleDeleteComment(commentId: Id<"comments">) {
-    if (!confirm("Are you sure you want to delete this comment?")) return;
-
     startTransition(async () => {
       try {
         await deleteComment({ commentId });
-        toast.success("Comment deleted");
+        showSuccessToast("Comment deleted");
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Failed to delete comment"
-        );
+        showErrorToast(error instanceof Error ? error.message : "Failed to delete comment");
       }
     });
   }
@@ -98,8 +132,6 @@ export function CommentSection(props: {
   if (data === undefined) {
     return <p>loading...</p>;
   }
-
-  const isAdmin = currentUser?._id === process.env.NEXT_PUBLIC_ADMIN_ID;
 
   return (
     <Card className="w-full">
@@ -109,58 +141,67 @@ export function CommentSection(props: {
       </CardHeader>
       <CardContent className="space-y-8">
         {!isLoading && !isAuthenticated ? (
-          <div className="rounded-lg border border-primary/20 bg-primary/5 p-6 text-center space-y-4">
+          <div className="rounded-lg border border-primary bg-primary/10 p-6 text-center space-y-4">
             <p className="text-sm text-muted-foreground">
               You need to be signed in to leave a comment.
             </p>
-            <div className="flex items-center justify-center gap-3">
-              <Link
-                href="/auth/sign-up"
-                className={buttonVariants({ size: "sm" })}
-              >
-                Sign up
-              </Link>
-              <Link
-                href="/auth/login"
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-              >
-                Log in
-              </Link>
-            </div>
           </div>
         ) : (
-          <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+          <form className="relative" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
             <Controller
               name="body"
               control={form.control}
-              render={({ field, fieldState }) => (
+              render={({ field }) => (
                 <Field>
-                  <FieldLabel>Start a conversation with the community</FieldLabel>
-                  <Textarea
-                    aria-invalid={fieldState.invalid}
-                    rows={3}
-                    wrap="soft"
-                    className="resize-none"
-                    placeholder="Share your thoughts"
-                    {...field}
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
+                  <label
+                    htmlFor="comment-body"
+                    className="text-black dark:text-white font-bold cursor-text"
+                  >
+                    Start a conversation with the community
+                  </label>
+
+                  <div
+                    className={`rounded-xl overflow-hidden bg-white dark:bg-black placeholder:text-paragraph border transition-all
+                    ${
+                      visibleErrors.body
+                        ? "border-[#CB2A2E] dark:border-[#FF6166] ring-3 ring-[#FFE6E6] dark:ring-[#561A1E]"
+                        : "border-transparent focus-within:ring-3 focus-within:ring-[#FFBBA2] dark:focus-within:ring-[#742C0A] focus-within:border-[#FF5800]"
+                    }`}
+                  >
+                    <Textarea
+                      {...field}
+                      rows={5}
+                      id="comment-body"
+                      name="comment-body"
+                      placeholder="Share your thoughts"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Clear the error as soon as the user types
+                        if (visibleErrors.body) {
+                          setVisibleErrors({});
+                        }
+                      }}
+                    />
+
+                    <div className="flex items-center justify-end p-2">
+                      <Button
+                        type="submit"
+                        size="icon"
+                        disabled={isSubmitting || !field.value?.trim()}
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <ArrowUp className="size-5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {visibleErrors.body && <FieldError errors={[{ message: visibleErrors.body }]} />}
                 </Field>
               )}
             />
-
-            <Button disabled={isSubmitting} className="cursor-pointer">
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  <span>Loading...</span>
-                </>
-              ) : (
-                <span>Comment</span>
-              )}
-            </Button>
           </form>
         )}
 
@@ -169,38 +210,67 @@ export function CommentSection(props: {
         <section className="space-y-6">
           {data?.map((comment) => {
             const isOwner = currentUser?._id === comment.authorId;
-            const canEdit = isOwner || isAdmin;
+            const canEdit = isOwner || isAdminUser;
 
             return (
               <div key={comment._id}>
                 {editingId === comment._id ? (
-                  <div className="space-y-2 mb-6">
-                    <Textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      placeholder="Edit your comment"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleEditComment(comment._id)}
-                        disabled={isPending}
+                  <div className="flex gap-4">
+                    <Avatar className="size-10 shrink-0">
+                      <AvatarImage
+                        src={`https://avatar.vercel.sh/${comment.authorName}`}
+                        alt={comment.authorName}
+                      />
+                      <AvatarFallback>
+                        {comment.authorName.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="w-full space-y-2">
+                      <div
+                        className={`rounded-xl overflow-hidden bg-white dark:bg-black border transition-all
+                        ${
+                          editVisibleError
+                            ? "border-[#CB2A2E] dark:border-[#FF6166] ring-3 ring-[#FFE6E6] dark:ring-[#561A1E]"
+                            : "border-transparent focus-within:ring-3 focus-within:ring-[#FFBBA2] dark:focus-within:ring-[#742C0A] focus-within:border-[#FF5800]"
+                        }`}
                       >
-                        {isPending ? (
-                          <>
-                            <Loader2 className="size-4 animate-spin" />
-                          </>
-                        ) : (
-                          "Save"
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditingId(null)}
-                      >
-                        Cancel
-                      </Button>
+                        <Textarea
+                          value={editText}
+                          name="edit-comment"
+                          onChange={(e) => {
+                            setEditText(e.target.value);
+                            // Clear error as soon as user types
+                            if (editVisibleError) setEditVisibleError(undefined);
+                          }}
+                          placeholder="Edit your comment"
+                          rows={3}
+                          // break-all ensures long unbroken strings wrap inside the textarea
+                          className="break-all"
+                        />
+                      </div>
+                      {editVisibleError && <FieldError errors={[{ message: editVisibleError }]} />}
+                      <div className="flex items-center justify-start gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleEditComment(comment._id)}
+                          disabled={isPending}
+                          type="button"
+                          variant="secondary"
+                        >
+                          {isPending && <Loader2 className="size-4 animate-spin" />}
+                          <span>Save</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setEditingId(null);
+                            setEditVisibleError(undefined);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -215,30 +285,29 @@ export function CommentSection(props: {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-2 gap-5">
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold text-sm">
-                            {comment.authorName}
-                          </p>
-                          {isOwner && (
+                          <p className="font-semibold text-sm">{comment.authorName}</p>
+                          {/* Badge only on comments written by the post's author */}
+                          {comment.authorId === props.postAuthorId && (
                             <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                               Author
                             </span>
                           )}
                         </div>
-                        <p className="text-muted-foreground text-xs">
-                          {new Date(comment._creationTime).toLocaleDateString(
-                            "en-US"
-                          )}
+                        <p className="flex text-paragraph text-xs">
+                          {formatDistanceToNow(new Date(comment._creationTime), {
+                            addSuffix: true,
+                          })}
                         </p>
                       </div>
 
-                      <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed mb-3">
+                      <p className="text-sm text-foreground/90 whitespace-pre-wrap break-all leading-relaxed mb-3">
                         {comment.body}
                       </p>
 
                       {canEdit && (
-                        <div className="flex gap-2">
+                        <div className="flex items-center">
                           <Button
                             size="sm"
                             variant="ghost"
@@ -246,20 +315,43 @@ export function CommentSection(props: {
                               setEditingId(comment._id);
                               setEditText(comment.body);
                             }}
-                            className="text-xs"
+                            className="hover:bg-white dark:hover:bg-black hover:text-black dark:hover:text-white"
                           >
-                            <Edit2 className="size-3 mr-1" />
-                            Edit
+                            <Edit2 className="size-4" />
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteComment(comment._id)}
-                            className="text-xs text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="size-3 mr-1" />
-                            Delete
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="hover:bg-[#DA2E34] dark:hover:bg-[#D93036] hover:text-white"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete comment?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently remove your
+                                  comment.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+
+                              <AlertDialogFooter>
+                                <AlertDialogCancel variant="secondary">Cancel</AlertDialogCancel>
+
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteComment(comment._id)}
+                                  variant="destructive"
+                                  className="h-8.5!"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       )}
                     </div>

@@ -23,8 +23,8 @@ export const NavbarDataUnauth = [
 // Posts page
 
 export const Topics = [
-  "Web Development",
-  "Design & UI",
-  "AI",
-  "Engineering",
+  "Web Architecture",
+  "UI Engineering",
+  "AI for Developers",
+  "Productivity",
 ];

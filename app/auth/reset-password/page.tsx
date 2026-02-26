@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import z from "zod";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
 const resetPasswordSchema = z.object({
   otp: z.string().length(6, "OTP must be 6 digits"),
@@ -96,13 +97,13 @@ export default function ResetPasswordPage() {
       });
       
       setIsSuccess(true);
-      toast.success("Password reset successfully!");
+      showSuccessToast("Password reset successfully!");
       
       setTimeout(() => {
         router.push("/auth/login");
       }, 2000);
     } catch (error) {
-      toast.error(
+      showErrorToast(
         error instanceof Error ? error.message : "Failed to reset password"
       );
     } finally {
