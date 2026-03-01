@@ -1,4 +1,4 @@
-import { BookText, BookUser, HomeIcon, LibraryBig, LogIn, User, UserPlus } from "lucide-react";
+import { BookUser, HomeIcon, LibraryBig, LogIn, User, UserPlus } from "lucide-react";
 
 export const NavbarDataBlog = [
   { href: "/", icon: HomeIcon, label: "Home" },

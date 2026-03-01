@@ -40,7 +40,9 @@ export default function BlogPage({ searchParams }: BlogPageProps) {
       </Suspense>
 
       <Newsletter />
-      <Footer />
+      <Suspense fallback={<div>Loading ...</div>}>
+        <Footer />
+      </Suspense>
     </div>
   );
 }
@@ -55,7 +57,7 @@ async function DynamicContent({ searchParams }: { searchParams: Promise<{ topics
 
 async function LoadBlogList({ searchParams }: { searchParams: Promise<{ topics?: string }> }) {
   "use cache";
-  cacheLife("hours");
+  cacheLife("seconds");
   cacheTag("blog");
 
   const { topics } = await searchParams;
@@ -75,10 +77,10 @@ async function LoadBlogList({ searchParams }: { searchParams: Promise<{ topics?:
   }
 
   return (
-    <div className="grid gap-6 grid-rows-3 py-10">
+    <div className="grid gap-6 py-10">
       {filtered.map((post) => (
         <Link key={post._id} href={`/posts/${post.slug}`} className="group block">
-          <div className="relative flex flex-row items-center border-b border-dashed py-4">
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 sm:gap-0">
             <div
               className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0
               -translate-x-10 transition-all duration-200 ease-out
@@ -87,16 +89,16 @@ async function LoadBlogList({ searchParams }: { searchParams: Promise<{ topics?:
               <ArrowRight className="h-5 w-5 text-black dark:text-white" />
             </div>
             <div
-              className="flex w-full flex-row items-start justify-between
+              className="flex w-full flex-row min-w-0 items-start justify-between
               transition-transform duration-300 ease-out
               md:group-hover:translate-x-10"
             >
-              <div className="flex flex-col w-2/3 min-w-[150px]">
-                <h1 className="text-xl font-bold">{post.title}</h1>
-                <p className="text-paragraph line-clamp-2">{post.subtitle}</p>
+              <div className="flex flex-col flex-1 min-w-0">
+                <h1 className="text-xl font-bold line-clamp-1 break-all">{post.title}</h1>
+                <p className="text-paragraph line-clamp-1 break-all">{post.subtitle}</p>
               </div>
             </div>
-            <div className="flex flex-col min-w-[120px] max-w-[140px] w-1/3 items-center justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
+            <div className="flex flex-row sm:flex-col sm:min-w-[120px] sm:max-w-[140px] w-full sm:w-1/3 items-center justify-start sm:justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
                 {post.topic}
               </span>

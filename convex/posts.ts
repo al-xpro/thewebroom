@@ -3,7 +3,12 @@ import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import { Doc, Id } from "./_generated/dataModel";
 
-const TOPIC_VALUES = ["Web Architecture", "UI Engineering", "AI for Developers", "Productivity"] as const;
+const TOPIC_VALUES = [
+  "Web Architecture",
+  "UI Engineering",
+  "AI for Developers",
+  "Productivity",
+] as const;
 type Topic = (typeof TOPIC_VALUES)[number];
 
 // Utility function to generate URL-safe slug
@@ -70,9 +75,6 @@ export const createPost = mutation({
     // Generate slug from title
     const baseSlug = generateSlug(args.title);
     const uniqueSlug = await getUniqueSlug(ctx, baseSlug);
-
-    console.log(`[createPost] Generated slug "${uniqueSlug}" from title "${args.title}"`);
-    console.log(`[createPost] minRead=${args.minRead} minutes`);
 
     // user._id is the correct user ID from better-auth
     const blogArticle = await ctx.db.insert("posts", {

@@ -39,7 +39,7 @@ export default function BlogFilters({ activeTopics }: BlogFiltersProps) {
           onClick={() => toggle(filter.key)}
           className={`px-4 py-2 rounded-full text-sm cursor-pointer transition-colors ${
             activeTopics.includes(filter.key)
-              ? "bg-[#FFEEE8] dark:bg-[#1C0600] text-primary"
+              ? "bg-[#FFEDE8] dark:bg-[#1C0100] text-primary"
               : "bg-[#EDEDED] dark:bg-[#202020]"
           }`}
         >

@@ -90,20 +90,23 @@ export default function ProfilePage() {
     <>
       <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4">
         <div className="w-full space-y-6">
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-4xl font-extrabold text-primary">Account Settings</h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="cursor-pointer"
-            >
-              {isLoggingOut && <Loader2 className="size-4 animate-spin" />}
-              <span className="flex gap-2 items-center">
-                <LogOut className="size-4" /> Logout
-              </span>
-            </Button>
+          <div className="flex flex-col w-full">
+            <div className="flex items-center justify-between mt-6 gap-4">
+              <h1 className="text-4xl font-extrabold text-primary">Account Settings</h1>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="cursor-pointer"
+              >
+                {isLoggingOut && <Loader2 className="size-4 animate-spin" />}
+                <span className="flex gap-2 items-center">
+                  <LogOut className="size-4" /> Logout
+                </span>
+              </Button>
+            </div>
+            <p className="text-paragraph text-xl pt-4">Manage your account settings</p>
           </div>
 
           {/* Email & Profile Section */}
@@ -225,7 +228,7 @@ export default function ProfilePage() {
           <div className="bg-white dark:bg-black rounded-xl p-6 w-full max-w-md space-y-4">
             <h2 className="text-lg font-semibold">Delete Account</h2>
 
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-paragraph">
               This action is permanent. Type <b>DELETE</b> to confirm.
             </p>
 
@@ -233,6 +236,7 @@ export default function ProfilePage() {
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="Type DELETE"
+              name="delete"
             />
 
             <div className="flex gap-3 justify-end">
@@ -246,7 +250,7 @@ export default function ProfilePage() {
                 onClick={handleDeleteAccount}
               >
                 {isDeleting && <Loader2 className="size-4 animate-spin" />}
-                <span>Confirm Delete</span>
+                <span>Delete</span>
               </Button>
             </div>
           </div>

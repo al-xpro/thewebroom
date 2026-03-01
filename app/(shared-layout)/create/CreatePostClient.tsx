@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Upload, PenLine, Pen } from "lucide-react";
+import { Loader2, Upload, Pen } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import { createBlogAction } from "@/app/actions";
@@ -25,6 +25,7 @@ import Footer from "@/components/web/Footer";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { useConvexAuth } from "convex/react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 export function CreatePostClient() {
   const router = useRouter();
@@ -85,6 +86,7 @@ export function CreatePostClient() {
       showSuccessToast("Post published successfully!");
       router.push("/my-posts");
     } catch (error) {
+      if (isRedirectError(error)) throw error;
       showErrorToast(error instanceof Error ? error.message : "Failed to publish post");
     } finally {
       setIsPending(false);
@@ -152,7 +154,7 @@ export function CreatePostClient() {
     <>
       {showAuthModal && (
         <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="relative bg-white dark:bg-[#1E1E1E] rounded-2xl max-w-md w-full p-8 flex flex-col items-center gap-6 text-center">
+          <div className="relative bg-[#EDEDED] dark:bg-[#0A0A0A] rounded-2xl max-w-md w-full p-8 flex flex-col items-center gap-6 text-center">
             <div className="flex items-center justify-center size-14 rounded-full bg-primary/10">
               <Pen className="size-7 text-primary" />
             </div>
@@ -169,13 +171,19 @@ export function CreatePostClient() {
             <div className="flex flex-col w-full gap-3">
               <Link
                 href="/auth/login"
-                className={buttonVariants({ variant: "outline", className: "w-full" })}
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "w-full bg-white dark:bg-black",
+                })}
               >
                 Log in
               </Link>
               <Link
                 href="/auth/sign-up"
-                className={buttonVariants({ className: "w-full", variant: "outline" })}
+                className={buttonVariants({
+                  className: "w-full bg-white dark:bg-black",
+                  variant: "outline",
+                })}
               >
                 Create account
               </Link>
@@ -429,7 +437,7 @@ export function CreatePostClient() {
                 )}
               />
 
-              <Button disabled={isPending} size="lg" className="w-full">
+              <Button disabled={isPending} size="lg" type="submit" className="w-full">
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 <span>Publish Post</span>
               </Button>

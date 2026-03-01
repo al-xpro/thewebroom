@@ -8,7 +8,7 @@ import { fetchQuery } from "convex/nextjs";
 import { cacheLife, cacheTag } from "next/cache";
 import { SignatureIcon } from "@/public/SignatureIcon";
 import Newsletter from "@/components/web/Newsletter";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ClockFading } from "lucide-react";
 
 export default function Home() {
   return (
@@ -34,7 +34,7 @@ export default function Home() {
           <div className="flex items-center justify-between gap-4">
             <div className="text-left">
               <h6 className="text-sm font-medium text-primary uppercase tracking-[0.18em]">
-                Trending Posts
+                Latest Posts
               </h6>
             </div>
           </div>
@@ -71,7 +71,7 @@ export default function Home() {
         </p>
       </div>
 
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<div>Loading footer...</div>}>
         <Footer />
       </Suspense>
     </div>
@@ -80,7 +80,7 @@ export default function Home() {
 
 export async function LoadHomePostList() {
   "use cache";
-  cacheLife("hours");
+  cacheLife("seconds");
   cacheTag("blog");
 
   const data = await fetchQuery(api.posts.getPublishedPosts);
@@ -90,7 +90,7 @@ export async function LoadHomePostList() {
     <div className="grid gap-6 grid-rows-3">
       {limitedPosts.map((post) => (
         <Link key={post._id} href={`/posts/${post.slug}`} className="group block">
-          <div className="relative flex flex-row items-center border-b border-dashed py-4">
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 sm:gap-0">
             <div
               className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0
               -translate-x-10 transition-all duration-200 ease-out
@@ -99,16 +99,16 @@ export async function LoadHomePostList() {
               <ArrowRight className="h-5 w-5 text-black dark:text-white" />
             </div>
             <div
-              className="flex w-full flex-row items-start justify-between
+              className="flex w-full flex-row min-w-0 items-start justify-between
               transition-transform duration-300 ease-out
               md:group-hover:translate-x-10"
             >
-              <div className="flex flex-col w-2/3 min-w-[150px]">
-                <h1 className="text-xl font-bold">{post.title}</h1>
-                <p className="text-paragraph line-clamp-2">{post.subtitle}</p>
+              <div className="flex flex-col flex-1 min-w-0">
+                <h1 className="text-xl font-bold line-clamp-1 break-all">{post.title}</h1>
+                <p className="text-paragraph line-clamp-1 break-all">{post.subtitle}</p>
               </div>
             </div>
-            <div className="flex flex-col min-w-[120px] max-w-[140px] w-1/3 items-center justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
+            <div className="flex flex-row sm:flex-col sm:min-w-[120px] sm:max-w-[140px] w-full sm:w-1/3 items-center justify-start sm:justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
                 {post.topic}
               </span>

@@ -142,7 +142,7 @@ export function CommentSection(props: {
       <CardContent className="space-y-8">
         {!isLoading && !isAuthenticated ? (
           <div className="rounded-lg border border-primary bg-primary/10 p-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-md text-paragraph">
               You need to be signed in to leave a comment.
             </p>
           </div>
@@ -165,7 +165,7 @@ export function CommentSection(props: {
                     ${
                       visibleErrors.body
                         ? "border-[#CB2A2E] dark:border-[#FF6166] ring-3 ring-[#FFE6E6] dark:ring-[#561A1E]"
-                        : "border-transparent focus-within:ring-3 focus-within:ring-[#FFBBA2] dark:focus-within:ring-[#742C0A] focus-within:border-[#FF5800]"
+                        : "border-transparent focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-within:border-[#FF3400]"
                     }`}
                   >
                     <Textarea
@@ -231,7 +231,7 @@ export function CommentSection(props: {
                         ${
                           editVisibleError
                             ? "border-[#CB2A2E] dark:border-[#FF6166] ring-3 ring-[#FFE6E6] dark:ring-[#561A1E]"
-                            : "border-transparent focus-within:ring-3 focus-within:ring-[#FFBBA2] dark:focus-within:ring-[#742C0A] focus-within:border-[#FF5800]"
+                            : "border-transparent focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-within:border-[#FF3400]"
                         }`}
                       >
                         <Textarea

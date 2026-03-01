@@ -475,7 +475,7 @@ export function RichTextEditor({
                           handleRowChange(e as any);
                         }
                       }}
-                      className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#FFBBA2] dark:focus-within:ring-[#742C0A] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none"
+                      className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none"
                     />
                   </div>
                   <div className="flex flex-col gap-1 flex-1">
@@ -498,7 +498,7 @@ export function RichTextEditor({
                           handleColChange(e as any);
                         }
                       }}
-                      className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#FFBBA2] dark:focus-within:ring-[#742C0A] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none"
+                      className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none"
                     />
                   </div>
                 </div>

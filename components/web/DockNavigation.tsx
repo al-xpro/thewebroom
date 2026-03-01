@@ -43,6 +43,11 @@ function useReadingProgress() {
   const pathname = usePathname();
 
   useEffect(() => {
+    setCompletion(0);
+    setHeadings([]);
+  }, [pathname]);
+
+  useEffect(() => {
     const updateMetrics = () => {
       const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
 
@@ -104,6 +109,7 @@ export function DockNavigation() {
   const pathname = usePathname();
   const isPostPage = pathname?.startsWith("/posts/") && pathname !== "/posts";
   const [isMounted, setIsMounted] = useState(false);
+  const [allowDrag, setAllowDrag] = useState(true);
 
   useEffect(() => {
     setIsMounted(true);
@@ -304,7 +310,7 @@ export function DockNavigation() {
         <motion.div
           ref={dockRef}
           layout // Crucial for fluid transition between Dock and Minimap sizes
-          drag={!isSearching}
+          drag={!isSearching && allowDrag}
           dragControls={dragControls}
           dragMomentum={false}
           dragElastic={1.0}
@@ -317,14 +323,14 @@ export function DockNavigation() {
           className={cn(
             "relative flex gap-2 rounded-2xl border border-gray bg-white dark:bg-black shadow-2xl backdrop-blur-2xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
             isSearching
-              ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] flex-col p-0 overflow-hidden cursor-default active:cursor-default"
+              ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[320px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
               : isPostPage
                 ? isVertical
                   ? "w-14 h-[400px] flex-col py-3 items-center"
                   : "w-[400px] h-14 flex-row px-3 items-center"
                 : isVertical
                   ? "w-16 h-auto flex-col p-2"
-                  : "w-auto h-16 flex-row p-2"
+                  : "w-auto h-16 flex-row scale-92 sm:scale-100 p-2"
           )}
         >
           {/* Tooltips */}
@@ -374,6 +380,8 @@ export function DockNavigation() {
                 headings={headings}
                 isVertical={isVertical}
                 dragControls={dragControls}
+                onTrackPointerEnter={() => setAllowDrag(false)}
+                onTrackPointerLeave={() => setAllowDrag(true)}
               />
             ) : (
               // --- DOCK MODE ---
@@ -492,11 +500,66 @@ interface MinimapProps {
   headings: number[];
   isVertical: boolean;
   dragControls: any;
+  onTrackPointerEnter: () => void;
+  onTrackPointerLeave: () => void;
 }
 
-function Minimap({ completion, headings, isVertical, dragControls }: MinimapProps) {
+function Minimap({
+  completion,
+  headings,
+  isVertical,
+  dragControls,
+  onTrackPointerEnter,
+  onTrackPointerLeave,
+}: MinimapProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState(0);
+  const [scrollDir, setScrollDir] = useState<"up" | "down">("down");
+  const prevCompletion = useRef(completion);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const update = () => {
+      if (!containerRef.current) return;
+
+      setContainerSize(
+        isVertical ? containerRef.current.scrollHeight : containerRef.current.scrollWidth
+      );
+    };
+
+    update();
+
+    const ro = new ResizeObserver(() => {
+      if (containerRef.current) update();
+    });
+
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+    };
+  }, [isVertical]);
+
+  useEffect(() => {
+    if (completion > prevCompletion.current) {
+      setScrollDir("down");
+    } else if (completion < prevCompletion.current) {
+      setScrollDir("up");
+    }
+    prevCompletion.current = completion;
+  }, [completion]);
+
   const LINE_COUNT = 50;
   const mousePos = useMotionValue(Infinity);
+
+  const floatIndex = completion * (LINE_COUNT - 1);
+
+  // Convert completion state to a MotionValue to drive animations without re-renders
+  const completionMV = useMotionValue(completion);
+  useEffect(() => {
+    completionMV.set(completion);
+  }, [completion, completionMV]);
 
   // --- 1:1 Heading Mapping ---
   // We generate a set of indices that strictly correspond to headings.
@@ -548,10 +611,13 @@ function Minimap({ completion, headings, isVertical, dragControls }: MinimapProp
 
   return (
     <motion.div
-      initial={{ opacity: 0, filter: "blur(4px)" }}
-      animate={{ opacity: 1, filter: "blur(0px)" }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }} // Smooth fade
+      initial={{ opacity: 0, filter: "blur(5px)" }}
+      animate={{ opacity: 1, transition: { delay: 0.15 }, filter: "blur(0px)" }}
+      exit={{
+        opacity: 0,
+        filter: "blur(5px)",
+      }}
+      transition={{ duration: 0 }}
       className={cn(
         "relative flex items-center justify-between p-1",
         isVertical ? "flex-col h-full w-full" : "flex-row w-full h-full"
@@ -559,12 +625,18 @@ function Minimap({ completion, headings, isVertical, dragControls }: MinimapProp
     >
       {/* THE MINIMAP TRACK (Interactive area) */}
       <div
+        ref={containerRef}
         className={cn(
           "relative flex items-center justify-between grow cursor-pointer",
           isVertical ? "flex-col w-full px-1" : "flex-row h-full py-1"
         )}
         onMouseMove={handleMouseMove}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+        }}
         onMouseLeave={handleMouseLeave}
+        onPointerEnter={onTrackPointerEnter}
+        onPointerLeave={onTrackPointerLeave}
         onClick={handleTrackClick} // Click anywhere to scroll
       >
         {lines.map((line) => (
@@ -575,6 +647,10 @@ function Minimap({ completion, headings, isVertical, dragControls }: MinimapProp
             isHeading={line.isHeading}
             isVertical={isVertical}
             mousePos={mousePos}
+            scrollPos={completionMV}
+            containerSize={containerSize}
+            scrollDir={scrollDir}
+            floatIndex={floatIndex}
           />
         ))}
 
@@ -598,7 +674,7 @@ function Minimap({ completion, headings, isVertical, dragControls }: MinimapProp
                   y: "-50%",
                 }),
           }}
-          transition={{ type: "spring", bounce: 0, duration: 0.1 }}
+          transition={{ type: "spring", bounce: 0, duration: 0.5 }}
         >
           {isVertical ? (
             <svg
@@ -608,7 +684,7 @@ function Minimap({ completion, headings, isVertical, dragControls }: MinimapProp
               xmlns="http://www.w3.org/2000/svg"
               className="absolute -top-0.75 -left-3 -rotate-90"
             >
-              <path d="M3.54688 6L0.515786 0.75L6.57796 0.75L3.54688 6Z" fill="#FF5800"></path>
+              <path d="M3.54688 6L0.515786 0.75L6.57796 0.75L3.54688 6Z" fill="#FF3400"></path>
             </svg>
           ) : (
             <svg
@@ -618,7 +694,7 @@ function Minimap({ completion, headings, isVertical, dragControls }: MinimapProp
               xmlns="http://www.w3.org/2000/svg"
               className="absolute -top-2 -left-0.75"
             >
-              <path d="M3.54688 6L0.515786 0.75L6.57796 0.75L3.54688 6Z" fill="#FF5800"></path>
+              <path d="M3.54688 6L0.515786 0.75L6.57796 0.75L3.54688 6Z" fill="#FF3400"></path>
             </svg>
           )}
         </motion.div>
@@ -640,7 +716,7 @@ function Minimap({ completion, headings, isVertical, dragControls }: MinimapProp
           isVertical ? "h-6 w-full" : "w-6 h-full"
         )}
       >
-        {isVertical ? <GripHorizontal className="size-5" /> : <GripVertical className="size-5" />}
+        {isVertical ? <GripHorizontal /> : <GripVertical />}
       </div>
     </motion.div>
   );
@@ -652,49 +728,77 @@ function MinimapLine({
   isHeading,
   isVertical,
   mousePos,
+  scrollPos,
+  containerSize,
+  scrollDir,
+  floatIndex,
 }: {
   index: number;
   totalLines: number;
   isHeading: boolean;
   isVertical: boolean;
   mousePos: MotionValue<number>;
+  scrollPos: MotionValue<number>;
+  containerSize: number;
+  scrollDir: "up" | "down";
+  floatIndex: number;
 }) {
-  const CONTAINER_SIZE_APPROX = 340; // Approx inner size, for wave calc
-  const myCenter = (index / (totalLines - 1)) * CONTAINER_SIZE_APPROX;
+  const step = containerSize / (totalLines - 1);
+  const myCenter = index * step;
+  // Transform scroll percentage (0-1) to pixel position for distance calc
+  const scrollPx = useTransform(scrollPos, (val) => val * containerSize);
 
-  const distance = useTransform(mousePos, (val) => {
-    const valCapped = isFinite(val) ? val : -1000;
-    return Math.abs(valCapped - myCenter);
+  // Combine distances: trigger wave if EITHER Mouse OR Scroll Indicator is close
+  const combinedDistance = useTransform([mousePos, scrollPx], (values) => {
+    const [mPos, sPos] = values as number[];
+
+    const mouseDist = isFinite(mPos) ? Math.abs(mPos - myCenter) : 2000;
+    const scrollDist = Math.abs(sPos - myCenter);
+
+    return Math.min(mouseDist, scrollDist);
   });
 
-  // Wave Logic
   const baseSize = isHeading ? 16 : 8;
-  const maxSize = isHeading ? 30 : 24;
+  const maxSize = isHeading ? 28 : 24;
 
-  const size = useTransform(distance, [0, 80], [maxSize, baseSize]);
+  // Wave radius is 80px
+  const size = useTransform(combinedDistance, [0, 60], [maxSize, baseSize]);
   const sizeSpring = useSpring(size, { stiffness: 400, damping: 25 });
+
+  let specialIndex: number;
+
+  if (scrollDir === "down") {
+    specialIndex = Math.floor(floatIndex);
+  } else {
+    specialIndex = Math.ceil(floatIndex);
+  }
+
+  specialIndex = Math.max(0, Math.min(totalLines - 1, specialIndex));
+
+  const below = Math.floor(floatIndex);
+  const isSpecial = index === below || index === below - 1;
+  const isScrolledPast = index < below - 1;
 
   return (
     <motion.div
       className={cn(
         "rounded-full pointer-events-none transition-colors duration-200",
-        isHeading ? "bg-black dark:bg-white z-10" : "bg-black/20 dark:bg-white/20"
+        isSpecial
+          ? "bg-primary"
+          : isScrolledPast
+            ? "bg-primary"
+            : isHeading
+              ? "bg-black dark:bg-white z-10"
+              : "bg-black/20 dark:bg-white/20"
       )}
       style={{
         ...(isVertical
-          ? {
-              height: "2px",
-              width: sizeSpring,
-            }
-          : {
-              width: "2px",
-              height: sizeSpring,
-            }),
+          ? { height: "2px", width: sizeSpring }
+          : { width: "2px", height: sizeSpring }),
       }}
     />
   );
 }
-
 // ------------------------------------------------------------------
 // --- HELPERS (Tooltips & Search - Unchanged logic, condensed) ---
 // ------------------------------------------------------------------
@@ -705,7 +809,7 @@ function VerticalTooltip({ items, hoveredIndex, prevHoveredIndex, ySpring, posit
     <motion.div
       initial={{ opacity: 0 }}
       className={cn(
-        "pointer-events-none absolute overflow-hidden rounded-xl bg-[#FFEEE8] dark:bg-[#1C0600] text-primary shadow-lg z-50",
+        "hidden sm:block pointer-events-none absolute overflow-hidden rounded-xl bg-[#FFEDE8] dark:bg-[#1C0100] text-primary shadow-lg z-50",
         position === "left" ? "left-full ml-3" : "right-full mr-3"
       )}
       style={{ top: ySpring, y: "-50%" }}
@@ -756,7 +860,7 @@ function HorizontalTooltip({ items, hoveredIndex, prevHoveredIndex, xSpring, pos
   return (
     <>
       <div
-        className="absolute opacity-0 pointer-events-none top-0 left-0 flex h-8 items-center whitespace-nowrap"
+        className="flex absolute opacity-0 pointer-events-none top-0 left-0 h-8 items-center whitespace-nowrap"
         aria-hidden="true"
       >
         {items.map((label: any, index: number) => (
@@ -775,7 +879,7 @@ function HorizontalTooltip({ items, hoveredIndex, prevHoveredIndex, xSpring, pos
         <motion.div
           initial={{ opacity: 0, width: 0 }}
           className={cn(
-            "pointer-events-none absolute left-0 overflow-hidden rounded-xl bg-[#FFEEE8] dark:bg-[#1C0600] text-primary z-50",
+            "hidden sm:block pointer-events-none absolute left-0 overflow-hidden rounded-xl bg-[#FFEDE8] dark:bg-[#1C0100] text-primary z-50",
             position === "bottom" ? "bottom-full mb-3" : "top-full mt-3"
           )}
           style={{ x: xSpring, translateX: "-50%" }}
@@ -820,7 +924,7 @@ function DockIconWrapper({
     <div
       className={cn(
         "size-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer",
-        "text-paragraph hover:text-primary! hover:bg-[#FFEEE8] dark:hover:bg-[#1C0600]",
+        "text-paragraph hover:text-primary! hover:bg-[#FFEDE8] dark:hover:bg-[#1C0100]",
         className
       )}
     >
@@ -845,9 +949,19 @@ function DockItem({
   );
 }
 
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 const HighlightedText = ({ text, highlight }: { text: string; highlight: string }) => {
-  if (!highlight.trim()) return <>{text}</>;
-  const parts = text.split(new RegExp(`(${highlight})`, "gi"));
+  if (!highlight.trim()) {
+    return <>{text}</>;
+  }
+
+  const safeHighlight = escapeRegExp(highlight);
+  const regex = new RegExp(`(${safeHighlight})`, "gi");
+  const parts = text.split(regex);
+
   return (
     <>
       {parts.map((part, i) =>
@@ -866,6 +980,46 @@ const HighlightedText = ({ text, highlight }: { text: string; highlight: string 
   );
 };
 
+function extractTextFromHtml(html: string): string {
+  if (typeof window === "undefined") return "";
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  let textParts: string[] = [];
+
+  // Normal visible text
+  if (doc.body.textContent) {
+    textParts.push(doc.body.textContent);
+  }
+
+  // Terminal blocks (including all package managers)
+  const terminalBlocks = doc.querySelectorAll('[data-type="terminal-block"]');
+
+  terminalBlocks.forEach((el) => {
+    const visible = el.textContent ?? "";
+
+    const npm = el.getAttribute("data-npm-content");
+    const pnpm = el.getAttribute("data-pnpm-content");
+    const yarn = el.getAttribute("data-yarn-content");
+
+    textParts.push(visible);
+
+    if (npm) textParts.push(npm);
+    if (pnpm) textParts.push(pnpm);
+    if (yarn) textParts.push(yarn);
+  });
+
+  // File code blocks
+  const fileBlocks = doc.querySelectorAll('[data-type="file-code-block"] code');
+
+  fileBlocks.forEach((code) => {
+    textParts.push(code.textContent ?? "");
+  });
+
+  return textParts.join(" ").replace(/\s+/g, " ").trim();
+}
+
 interface DockSearchContentProps {
   initialTerm: string;
   inputRef: React.RefObject<HTMLInputElement | null>;
@@ -874,7 +1028,6 @@ interface DockSearchContentProps {
 }
 
 function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearchContentProps) {
-  const { isAuthenticated } = useConvexAuth();
   const posts = useQuery(api.posts.getPublishedPosts);
 
   const [displayTerm, setDisplayTerm] = useState(initialTerm);
@@ -885,12 +1038,12 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
 
   useEffect(() => {
     if (displayTerm === debouncedTerm) return;
-    if (displayTerm.length >= 2) {
+    if (displayTerm.length >= 1) {
       setIsDebouncing(true);
       const handler = setTimeout(() => {
         setDebouncedTerm(displayTerm);
         setIsDebouncing(false);
-      }, 300);
+      }, 500);
       return () => clearTimeout(handler);
     } else {
       setDebouncedTerm(displayTerm);
@@ -899,13 +1052,23 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
   }, [displayTerm, debouncedTerm]);
 
   const results = useMemo(() => {
-    if (debouncedTerm.length < 2 || !posts) return null;
+    if (debouncedTerm.length < 1 || !posts) return null;
+
     const lower = debouncedTerm.toLowerCase();
-    return posts.filter(
-      (post: any) =>
+
+    return posts.filter((post: any) => {
+      const fullText = extractTextFromHtml(post.body ?? "");
+      const normalized = fullText.toLowerCase().replace(/\s+/g, " ");
+      const query = lower.replace(/\s+/g, " ");
+
+      normalized.includes(query);
+
+      return (
         post.title.toLowerCase().includes(lower) ||
-        (post.subtitle || post.body).toLowerCase().includes(lower)
-    );
+        (post.subtitle ?? "").toLowerCase().includes(lower) ||
+        fullText.toLowerCase().includes(lower)
+      );
+    });
   }, [debouncedTerm, posts]);
 
   useEffect(() => {
@@ -933,23 +1096,60 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
     return () => document.removeEventListener("keydown", handleNav);
   }, [results, activeIndex, router, onClose]);
 
+  const getExcerpt = (text: string, term: string, maxLength = 160) => {
+    if (!text) return "";
+
+    const lowerText = text.toLowerCase();
+    const lowerTerm = term.toLowerCase();
+
+    const index = lowerText.indexOf(lowerTerm);
+
+    if (index === -1) {
+      return text.slice(0, maxLength) + (text.length > maxLength ? "…" : "");
+    }
+
+    const half = Math.floor(maxLength / 2);
+
+    let start = index - half;
+    let end = index + half;
+
+    if (start < 0) {
+      start = 0;
+      end = maxLength;
+    }
+
+    if (end > text.length) {
+      end = text.length;
+      start = Math.max(0, end - maxLength);
+    }
+
+    const prefix = start > 0 ? "…" : "";
+    const suffix = end < text.length ? "…" : "";
+
+    return prefix + text.slice(start, end) + suffix;
+  };
+
   return (
-    <div className="flex flex-col h-full w-full bg-transparent">
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-border/40 shrink-0">
-        <Search className="size-5 text-paragraph" />
+    <div className="flex flex-col h-full w-full bg-transparent min-w-[320px]">
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-border/40 shrink-0 min-w-0">
         <input
           name="search"
           ref={inputRef}
           value={displayTerm}
+          maxLength={50}
           onChange={(e) => setDisplayTerm(e.target.value)}
           placeholder="What are you searching for?"
-          className="flex-1 bg-transparent text-lg outline-none placeholder:text-paragraph text-foreground"
+          className="flex-1 bg-transparent text-lg outline-none placeholder:text-paragraph text-foreground truncate"
           autoFocus
         />
         <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase font-bold text-paragraph border border-border/50 px-1.5 py-0.5 rounded">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[10px] uppercase font-bold text-paragraph border border-[#EAEAEA] dark:border-[#1E1E1E] px-1.5 py-0.5 rounded hover:bg-[#d9d9d9] dark:hover:bg-[#1E1E1E] transition-colors cursor-pointer"
+          >
             Esc
-          </span>
+          </button>
         </div>
       </div>
       <div className="flex-1 overflow-hidden relative">
@@ -957,25 +1157,19 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
           <div className="flex items-center justify-center h-full text-paragraph gap-2">
             <Loader2 className="animate-spin size-4" />
           </div>
-        ) : !results && displayTerm.length < 2 ? (
+        ) : !results && displayTerm.length < 1 ? (
           <div className="flex flex-col items-center justify-center h-full text-paragraph gap-2 select-none">
             <BookText className="size-12 opacity-20" />
             <span className="text-sm font-medium">Type to search blog posts</span>
           </div>
-        ) : !isAuthenticated && (!results || results.length === 0) ? (
-          <div className="flex flex-col items-center justify-center h-full text-paragraph gap-2 select-none px-6 text-center">
-            <BookText className="size-12 opacity-20" />
-            <span className="text-sm font-medium">Search is available for signed-in readers.</span>
-            <span className="text-xs text-muted-foreground">
-              Create a free account to search across all posts.
-            </span>
-          </div>
         ) : results && results.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-paragraph text-sm">
-            No results found for "{debouncedTerm}"
+          <div className="flex items-center justify-center h-full px-6">
+            <p className="text-paragraph text-sm truncate max-w-full text-center">
+              No results found for "{debouncedTerm}"
+            </p>
           </div>
         ) : (
-          <ScrollArea className="h-full p-2">
+          <div className="h-full overflow-y-auto p-2">
             <div className="flex flex-col gap-1">
               {results?.map((post: any, index: number) => (
                 <Link
@@ -987,30 +1181,40 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
                     setActiveIndex(index);
                   }}
                   className={cn(
-                    "flex items-start gap-3 p-3 rounded-xl transition-all text-left",
+                    "flex items-center gap-3 p-3 rounded-xl transition-all text-left min-w-0 overflow-hidden",
                     activeIndex === index && inputMode === "keyboard"
-                      ? "bg-muted"
+                      ? "hover:bg-[#F4F4F5] dark:hover:bg-[#1E1E1E]"
                       : inputMode === "mouse"
                         ? "hover:bg-[#F4F4F5] dark:hover:bg-[#1E1E1E]"
                         : ""
                   )}
                 >
-                  <BookText className="size-5 mt-0.5 shrink-0 transition-colors" />
-                  <div>
-                    <h4 className="text-sm font-medium transition-colors">
+                  <BookText className="size-5 shrink-0" />
+
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <h4 className="text-sm font-medium truncate">
                       <HighlightedText text={post.title} highlight={debouncedTerm} />
                     </h4>
-                    <p className="text-xs text-paragraph line-clamp-1 mt-0.5">
-                      <HighlightedText
-                        text={post.subtitle ?? post.body}
-                        highlight={debouncedTerm}
-                      />
-                    </p>
+
+                    {post.subtitle && (
+                      <p className="text-xs text-paragraph mt-0.5 truncate">
+                        <HighlightedText text={post.subtitle} highlight={debouncedTerm} />
+                      </p>
+                    )}
+
+                    {post.body && (
+                      <p className="text-xs text-paragraph mt-1 truncate">
+                        <HighlightedText
+                          text={getExcerpt(extractTextFromHtml(post.body), debouncedTerm)}
+                          highlight={debouncedTerm}
+                        />
+                      </p>
+                    )}
                   </div>
                 </Link>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
     </div>

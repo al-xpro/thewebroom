@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 ::selection {
-    background-color: #FF5800;
+    background-color: #FF3400;
     color: #fff;
 }
 
@@ -68,7 +68,7 @@
   --card-foreground: oklch(0.141 0.005 285.823);
   --popover: #FFFFFF;
   --popover-foreground: #0A0A0A;
-  --primary: oklch(0.66 0.23 41);
+  --primary: #FF3400;
   --primary-foreground: oklch(0.98 0.01 95);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
@@ -79,7 +79,7 @@
   --destructive: #CB2A2E;
   --border: #EAEAEA;
   --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.72 0.19 41);
+  --ring: #ffc7bb;
   --chart-1: oklch(0.82 0.13 41);
   --chart-2: oklch(0.69 0.22 41);
   --chart-3: oklch(0.66 0.23 41);
@@ -109,7 +109,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: #000000;
   --popover-foreground: #FAFAFA;
-  --primary: oklch(0.69 0.22 41);
+  --primary: #FF3400;
   --primary-foreground: oklch(0.98 0.01 95);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
@@ -120,7 +120,7 @@
   --destructive: #FF6166;
   --border: #1E1E1E;
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.55 0.18 41);
+  --ring: #660900;
   --chart-1: oklch(0.82 0.13 41);
   --chart-2: oklch(0.69 0.22 41);
   --chart-3: oklch(0.66 0.23 41);
@@ -137,7 +137,7 @@
   --table-border: #1E1E1E;
 
   ::selection {
-    background-color: #FF5800;
+    background-color: #FF3400;
     color: #000;
 }
 }

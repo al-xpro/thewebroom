@@ -6,8 +6,14 @@ import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  Loader2, Trash2, Plus, BookText, Pencil,
-  Calendar, ClockFading, BookType,
+  Loader2,
+  Trash2,
+  Plus,
+  BookText,
+  Pencil,
+  Calendar,
+  ClockFading,
+  BookType,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,18 +22,17 @@ import Footer from "@/components/web/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { deletePostAction } from "@/app/actions";
-import { FieldLabel } from "@/components/ui/field";
 
 export default function MyPostsPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
 
-  const user  = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
-  const posts = useQuery(api.posts.getPosts,       isAuthenticated ? undefined : "skip");
+  const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
+  const posts = useQuery(api.posts.getPosts, isAuthenticated ? undefined : "skip");
 
   // Delete modal state
   const [pendingDelete, setPendingDelete] = useState<{ _id: string; title: string } | null>(null);
-  const [isDeleting, setIsDeleting]       = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Lock scroll when modal is open
   useEffect(() => {
@@ -36,7 +41,9 @@ export default function MyPostsPage() {
     } else {
       document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [pendingDelete]);
 
   useEffect(() => {
@@ -62,27 +69,23 @@ export default function MyPostsPage() {
   if (isLoading || !isAuthenticated) return null;
 
   const postsReady = posts !== undefined && user !== undefined;
-  const userPosts  = postsReady
-    ? posts.filter((post: any) => post.authorId === user._id)
-    : [];
+  const userPosts = postsReady ? posts.filter((post: any) => post.authorId === user._id) : [];
 
   return (
     <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4">
-
       {/* ── Delete confirmation modal ── */}
       {pendingDelete && (
         <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 min-w-[320px]">
           <div className="bg-white dark:bg-[#111] rounded-2xl shadow-2xl max-w-sm w-full p-8 flex flex-col gap-6">
             <div className="space-y-1">
-              <h2 className="text-xl font-extrabold text-destructive">
-                Delete post?
-              </h2>
+              <h2 className="text-xl font-extrabold text-destructive">Delete post?</h2>
               <p className="text-sm text-paragraph leading-relaxed">
                 This will permanently delete{" "}
                 <span className="font-semibold text-black dark:text-white">
                   "{pendingDelete.title}".
-                </span> <br />
-                 This action cannot be undone.
+                </span>{" "}
+                <br />
+                This action cannot be undone.
               </p>
             </div>
             <div className="flex gap-3">
@@ -110,10 +113,10 @@ export default function MyPostsPage() {
 
       <div className="w-full space-y-6">
         <div className="flex flex-col items-start justify-center">
-          <h1 className="text-4xl font-extrabold text-primary">My Posts</h1>
-          <div className="text-paragraph mt-2">
+          <h1 className="text-4xl font-extrabold text-primary mt-6">My Posts</h1>
+          <div className="text-paragraph text-xl pt-4">
             {!postsReady ? (
-              <Skeleton className="h-4 w-48 mt-2" />
+              <Skeleton className="h-4 w-56 mt-3" />
             ) : userPosts.length === 0 ? (
               "You haven't created any posts yet."
             ) : (
@@ -133,22 +136,22 @@ export default function MyPostsPage() {
                   <div className="flex w-full h-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-md" />
                 </div>
                 <div className="flex flex-col w-full h-full px-3">
-                  <div className="flex flex-col w-full h-full px-8 py-6 gap-4">
+                  <div className="flex flex-col w-full h-full sm:px-8 pt-12 pb-3 sm:pt-auto sm:pb-auto sm:py-6 gap-4">
                     <div className="flex flex-col flex-1 space-y-3">
                       <div className="h-8 w-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
                       <div className="h-4 w-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
                     </div>
-                    <div className="flex gap-2">
-                      {[1,2,3].map((j) => (
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 3].map((j) => (
                         <div key={j} className="flex gap-2">
                           <div className="h-5 w-5 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-full" />
-                          <div className="h-5 w-20 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
+                          <div className="h-5 w-16 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="flex gap-2 pt-4 px-3 sm:px-10 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
-                    {[1,2,3].map((j) => (
+                  <div className="flex gap-2 pt-4 sm:px-3 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
+                    {[1, 2, 3].map((j) => (
                       <div key={j} className="h-7 w-18 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
                     ))}
                   </div>
@@ -187,27 +190,25 @@ export default function MyPostsPage() {
                   />
                 </div>
 
-                <div className="flex flex-col flex-1">
-                  <CardContent className="flex-1 pt-6 pb-4 px-4 sm:px-6">
+                <div className="flex flex-col flex-1 min-w-0">
+                  <CardContent className="flex-1 pt-6 pb-4 px-4">
                     <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-black dark:text-white line-clamp-2">
+                      <h3 className="text-xl font-bold text-black dark:text-white truncate">
                         {post.title}
                       </h3>
-                      <p className="text-sm text-paragraph line-clamp-2">{post.subtitle}</p>
-                      <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-paragraph">
-                        <div className="flex gap-2 items-center text-black dark:text-white">
+                      <p className="text-sm text-paragraph truncate">{post.subtitle}</p>
+                      <div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-paragraph">
+                        <div className="flex gap-1 items-center text-black dark:text-white">
                           <Calendar className="size-4" />
                           <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
                         </div>
-                        <span>|</span>
-                        <div className="flex gap-2 items-center">
+                        <div className="flex gap-1 items-center">
                           <BookType className="size-4 text-black dark:text-white" />
                           <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                             {post.topic}
                           </span>
                         </div>
-                        <span>|</span>
-                        <div className="flex gap-2 items-center text-black dark:text-white">
+                        <div className="flex gap-1 items-center text-black dark:text-white">
                           <ClockFading className="size-4" />
                           <p>{post.minRead} min read</p>
                         </div>
@@ -215,7 +216,7 @@ export default function MyPostsPage() {
                     </div>
                   </CardContent>
 
-                  <CardFooter className="flex flex-wrap gap-2 pt-4 px-3 sm:px-6 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
+                  <CardFooter className="flex flex-wrap gap-2 pt-4 px-2.5 sm:px-6 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
                     <Link
                       href={`/posts/${post.slug}`}
                       className={buttonVariants({ variant: "secondary", size: "sm" })}

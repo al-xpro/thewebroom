@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
+import { editPostSchema } from "@/app/schemas/blog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -20,11 +21,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Upload } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
+import { toast } from "sonner";
 import Footer from "@/components/web/Footer";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import Image from "next/image";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
-import { postSchema } from "@/app/schemas/blog";
 
 interface EditPostClientProps {
   post: Doc<"posts">;
@@ -39,10 +40,10 @@ export function EditPostClient({ post }: EditPostClientProps) {
   // An error becomes visible only when the form is submitted.
   // It disappears the moment the user types in that field.
   const [visibleErrors, setVisibleErrors] = useState<
-    Partial<Record<keyof z.infer<typeof postSchema>, string>>
+    Partial<Record<keyof z.infer<typeof editPostSchema>, string>>
   >({});
 
-  const clearError = (field: keyof z.infer<typeof postSchema>) => {
+  const clearError = (field: keyof z.infer<typeof editPostSchema>) => {
     setVisibleErrors((prev) => {
       if (!prev[field]) return prev; // nothing to clear
       const next = { ...prev };
@@ -54,8 +55,8 @@ export function EditPostClient({ post }: EditPostClientProps) {
   const updatePost = useMutation(api.posts.updatePost);
   const generateUploadUrl = useMutation(api.posts.generateImageUploadUrl);
 
-  const form = useForm<z.infer<typeof postSchema>>({
-    resolver: zodResolver(postSchema),
+  const form = useForm<z.infer<typeof editPostSchema>>({
+    resolver: zodResolver(editPostSchema),
     defaultValues: {
       content: post.body,
       contentHtml: post.contentHtml ?? "",
@@ -71,7 +72,7 @@ export function EditPostClient({ post }: EditPostClientProps) {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof postSchema>) {
+  async function onSubmit(values: z.infer<typeof editPostSchema>) {
     setIsPending(true);
     try {
       let imageStorageId = post.imageStorageId;
@@ -111,10 +112,10 @@ export function EditPostClient({ post }: EditPostClientProps) {
     }
   }
 
+  type PostFields = keyof z.infer<typeof editPostSchema>;
+
   // Called when the form fails validation on submit.
   // Populates visibleErrors with every field that failed.
-  type PostFields = keyof z.infer<typeof postSchema>;
-
   function onInvalid(fieldErrors: typeof form.formState.errors) {
     const messages: Partial<Record<PostFields, string>> = {};
 
@@ -131,6 +132,7 @@ export function EditPostClient({ post }: EditPostClientProps) {
 
     setVisibleErrors(messages);
   }
+
   const imageFile = form.watch("image");
   const previewUrl = imageFile ? URL.createObjectURL(imageFile) : (post as any).imageUrl;
 
@@ -176,7 +178,7 @@ export function EditPostClient({ post }: EditPostClientProps) {
       <Card className="w-full max-w-4xl mx-auto">
         <CardContent>
           {/* Pass onInvalid as the second argument — it fires when validation fails */}
-          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} aria-label="edit post">
+          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
             <FieldGroup className="gap-y-6">
               {/* Title */}
               <Controller
@@ -187,8 +189,8 @@ export function EditPostClient({ post }: EditPostClientProps) {
                     <FieldLabel htmlFor="title">Title</FieldLabel>
                     <Input
                       {...field}
-                      name="title"
                       id="title"
+                      name="title"
                       aria-invalid={!!visibleErrors.title}
                       placeholder="What's the subject?"
                       className="bg-white dark:bg-black"
@@ -213,8 +215,8 @@ export function EditPostClient({ post }: EditPostClientProps) {
                     <FieldLabel htmlFor="subtitle">Subtitle</FieldLabel>
                     <Input
                       {...field}
-                      name="subtitle"
                       id="subtitle"
+                      name="subtitle"
                       aria-invalid={!!visibleErrors.subtitle}
                       placeholder="What's your main idea?"
                       className="bg-white dark:bg-black"
@@ -240,9 +242,9 @@ export function EditPostClient({ post }: EditPostClientProps) {
                       <Field>
                         <FieldLabel htmlFor="minRead">Minutes Read</FieldLabel>
                         <Input
-                          id="minRead"
                           aria-invalid={!!visibleErrors.minRead}
                           type="number"
+                          id="minRead"
                           min="1"
                           max="30"
                           placeholder="Estimated reading time in minutes"
@@ -271,7 +273,6 @@ export function EditPostClient({ post }: EditPostClientProps) {
                         <Select
                           value={field.value}
                           name="topic"
-                          aria-invalid={!!visibleErrors.topic}
                           onValueChange={(v) => {
                             field.onChange(v);
                             clearError("topic");
@@ -297,7 +298,6 @@ export function EditPostClient({ post }: EditPostClientProps) {
               </div>
 
               {/* Featured image */}
-              {/* Featured image */}
               <Controller
                 name="image"
                 control={form.control}
@@ -305,22 +305,16 @@ export function EditPostClient({ post }: EditPostClientProps) {
                   <Field>
                     <FieldLabel htmlFor="image">Featured Image</FieldLabel>
                     <div className="relative flex flex-col-reverse sm:flex-row w-full h-full items-center justify-center gap-2 sm:gap-5">
-                      {previewUrl ? (
-                        <div className="relative flex w-full sm:w-1/2 h-[220px] p-3 border border-input bg-white dark:bg-black rounded-md">
-                          <Image
-                            src={previewUrl}
-                            alt="Preview"
-                            fill
-                            sizes="100%"
-                            loading="eager"
-                            className="object-cover rounded p-3"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex w-full sm:w-1/2 h-[220px] rounded-md border border-dashed border-input items-center justify-center bg-white dark:bg-black">
-                          <p className="text-xs text-paragraph">Preview will appear here</p>
-                        </div>
-                      )}
+                      <div className="relative flex w-full sm:w-1/2 h-[220px] p-3 border border-input bg-white dark:bg-black rounded-md">
+                        <Image
+                          src={previewUrl}
+                          alt="Preview"
+                          fill
+                          sizes="100%"
+                          loading="eager"
+                          className="object-cover rounded p-3"
+                        />
+                      </div>
                       <input
                         type="file"
                         accept="image/*"
@@ -389,7 +383,6 @@ export function EditPostClient({ post }: EditPostClientProps) {
                       name="content"
                       value={field.value}
                       hasError={!!visibleErrors.contentHtml}
-                      aria-invalid={!!visibleErrors.contentHtml}
                       onChange={(text, html) => {
                         form.setValue("content", text);
                         form.setValue("contentHtml", html);

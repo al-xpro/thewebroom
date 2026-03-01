@@ -45,19 +45,19 @@ export default function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/50 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center space-y-4">
-            <CheckCircle2 className="h-12 w-12 mx-auto text-green-600" />
-            <CardTitle>Check Your Email</CardTitle>
-            <CardDescription>
-              We've sent a password reset code to{" "}
-              <span className="font-semibold text-foreground">{submittedEmail}</span>
-            </CardDescription>
-          </CardHeader>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center space-y-4">
+            <CheckCircle2 className="h-12 w-12 mx-auto text-primary" />
+            <h2>Check Your Email</h2>
+            <div className="">
+              We've sent a password reset code to&nbsp;
+              <span className="font-semibold text-black dark:text-white">{submittedEmail}</span>
+            </div>
+          </div>
           <CardContent className="space-y-4">
             <div className="p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-paragraph">
                 We've sent you a 6-digit code. If you don't see it, please check your spam folder.
               </p>
             </div>
@@ -76,7 +76,7 @@ export default function ForgotPasswordPage() {
               </Link>
             </div>
           </CardContent>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -84,11 +84,12 @@ export default function ForgotPasswordPage() {
   return (
     <div className="relative flex flex-col w-full h-full items-center justify-center gap-8">
       {/* Back button */}
-      <Link
-        href="/"
-        className="relative flex w-full items-start sm:absolute left-0 sm:left-6 top-0 lg:top-6 z-20"
-      >
-        <Button variant="secondary" size="sm" className="cursor-pointer">
+      <Link href="/" className="flex items-center justify-center gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="relative flex px-2 py-1 items-center left-0 top-0 z-20 cursor-pointer"
+        >
           <ArrowLeft className="h-4 w-4" />
           Home
         </Button>
@@ -97,7 +98,7 @@ export default function ForgotPasswordPage() {
         <FieldGroup>
           <div className="flex flex-col items-center gap-1 text-center">
             <h1 className="text-2xl font-bold">Reset Password</h1>
-            <p className="text-muted-foreground text-sm text-paragraph text-balance">
+            <p className="text-paragraph text-sm text-paragraph text-balance">
               Enter your email address and we'll send you a code to reset your password.
             </p>
           </div>
@@ -107,12 +108,16 @@ export default function ForgotPasswordPage() {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field>
-                  <FieldLabel>Email Address</FieldLabel>
+                  <FieldLabel htmlFor="email">Email Address</FieldLabel>
                   <Input
                     type="email"
+                    id="email"
+                    autoComplete="email"
+                    required
                     placeholder="you@example.com"
                     aria-invalid={fieldState.invalid}
                     {...field}
+                    name="email"
                   />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
@@ -121,14 +126,8 @@ export default function ForgotPasswordPage() {
           </Field>
           <Field>
             <Button disabled={form.formState.isSubmitting} size="lg" className="w-full">
-              {form.formState.isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Sending...
-                </>
-              ) : (
-                "Send Reset Code"
-              )}
+              {form.formState.isSubmitting && <Loader2 className="size-4 animate-spin" />}
+              <span>Send Reset Code</span>
             </Button>
           </Field>
         </FieldGroup>

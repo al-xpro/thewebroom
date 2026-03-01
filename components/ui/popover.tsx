@@ -72,7 +72,7 @@ function PopoverDescription({
   return (
     <p
       data-slot="popover-description"
-      className={cn("text-muted-foreground", className)}
+      className={cn("text-[#666666] dark:text-[#A0A0A0]", className)}
       {...props}
     />
   )

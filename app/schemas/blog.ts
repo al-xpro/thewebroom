@@ -1,9 +1,27 @@
 import z from "zod";
 
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/avif", "image/tiff"];
+const ACCEPTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/tiff",
+];
 
-export const postSchema = z.object({
+const imageField = z
+  .instanceof(File)
+  .refine(
+    (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+    "Only JPEG, PNG, WebP, AVIF and TIFF images are accepted"
+  )
+  .refine(
+    (file) => file.size <= MAX_IMAGE_SIZE,
+    "Image must be smaller than 1 MB"
+  );
+
+const baseSchema = z.object({
   title: z
     .string()
     .min(6, "Title must be at least 6 characters")
@@ -22,24 +40,24 @@ export const postSchema = z.object({
     .min(1, "Reading time must be at least 1 minute")
     .max(30, "Reading time must be less than 30 minutes"),
 
-  image: z
-    .instanceof(File)
-    .refine(
-      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
-      "Only JPEG, PNG, WebP, AVIF and TIFF images are accepted"
-    )
-    .refine(
-      (file) => file.size <= MAX_IMAGE_SIZE,
-      "Image must be smaller than 1 MB"
-    ),
-
   content: z
     .string()
     .min(1000, "Content must be at least 1000 characters")
-    .max(10000, "Content must be less than 10000 characters"),
+    .max(100000, "Content must be less than 100000 characters"),
 
   contentHtml: z
     .string()
     .min(1000, "Content must be at least 1000 characters")
     .max(100000, "Content must be less than 100000 characters"),
+});
+
+// Create: image is required — a new post must have a featured image.
+export const postSchema = baseSchema.extend({
+  image: imageField,
+});
+
+// Edit: image is optional — the existing Convex image is kept when no
+// new file is selected. Only validate the File if the user picks one.
+export const editPostSchema = baseSchema.extend({
+  image: imageField.optional(),
 });

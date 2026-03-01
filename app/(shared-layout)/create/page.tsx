@@ -1,8 +1,6 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getToken } from "@/lib/auth-server";
 import { CreatePostClient } from "./CreatePostClient";
 
 async function CreatePostContent() {

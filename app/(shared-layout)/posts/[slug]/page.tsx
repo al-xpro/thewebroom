@@ -5,12 +5,13 @@ import { PostContent } from "@/components/web/PostContent";
 import Footer from "@/components/web/Footer";
 import { api } from "@/convex/_generated/api";
 import { fetchQuery, preloadQuery } from "convex/nextjs";
-import { ArrowLeft, BookType, Calendar, ClockFading, User } from "lucide-react";
+import { ArrowLeft, BookType, Calendar, ClockFading, Divide, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
+import { Suspense } from "react";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -38,7 +39,6 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
   const post = await fetchQuery(api.posts.getPostBySlug, { slug });
 
   if (!post) {
-    console.log(`[PostDetail] Post not found with slug: "${slug}"`);
     return notFound();
   }
 
@@ -46,23 +46,19 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
     postId: post._id,
   });
 
-  console.log(
-    `[PostDetail] Loaded post with slug "${slug}": "${post.title}" (minRead=${post.minRead || "N/A"})`
-  );
-
   return (
     <div className="flex flex-col w-full max-w-3xl min-h-screen pt-20 px-4 mx-auto">
       <div className="flex flex-col w-full items-start justify-center gap-8">
-        <Button
-          variant="outline"
-          size="sm"
-          className="relative flex items-center justify-start z-20"
-        >
-          <Link href="/posts" className="flex items-center justify-center gap-2">
+        <Link href="/posts" className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="relative flex items-center justify-start z-20"
+          >
             <ArrowLeft className="h-4 w-4" />
             All posts
-          </Link>
-        </Button>
+          </Button>
+        </Link>
 
         <header className="flex flex-col w-full gap-4">
           <h1 className="text-balance text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl">
@@ -73,16 +69,14 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
 
           <Separator className="my-4" />
 
-          <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[12px] sm:text-sm text-paragraph">
+          <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
             <div className="flex flex-col items-center gap-2 text-black dark:text-white">
               <User className="size-4 sm:size-5" />
               <p>{post.authorName}</p>
             </div>
             <div className="flex flex-col items-center gap-2 text-black dark:text-white">
               <Calendar className="size-4 sm:size-5" />
-              <p>
-                {new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}
-              </p>
+              <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
             </div>
             <div className="flex flex-col items-center gap-2">
               <BookType className="size-4 sm:size-5 text-black dark:text-white" />
@@ -92,7 +86,7 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
             </div>
             <div className="flex flex-col items-center gap-2 text-black dark:text-white">
               <ClockFading className="size-4 sm:size-5" />
-              <p >{post.minRead} min read</p>
+              <p>{post.minRead} min read</p>
             </div>
 
             <CopyPostButton />
@@ -101,10 +95,7 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
 
         <div className="relative mb-8 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
           <Image
-            src={
-              post.imageUrl ??
-              "https://images.unsplash.com/photo-1761019646782-4bc46ba43fe9?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-            }
+            src={post.imageUrl || ""}
             alt="image"
             fill
             sizes="100%"
@@ -117,7 +108,11 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
 
         <Separator className="my-8" />
 
-        <CommentSection preloadedComments={preloadedCommentsData} postId={post._id} postAuthorId={post.authorId} />
+        <CommentSection
+          preloadedComments={preloadedCommentsData}
+          postId={post._id}
+          postAuthorId={post.authorId}
+        />
 
         <div className="w-full">
           <Footer />
