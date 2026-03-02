@@ -54,10 +54,21 @@ export default defineSchema({
 
   passwordResetOtps: defineTable({
     email: v.string(),
-    otp: v.string(),
+    otpHash: v.optional(v.string()),
+    // Legacy field kept optional to avoid deployment/runtime break on old documents.
+    otp: v.optional(v.string()),
     expiresAt: v.number(),
     attempts: v.number(),
+    sentAt: v.optional(v.number()),
   }).index("by_email", ["email"]),
+
+  passwordResetSessions: defineTable({
+    email: v.string(),
+    tokenHash: v.string(),
+    expiresAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_tokenHash", ["tokenHash"]),
 
   newsletterSubscriptions: defineTable({
     email: v.string(),

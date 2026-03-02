@@ -16,6 +16,17 @@
   mix-blend-mode: normal;
 }
 
+html,
+body {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .dock-icon {
   transform-box: fill-box;
   transform-origin: center;

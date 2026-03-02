@@ -8,7 +8,7 @@ import { fetchQuery } from "convex/nextjs";
 import { cacheLife, cacheTag } from "next/cache";
 import { SignatureIcon } from "@/public/SignatureIcon";
 import Newsletter from "@/components/web/Newsletter";
-import { ArrowRight, ClockFading } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (

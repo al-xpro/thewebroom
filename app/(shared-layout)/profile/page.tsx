@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Eye, EyeOff, LogOut } from "lucide-react";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { api } from "@/convex/_generated/api";
@@ -15,23 +14,27 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
+  const deleteGuard = useQuery(api.auth.getDeleteAccountGuard, isAuthenticated ? {} : "skip");
+
+  const verifyDeletePassword = useMutation(api.auth.verifyDeletePassword);
+  const deleteAccountCascade = useMutation(api.auth.deleteAccountCascade);
+
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isPreparingPasswordFlow, setIsPreparingPasswordFlow] = useState(false);
+  const [passwordCheckState, setPasswordCheckState] = useState<
+    "idle" | "checking" | "valid" | "invalid" | "missing_password"
+  >("idle");
   const [confirmText, setConfirmText] = useState("");
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
-    }
-  }, [isAuthenticated, isLoading, router]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -47,42 +50,101 @@ export default function ProfilePage() {
           },
         },
       });
-    } catch (error: any) {
-      showErrorToast(error?.message || "Failed to logout");
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to logout");
     } finally {
       setIsLoggingOut(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (!password.trim()) {
-      showErrorToast("Please enter your password to delete your account");
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) router.push("/auth/login");
+  }, [isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!deleteGuard) return;
+
+    if (!deleteGuard.hasCredentialPassword) {
+      setPasswordCheckState("missing_password");
       return;
     }
 
-    if (!confirm("Are you absolutely sure? This action cannot be undone.")) {
+    if (!password.trim()) {
+      setPasswordCheckState("idle");
+      return;
+    }
+
+    let cancelled = false;
+    setPasswordCheckState("checking");
+
+    const timer = window.setTimeout(async () => {
+      try {
+        await verifyDeletePassword({ password });
+        if (!cancelled) {
+          setPasswordCheckState("valid");
+        }
+      } catch {
+        if (!cancelled) {
+          setPasswordCheckState("invalid");
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [deleteGuard, isAuthenticated, password, verifyDeletePassword]);
+
+  const handleDeleteAccount = async () => {
+    if (passwordCheckState !== "valid") {
+      showErrorToast("Type your exact account password to enable deletion");
+      return;
+    }
+
+    if (confirmText !== "DELETE") {
+      showErrorToast("Type DELETE to confirm");
       return;
     }
 
     setIsDeleting(true);
     try {
-      // Delete account
-      await authClient.deleteUser({
-        password,
-      });
-      showSuccessToast("Account deleted successfully");
-      router.push("/");
-    } catch (error: any) {
-      showErrorToast(error?.message || "Failed to delete account");
+      await verifyDeletePassword({ password });
+      await deleteAccountCascade({ password });
+      showSuccessToast("Account and all related content deleted successfully");
+
+      try {
+        await authClient.signOut();
+      } catch {
+        // Session is likely already invalidated by server-side deletion.
+      }
+
+      window.location.href = "/";
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to delete account");
     } finally {
       setIsDeleting(false);
-      setPassword("");
     }
   };
 
-  if (isLoading || !isAuthenticated) {
-    return null;
-  }
+  const handleSetPasswordFlow = async () => {
+    if (!user?.email) {
+      showErrorToast("Unable to start password setup flow");
+      return;
+    }
+
+    setIsPreparingPasswordFlow(true);
+    try {
+      await authClient.signOut();
+      window.location.href = `/auth/forgot-password?email=${encodeURIComponent(user.email)}`;
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to start password setup flow");
+      setIsPreparingPasswordFlow(false);
+    }
+  };
+
+  if (isLoading || !isAuthenticated) return null;
 
   const profileReady = user !== undefined;
 
@@ -109,7 +171,6 @@ export default function ProfilePage() {
             <p className="text-paragraph text-xl pt-4">Manage your account settings</p>
           </div>
 
-          {/* Email & Profile Section */}
           <Card className="space-y-3">
             <CardHeader>
               <CardTitle className="text-black dark:text-white">Profile Information</CardTitle>
@@ -170,7 +231,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Password Section */}
           <Card className="border-[#DA2E34] dark:border-[#D93036]">
             <CardHeader>
               <CardTitle className="text-[#DA2E34] dark:text-[#D93036]">Delete Account</CardTitle>
@@ -180,20 +240,20 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <FieldLabel htmlFor="password" className="text-sm font-medium">
-                    Enter your password to delete account
-                  </FieldLabel>
-                </div>
+                <FieldLabel htmlFor="password" className="text-sm font-medium">
+                  Type your account password
+                </FieldLabel>
                 <div className="relative">
                   <Input
                     id="password"
-                    name="delete account"
+                    name="delete-account-password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                    }}
                     placeholder="Enter your password"
-                    disabled={isDeleting}
+                    disabled={isDeleting || deleteGuard?.hasCredentialPassword === false}
                     className="bg-white dark:bg-black"
                   />
                   <button
@@ -207,10 +267,44 @@ export default function ProfilePage() {
                 </div>
               </div>
 
+              {passwordCheckState === "checking" && (
+                <p className="text-sm text-paragraph">Checking password...</p>
+              )}
+              {passwordCheckState === "invalid" && (
+                <p className="text-sm text-destructive">Password does not match this account.</p>
+              )}
+              {passwordCheckState === "valid" && (
+                <p className="text-sm text-green-600">Password matches your account.</p>
+              )}
+              {passwordCheckState === "missing_password" && (
+                <div className="space-y-2">
+                  <p className="text-sm text-paragraph">
+                    This account has no local password (GitHub login). Create a password first, then
+                    retry account deletion.
+                  </p>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={handleSetPasswordFlow}
+                    disabled={isPreparingPasswordFlow}
+                  >
+                    {isPreparingPasswordFlow && <Loader2 className="size-4 animate-spin" />}
+                    <span>Sign out and set password</span>
+                  </Button>
+                  <p className="text-xs text-paragraph">
+                    Already signed out? Open{" "}
+                    <Link href="/auth/forgot-password" className="underline">
+                      forgot password
+                    </Link>
+                    .
+                  </p>
+                </div>
+              )}
+
               <Button
                 variant="destructive"
                 onClick={() => setOpen(true)}
-                disabled={isDeleting || !password.trim()}
+                disabled={isDeleting || passwordCheckState !== "valid"}
                 className="w-full"
               >
                 {isDeleting && <Loader2 className="size-4 animate-spin" />}
@@ -240,13 +334,20 @@ export default function ProfilePage() {
             />
 
             <div className="flex gap-3 justify-end">
-              <Button variant="secondary" onClick={() => setOpen(false)}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setOpen(false);
+                  setConfirmText("");
+                }}
+                disabled={isDeleting}
+              >
                 Cancel
               </Button>
 
               <Button
                 variant="destructive"
-                disabled={confirmText !== "DELETE"}
+                disabled={confirmText !== "DELETE" || isDeleting}
                 onClick={handleDeleteAccount}
               >
                 {isDeleting && <Loader2 className="size-4 animate-spin" />}

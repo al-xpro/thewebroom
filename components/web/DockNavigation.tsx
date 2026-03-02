@@ -30,7 +30,6 @@ import {
 } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Kbd } from "../ui/kbd";
 
 // Types
@@ -110,6 +109,11 @@ export function DockNavigation() {
   const isPostPage = pathname?.startsWith("/posts/") && pathname !== "/posts";
   const [isMounted, setIsMounted] = useState(false);
   const [allowDrag, setAllowDrag] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSnapping, setIsSnapping] = useState(false);
+  const isTrackScrollingRef = useRef(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -221,6 +225,8 @@ export function DockNavigation() {
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false);
+    setIsSnapping(true);
+
     setHoveredIndex(null);
 
     const w = window.innerWidth;
@@ -251,23 +257,81 @@ export function DockNavigation() {
     else newPos = "right";
 
     if (newPos !== position) setPosition(newPos);
+
+    setTimeout(() => setIsSnapping(false), 600);
   };
+
+  useEffect(() => {
+    if (isDragging || isSnapping) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
+  }, [isDragging, isSnapping]);
 
   // --- Keyboard Shortcuts ---
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setIsSearching((prev) => !prev);
+        e.preventDefault(); // Prevent default immediately
+
+        if (isPostPage && isScrolling) return;
+
+        if (isSearching) {
+          // If closing, blur input first to prevent Safari jump
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+          setIsSearching(false);
+        } else {
+          // Save scroll position if needed, though usually not necessary for opening
+          const scrollY = window.scrollY;
+          setIsSearching(true);
+          // Optional: Restore scroll if opening causes a jump (rare)
+          requestAnimationFrame(() =>
+            window.scrollTo({ top: scrollY, behavior: "instant" as any })
+          );
+        }
       }
+
       if (e.key === "Escape" && isSearching) {
-        e.preventDefault();
+        e.preventDefault(); // Prevent default immediately
+
+        // Blur input first
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+
         setIsSearching(false);
+        // We don't strictly need scrollTo here if we blur properly,
+        // but keeping your existing logic safely doesn't hurt.
+        const scrollY = window.scrollY;
+        requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: "instant" as any }));
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isSearching]);
+  }, [isSearching, isPostPage, isScrolling]);
+
+  useEffect(() => {
+    if (!isPostPage) return;
+    const handleScroll = () => {
+      setIsScrolling(true);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(() => setIsScrolling(false), 300);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, [isPostPage]);
 
   useEffect(() => {
     if (!isSearching) setTerm("");
@@ -306,11 +370,11 @@ export function DockNavigation() {
         )}
       </AnimatePresence>
 
-      <div className={getContainerStyles()}>
+      <div className={getContainerStyles()} ref={containerRef}>
         <motion.div
           ref={dockRef}
           layout // Crucial for fluid transition between Dock and Minimap sizes
-          drag={!isSearching && allowDrag}
+          drag={!isSearching && allowDrag && !(isPostPage && isScrolling)}
           dragControls={dragControls}
           dragMomentum={false}
           dragElastic={1.0}
@@ -326,8 +390,8 @@ export function DockNavigation() {
               ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[320px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
               : isPostPage
                 ? isVertical
-                  ? "w-14 h-[400px] flex-col py-3 items-center"
-                  : "w-[400px] h-14 flex-row px-3 items-center"
+                  ? "w-14 h-[400px] flex-col py-3 items-center overflow-hidden touch-none"
+                  : "w-[400px] h-14 flex-row px-3 items-center overflow-hidden touch-none"
                 : isVertical
                   ? "w-16 h-auto flex-col p-2"
                   : "w-auto h-16 flex-row scale-92 sm:scale-100 p-2"
@@ -380,8 +444,16 @@ export function DockNavigation() {
                 headings={headings}
                 isVertical={isVertical}
                 dragControls={dragControls}
+                isScrolling={isScrolling}
                 onTrackPointerEnter={() => setAllowDrag(false)}
                 onTrackPointerLeave={() => setAllowDrag(true)}
+                onTrackScrollStart={() => {
+                  isTrackScrollingRef.current = true;
+                }}
+                onTrackScrollEnd={() => {
+                  isTrackScrollingRef.current = false;
+                }}
+                isTrackScrollingRef={isTrackScrollingRef}
               />
             ) : (
               // --- DOCK MODE ---
@@ -500,8 +572,12 @@ interface MinimapProps {
   headings: number[];
   isVertical: boolean;
   dragControls: any;
+  isScrolling: boolean;
   onTrackPointerEnter: () => void;
   onTrackPointerLeave: () => void;
+  onTrackScrollStart: () => void;
+  onTrackScrollEnd: () => void;
+  isTrackScrollingRef: React.RefObject<boolean>;
 }
 
 function Minimap({
@@ -509,8 +585,12 @@ function Minimap({
   headings,
   isVertical,
   dragControls,
+  isScrolling,
   onTrackPointerEnter,
   onTrackPointerLeave,
+  onTrackScrollStart,
+  onTrackScrollEnd,
+  isTrackScrollingRef,
 }: MinimapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState(0);
@@ -603,10 +683,26 @@ function Minimap({
     }
 
     const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-    window.scrollTo({
-      top: percent * totalHeight,
-      behavior: "smooth",
-    });
+    const targetY = percent * totalHeight;
+    const startY = window.scrollY;
+    const distance = targetY - startY;
+    const duration = 1200;
+    let startTime: number | null = null;
+
+    const easeInOutCubic = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      window.scrollTo(0, startY + distance * easeInOutCubic(progress));
+      if (progress < 1) requestAnimationFrame(step);
+      else onTrackScrollEnd();
+    };
+
+    onTrackScrollStart();
+    requestAnimationFrame(step);
   };
 
   return (
@@ -710,7 +806,10 @@ function Minimap({
 
       {/* Grip Handle */}
       <div
-        onPointerDown={(e) => dragControls.start(e)}
+        onPointerDown={(e) => {
+          if (isScrolling || isTrackScrollingRef.current) return;
+          dragControls.start(e);
+        }}
         className={cn(
           "flex items-center justify-center shrink-0 text-paragraph transition-colors",
           isVertical ? "h-6 w-full" : "w-6 h-full"
@@ -1033,8 +1132,10 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
   const [displayTerm, setDisplayTerm] = useState(initialTerm);
   const [debouncedTerm, setDebouncedTerm] = useState(initialTerm);
   const [isDebouncing, setIsDebouncing] = useState(false);
-  const [inputMode, setInputMode] = useState<"mouse" | "keyboard">("mouse");
   const [activeIndex, setActiveIndex] = useState(-1);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const [usingKeyboard, setUsingKeyboard] = useState(false);
+  const [mouseMoved, setMouseMoved] = useState(false);
 
   useEffect(() => {
     if (displayTerm === debouncedTerm) return;
@@ -1071,31 +1172,6 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
     });
   }, [debouncedTerm, posts]);
 
-  useEffect(() => {
-    if (!results || results.length === 0) return;
-    function handleNav(e: KeyboardEvent) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        setInputMode("keyboard");
-        setActiveIndex((prev) => {
-          if (!results) return prev;
-          if (e.key === "ArrowDown") return prev < results.length - 1 ? prev + 1 : 0;
-          return prev > 0 ? prev - 1 : results.length - 1;
-        });
-      }
-      if (e.key === "Enter" && activeIndex >= 0) {
-        e.preventDefault();
-        const selected = results?.[activeIndex];
-        if (selected) {
-          router.push(`/posts/${selected.slug}`);
-          onClose();
-        }
-      }
-    }
-    document.addEventListener("keydown", handleNav);
-    return () => document.removeEventListener("keydown", handleNav);
-  }, [results, activeIndex, router, onClose]);
-
   const getExcerpt = (text: string, term: string, maxLength = 160) => {
     if (!text) return "";
 
@@ -1129,6 +1205,18 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
     return prefix + text.slice(start, end) + suffix;
   };
 
+  useEffect(() => {
+    if (activeIndex < 0) return;
+
+    const el = itemRefs.current[activeIndex];
+    if (el) {
+      el.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }
+  }, [activeIndex]);
+
   return (
     <div className="flex flex-col h-full w-full bg-transparent min-w-[320px]">
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border/40 shrink-0 min-w-0">
@@ -1137,6 +1225,31 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
           ref={inputRef}
           value={displayTerm}
           maxLength={50}
+          onKeyDown={(e) => {
+            if (!results || results.length === 0) return;
+
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+              e.preventDefault();
+              setUsingKeyboard(true);
+              setMouseMoved(false);
+
+              setActiveIndex((prev) => {
+                if (e.key === "ArrowDown") {
+                  return prev < results.length - 1 ? prev + 1 : 0;
+                }
+                return prev > 0 ? prev - 1 : results.length - 1;
+              });
+            }
+
+            if (e.key === "Enter" && activeIndex >= 0) {
+              e.preventDefault();
+              const selected = results[activeIndex];
+              if (selected) {
+                router.push(`/posts/${selected.slug}`);
+                onClose();
+              }
+            }
+          }}
           onChange={(e) => setDisplayTerm(e.target.value)}
           placeholder="What are you searching for?"
           className="flex-1 bg-transparent text-lg outline-none placeholder:text-paragraph text-foreground truncate"
@@ -1169,22 +1282,33 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
             </p>
           </div>
         ) : (
-          <div className="h-full overflow-y-auto p-2">
+          <div
+            className="h-full overflow-y-auto p-2"
+            onMouseMove={() => {
+              if (usingKeyboard) {
+                setUsingKeyboard(false);
+                setMouseMoved(true);
+              }
+            }}
+          >
             <div className="flex flex-col gap-1">
               {results?.map((post: any, index: number) => (
                 <Link
                   key={post.slug}
+                  ref={(el) => {
+                    itemRefs.current[index] = el
+                  }}
                   href={`/posts/${post.slug}`}
                   onClick={onClose}
                   onMouseEnter={() => {
-                    setInputMode("mouse");
+                    if (usingKeyboard && !mouseMoved) return;
                     setActiveIndex(index);
                   }}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-xl transition-all text-left min-w-0 overflow-hidden",
-                    activeIndex === index && inputMode === "keyboard"
-                      ? "hover:bg-[#F4F4F5] dark:hover:bg-[#1E1E1E]"
-                      : inputMode === "mouse"
+                    activeIndex === index
+                      ? "bg-[#F4F4F5] dark:bg-[#1E1E1E]"
+                      : !usingKeyboard
                         ? "hover:bg-[#F4F4F5] dark:hover:bg-[#1E1E1E]"
                         : ""
                   )}

@@ -1,4 +1,5 @@
 import { DockNavigation } from "@/components/web/DockNavigation";
+import RequireCompleteProfile from "@/components/web/RequireCompleteProfile";
 import { ReactNode, Suspense } from "react";
 
 export default function SharedLayout({ children }: { children: ReactNode }) {
@@ -6,6 +7,7 @@ export default function SharedLayout({ children }: { children: ReactNode }) {
     <>
       <Suspense fallback={null}>
         <DockNavigation />
+        <RequireCompleteProfile />
       </Suspense>
       {children}
     </>
