@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useTransition, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
@@ -31,7 +31,6 @@ export default function SignUpClient() {
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<SignUpFields, string>>>({});
 
   const router = useRouter();
-  const sendWelcomeEmail = useMutation(api.emails.sendWelcomeEmail);
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
@@ -75,11 +74,6 @@ export default function SignUpClient() {
         password: data.password,
         fetchOptions: {
           onSuccess: async () => {
-            try {
-              await sendWelcomeEmail({ email: data.email });
-            } catch {
-              // non-blocking
-            }
             showSuccessToast("Account created. Complete your profile next.");
             router.push("/onboarding/complete-profile?force=1");
           },
@@ -101,8 +95,7 @@ export default function SignUpClient() {
       return;
     }
 
-    const isProviderConfigured =
-      provider === "github" && authProviderStatus?.githubConfigured;
+    const isProviderConfigured = provider === "github" && authProviderStatus?.githubConfigured;
 
     if (!isProviderConfigured) {
       showErrorToast(
@@ -147,7 +140,9 @@ export default function SignUpClient() {
         <FieldGroup>
           <div className="flex flex-col items-center gap-1 text-center">
             <h1 className="text-2xl font-bold">Create your account</h1>
-            <p className="text-paragraph text-sm">Create account first, then choose your profile name.</p>
+            <p className="text-paragraph text-sm">
+              Create account first, then choose your profile name.
+            </p>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -170,11 +165,13 @@ export default function SignUpClient() {
                       clearError("email");
                     }}
                   />
-                  {visibleErrors.email && <FieldError errors={[{ message: visibleErrors.email }]} />}
+                  {visibleErrors.email && (
+                    <FieldError errors={[{ message: visibleErrors.email }]} />
+                  )}
                 </Field>
               )}
             />
-            <FieldDescription>You can set your display name after authentication.</FieldDescription>
+            <FieldDescription>This will be your primary login.</FieldDescription>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -203,7 +200,10 @@ export default function SignUpClient() {
                 </Field>
               )}
             />
-            <FieldDescription>Must be at least 8 characters long.</FieldDescription>
+            <FieldDescription>
+              Must be at least 8 characters long and include a number, an uppercase letter and a
+              special character.
+            </FieldDescription>
           </div>
 
           <div className="flex flex-col gap-2">

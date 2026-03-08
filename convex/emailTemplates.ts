@@ -83,7 +83,7 @@ export function buildPasswordResetEmail(params: {
     "",
     `Your one-time reset code is: ${params.otp}`,
     "",
-    `Secure link: ${params.resetLink}`,
+    `OTP verification page: ${params.resetLink}`,
     "",
     "This code is valid for 15 minutes and can only be used once.",
     "",
@@ -99,7 +99,7 @@ export function buildPasswordResetEmail(params: {
     <div style="margin:20px 0;padding:16px;border-radius:8px;background:#f3f4f6;text-align:center;">
       <div style="font-size:30px;letter-spacing:8px;font-weight:700;">${escapeHtml(params.otp)}</div>
     </div>
-    <a href="${escapeHtml(params.resetLink)}" style="display:inline-block;margin:8px 0 20px;padding:10px 14px;background:#111827;color:#fff;text-decoration:none;border-radius:8px;">Open Secure Reset Flow</a>
+    <a href="${escapeHtml(params.resetLink)}" style="display:inline-block;margin:8px 0 20px;padding:10px 14px;background:#111827;color:#fff;text-decoration:none;border-radius:8px;">Open OTP Verification</a>
     ${paragraphs([
       "This code expires in 15 minutes and can only be used once.",
       "If you didn't request a password reset, you can ignore this email.",

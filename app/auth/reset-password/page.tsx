@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import ResetPasswordClient from "./ResetPasswordClient";
 
-export default function ResetPasswordPage() {
+export default async function ResetPasswordPage() {
   return (
     <Suspense
       fallback={

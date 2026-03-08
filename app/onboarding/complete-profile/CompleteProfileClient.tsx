@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter, useSearchParams } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
-import { isNameComplete } from "@/lib/onboarding";
+import { isOnboardingComplete } from "@/lib/onboarding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -19,7 +18,7 @@ const completeProfileSchema = z.object({
   name: z
     .string()
     .min(3, "Name must be at least 3 characters")
-    .max(20, "Name must be at most 20 characters")
+    .max(10, "Name must be at most 10 characters")
     .regex(/^[a-zA-Z0-9\s-]+$/, "Name cannot contain special characters"),
 });
 
@@ -32,9 +31,12 @@ export default function CompleteProfileClient() {
 
   const { isAuthenticated, isLoading } = useConvexAuth();
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
+  const completeProfileOnboarding = useMutation(api.auth.completeProfileOnboarding);
 
   const [isPending, startTransition] = useTransition();
-  const [visibleErrors, setVisibleErrors] = useState<Partial<Record<CompleteProfileFields, string>>>({});
+  const [visibleErrors, setVisibleErrors] = useState<
+    Partial<Record<CompleteProfileFields, string>>
+  >({});
 
   const form = useForm<z.infer<typeof completeProfileSchema>>({
     resolver: zodResolver(completeProfileSchema),
@@ -52,13 +54,13 @@ export default function CompleteProfileClient() {
 
     if (user === undefined) return;
 
-    if (isNameComplete(user?.name) && !force) {
+    if (isOnboardingComplete(user) && !force) {
       router.replace("/");
       return;
     }
 
-    if (!force && user?.name) {
-      form.setValue("name", user.name, { shouldValidate: true });
+    if (!force && isOnboardingComplete(user) && user?.displayUsername) {
+      form.setValue("name", user.displayUsername, { shouldValidate: true });
     }
   }, [form, force, isAuthenticated, isLoading, router, user]);
 
@@ -86,31 +88,26 @@ export default function CompleteProfileClient() {
 
   function onSubmit(values: z.infer<typeof completeProfileSchema>) {
     startTransition(async () => {
-      await authClient.updateUser({
-        name: values.name,
-        fetchOptions: {
-          onSuccess: () => {
-            showSuccessToast("Profile completed successfully");
-            router.replace("/");
-          },
-          onError: (error) => {
-            showErrorToast(error.error.message || "Failed to update profile");
-          },
-        },
-      });
+      try {
+        await completeProfileOnboarding({ name: values.name });
+        showSuccessToast("Profile completed successfully");
+        router.replace("/");
+      } catch (error) {
+        showErrorToast(error instanceof Error ? error.message : "Failed to update profile");
+      }
     });
   }
 
   if (isLoading || !isAuthenticated || user === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center">
         <Loader2 className="size-6 animate-spin text-paragraph" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="w-full flex items-center justify-center px-4">
       <form className="w-full max-w-md" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
         <FieldGroup>
           <div className="text-center space-y-1">
@@ -129,7 +126,9 @@ export default function CompleteProfileClient() {
                 <Input
                   id="name"
                   required
-                  autoComplete="nickname"
+                  autoComplete="name"
+                  minLength={3}
+                  maxLength={10}
                   placeholder="Your display name"
                   aria-invalid={!!visibleErrors.name}
                   {...field}

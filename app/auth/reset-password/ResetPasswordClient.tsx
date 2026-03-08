@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Link from "next/link";
@@ -20,9 +20,11 @@ const resetPasswordSchema = z
     newPassword: z
       .string()
       .min(8, "Password must be at least 8 characters")
+      .max(20, "Password must be at most 20 characters")
       .regex(/[A-Z]/, "Password must contain an uppercase letter")
       .regex(/[a-z]/, "Password must contain a lowercase letter")
-      .regex(/[0-9]/, "Password must contain a number"),
+      .regex(/[0-9]/, "Password must contain a number")
+      .regex(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/, "Password must contain a special character"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -39,7 +41,10 @@ export default function ResetPasswordClient() {
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [visibleErrors, setVisibleErrors] = useState<Partial<Record<ResetPasswordFields, string>>>({});
+  const [redirectedForInvalidSession, setRedirectedForInvalidSession] = useState(false);
+  const [visibleErrors, setVisibleErrors] = useState<Partial<Record<ResetPasswordFields, string>>>(
+    {}
+  );
 
   const resetPassword = useMutation(api.passwordReset.resetPassword);
   const resetSessionValidation = useQuery(
@@ -54,6 +59,19 @@ export default function ResetPasswordClient() {
       confirmPassword: "",
     },
   });
+
+  useEffect(() => {
+    if (resetToken) return;
+    router.replace("/auth/forgot-password");
+  }, [resetToken, router]);
+
+  useEffect(() => {
+    if (!resetSessionValidation || resetSessionValidation.valid || redirectedForInvalidSession)
+      return;
+    setRedirectedForInvalidSession(true);
+    showErrorToast("Reset session expired. Request a new OTP link.");
+    router.replace("/auth/forgot-password");
+  }, [redirectedForInvalidSession, resetSessionValidation, router]);
 
   const clearError = (field: ResetPasswordFields) => {
     setVisibleErrors((prev) => {
@@ -100,40 +118,16 @@ export default function ResetPasswordClient() {
 
   if (!resetToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/50 px-4">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <CardTitle>Invalid Reset Link</CardTitle>
-            <CardDescription>
-              This page is only available after OTP verification in the forgot password flow.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/auth/forgot-password" className={buttonVariants({ className: "w-full" })}>
-              Restart Password Reset
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-paragraph" />
       </div>
     );
   }
 
   if (resetSessionValidation && !resetSessionValidation.valid) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/50 px-4">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <CardTitle>Reset Session Expired</CardTitle>
-            <CardDescription>
-              Your reset session is no longer valid. Request a new OTP to continue.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/auth/forgot-password" className={buttonVariants({ className: "w-full" })}>
-              Request New OTP
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-paragraph" />
       </div>
     );
   }
@@ -160,70 +154,88 @@ export default function ResetPasswordClient() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-2">
-          <Link href="/auth/forgot-password" className={buttonVariants({ variant: "ghost", className: "-ml-2 w-fit" })}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Link>
-          <CardTitle>Create a new password</CardTitle>
-          <CardDescription>Use a strong password and avoid reusing old credentials.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
-            <FieldGroup>
-              <Controller
-                name="newPassword"
-                control={form.control}
-                render={({ field }) => (
-                  <Field>
-                    <FieldLabel>New Password</FieldLabel>
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      aria-invalid={!!visibleErrors.newPassword}
-                      autoComplete="new-password"
-                      {...field}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        clearError("newPassword");
-                        clearError("confirmPassword");
-                      }}
-                    />
-                    {visibleErrors.newPassword && (
-                      <FieldError errors={[{ message: visibleErrors.newPassword }]} />
-                    )}
-                  </Field>
+    <div className="relative flex flex-col w-full h-full items-center justify-center gap-8">
+      <Link href="/auth/forgot-password" className="flex items-center justify-center gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="relative flex px-2 py-1 items-center left-0 top-0 z-20 cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+      </Link>
+      <form
+        className="flex flex-col w-full max-w-md gap-6"
+        onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+      >
+        <FieldGroup>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-2xl font-bold">Login to your account</h1>
+            <p className="text-paragraph text-sm text-paragraph">
+              Enter your email below to login&nbsp;
+              <span className="whitespace-nowrap">to your account.</span>
+            </p>
+          </div>
+          <Controller
+            name="newPassword"
+            control={form.control}
+            render={({ field }) => (
+              <Field>
+                <FieldLabel htmlFor="new-password">New Password</FieldLabel>
+                <Input
+                  type="password"
+                  id="new-password"
+                  aria-label="password"
+                  placeholder="********"
+                  aria-invalid={!!visibleErrors.newPassword}
+                  autoComplete="new-password"
+                  {...field}
+                  name="new-password"
+                  onChange={(e) => {
+                    field.onChange(e);
+                    clearError("newPassword");
+                    clearError("confirmPassword");
+                  }}
+                />
+                {visibleErrors.newPassword && (
+                  <FieldError errors={[{ message: visibleErrors.newPassword }]} />
                 )}
-              />
-
-              <Controller
-                name="confirmPassword"
-                control={form.control}
-                render={({ field }) => (
-                  <Field>
-                    <FieldLabel>Confirm Password</FieldLabel>
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                      aria-invalid={!!visibleErrors.confirmPassword}
-                      {...field}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        clearError("confirmPassword");
-                      }}
-                    />
-                    {visibleErrors.confirmPassword && (
-                      <FieldError errors={[{ message: visibleErrors.confirmPassword }]} />
-                    )}
-                  </Field>
+              </Field>
+            )}
+          />
+          <Controller
+            name="confirmPassword"
+            control={form.control}
+            render={({ field }) => (
+              <Field>
+                <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
+                <Input
+                  type="password"
+                  id="confirm-password"
+                  aria-label="confirm password"
+                  placeholder="********"
+                  autoComplete="new-password"
+                  aria-invalid={!!visibleErrors.confirmPassword}
+                  {...field}
+                  name="confirm-password"
+                  onChange={(e) => {
+                    field.onChange(e);
+                    clearError("confirmPassword");
+                  }}
+                />
+                {visibleErrors.confirmPassword && (
+                  <FieldError errors={[{ message: visibleErrors.confirmPassword }]} />
                 )}
-              />
-            </FieldGroup>
-
-            <Button disabled={isSubmitting || resetSessionValidation === undefined} size="lg" className="w-full">
+              </Field>
+            )}
+          />
+          <Field>
+            <Button
+              disabled={isSubmitting || resetSessionValidation === undefined}
+              size="lg"
+              className="w-full"
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -233,15 +245,9 @@ export default function ResetPasswordClient() {
                 "Reset Password"
               )}
             </Button>
-
-            <div className="text-center">
-              <Link href="/auth/login" className="text-sm text-primary hover:underline">
-                Back to login
-              </Link>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+          </Field>
+        </FieldGroup>
+      </form>
     </div>
   );
 }

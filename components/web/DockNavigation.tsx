@@ -114,6 +114,31 @@ export function DockNavigation() {
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isSnapping, setIsSnapping] = useState(false);
   const isTrackScrollingRef = useRef(false);
+  const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
+  const [postExists, setPostExists] = useState(false);
+
+  useEffect(() => {
+    setPostExists(false);
+
+    if (!isPostPage) return;
+
+    if (document.querySelector("article")) {
+      setPostExists(true);
+      return;
+    }
+
+    const observer = new MutationObserver(() => {
+      if (document.querySelector("article")) {
+        setPostExists(true);
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [pathname, isPostPage]);
+
+  const showMinimap = isPostPage && postExists;
 
   useEffect(() => {
     setIsMounted(true);
@@ -350,6 +375,32 @@ export function DockNavigation() {
     return cn(base, positions[position]);
   };
 
+  const dragConstraints = useMemo(() => {
+    if (typeof window === "undefined") return { top: 0, bottom: 0, left: 0, right: 0 };
+    const padding = 24;
+    const maxX = (window.innerWidth - dockSize.width) / 2 - padding;
+    const maxY = (window.innerHeight - dockSize.height) / 2 - padding;
+    return {
+      top: -maxY,
+      bottom: maxY,
+      left: -maxX,
+      right: maxX,
+    };
+  }, [dockSize]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (dockRef.current) {
+        setDockSize({
+          width: dockRef.current.offsetWidth,
+          height: dockRef.current.offsetHeight,
+        });
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   let renderIndex = 0;
   const getIndex = () => renderIndex++;
   const showTooltips = isMounted && !isSearching && !isDragging && !isLayoutAnimating;
@@ -365,200 +416,207 @@ export function DockNavigation() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSearching(false)}
+            role="button"
+            aria-label="close search"
             className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm"
           />
         )}
       </AnimatePresence>
 
-      <div className={getContainerStyles()} ref={containerRef}>
-        <motion.div
-          ref={dockRef}
-          layout // Crucial for fluid transition between Dock and Minimap sizes
-          drag={!isSearching && allowDrag && !(isPostPage && isScrolling)}
-          dragControls={dragControls}
-          dragMomentum={false}
-          dragElastic={1.0}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
-          dragSnapToOrigin
-          dragTransition={{ bounceStiffness: 600, bounceDamping: 100 }}
-          onMouseLeave={handleItemLeave}
-          className={cn(
-            "relative flex gap-2 rounded-2xl border border-gray bg-white dark:bg-black shadow-2xl backdrop-blur-2xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
-            isSearching
-              ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[320px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
-              : isPostPage
-                ? isVertical
-                  ? "w-14 h-[400px] flex-col py-3 items-center overflow-hidden touch-none"
-                  : "w-[400px] h-14 flex-row px-3 items-center overflow-hidden touch-none"
-                : isVertical
-                  ? "w-16 h-auto flex-col p-2"
-                  : "w-auto h-16 flex-row scale-92 sm:scale-100 p-2"
-          )}
-        >
-          {/* Tooltips */}
-          {showTooltips && !isPostPage && (
-            <>
-              {isVertical ? (
-                <VerticalTooltip
-                  items={dockLabels}
-                  hoveredIndex={hoveredIndex}
-                  prevHoveredIndex={prevHoveredIndex}
-                  ySpring={ySpring}
-                  position={position}
-                />
-              ) : (
-                <HorizontalTooltip
-                  items={dockLabels}
-                  hoveredIndex={hoveredIndex}
-                  prevHoveredIndex={prevHoveredIndex}
-                  xSpring={xSpring}
-                  position={position}
-                />
+      <AnimatePresence mode="wait">
+        {(!isPostPage || postExists) && (
+          <div className={getContainerStyles()} ref={containerRef}>
+            <motion.div
+              ref={dockRef}
+              layout // Crucial for fluid transition between Dock and Minimap sizes
+              drag={!isSearching && allowDrag && !(showMinimap && isScrolling)}
+              dragControls={dragControls}
+              dragMomentum={false}
+              dragElastic={1.0}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              dragConstraints={dragConstraints}
+              dragSnapToOrigin
+              dragTransition={{ bounceStiffness: 600, bounceDamping: 100 }}
+              onMouseLeave={handleItemLeave}
+              className={cn(
+                "relative flex gap-2 rounded-2xl border border-gray bg-white dark:bg-black shadow-2xl backdrop-blur-2xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
+                isSearching
+                  ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[320px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
+                  : showMinimap
+                    ? isVertical
+                      ? "w-14 min-h-[350px] max-h-[400px] h-full flex-col py-3 items-center overflow-hidden touch-none"
+                      : "w-[400px] h-14 flex-row px-3 items-center overflow-hidden touch-none"
+                    : isVertical
+                      ? "w-16 h-auto flex-col p-2"
+                      : "w-auto h-16 flex-row scale-92 sm:scale-100 p-2"
               )}
-            </>
-          )}
+            >
+              {/* Tooltips */}
+              {showTooltips && !showMinimap && (
+                <>
+                  {isVertical ? (
+                    <VerticalTooltip
+                      items={dockLabels}
+                      hoveredIndex={hoveredIndex}
+                      prevHoveredIndex={prevHoveredIndex}
+                      ySpring={ySpring}
+                      position={position}
+                    />
+                  ) : (
+                    <HorizontalTooltip
+                      items={dockLabels}
+                      hoveredIndex={hoveredIndex}
+                      prevHoveredIndex={prevHoveredIndex}
+                      xSpring={xSpring}
+                      position={position}
+                    />
+                  )}
+                </>
+              )}
 
-          <AnimatePresence mode="wait">
-            {isSearching ? (
-              <motion.div
-                key="search"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, transition: { duration: 0 } }}
-                className="flex flex-col w-full h-full"
-              >
-                <DockSearchContent
-                  initialTerm={term}
-                  inputRef={inputRef}
-                  onClose={() => setIsSearching(false)}
-                  router={router}
-                />
-              </motion.div>
-            ) : isPostPage ? (
-              // --- MINIMAP MODE ---
-              <Minimap
-                key="minimap"
-                completion={completion}
-                headings={headings}
-                isVertical={isVertical}
-                dragControls={dragControls}
-                isScrolling={isScrolling}
-                onTrackPointerEnter={() => setAllowDrag(false)}
-                onTrackPointerLeave={() => setAllowDrag(true)}
-                onTrackScrollStart={() => {
-                  isTrackScrollingRef.current = true;
-                }}
-                onTrackScrollEnd={() => {
-                  isTrackScrollingRef.current = false;
-                }}
-                isTrackScrollingRef={isTrackScrollingRef}
-              />
-            ) : (
-              // --- DOCK MODE ---
-              <motion.div
-                key="dock"
-                initial={{ opacity: 0, y: isVertical ? 0 : 20, x: isVertical ? 20 : 0 }}
-                animate={{ opacity: 1, y: 0, x: 0, transition: { delay: 0.5 } }}
-                exit={{
-                  opacity: 0,
-                  y: isVertical ? 0 : 20,
-                  x: isVertical ? 20 : 0,
-                  transitionEnd: { display: "none" },
-                }}
-                transition={{ duration: 0.1, ease: "easeOut" }}
-                className={cn(
-                  "flex items-center justify-center w-full h-full",
-                  isVertical ? "flex-col" : "flex-row",
-                  isDragging && "pointer-events-none"
-                )}
-              >
-                {/* DOCK ITEMS RENDER */}
-                {NavbarDataBlog.map((item) => (
-                  <DockItem key={item.label} index={getIndex()} onHover={handleItemHover}>
-                    <Link href={item.href}>
-                      <DockIconWrapper>
-                        <item.icon className="size-5" />
-                      </DockIconWrapper>
-                    </Link>
-                  </DockItem>
-                ))}
+              <AnimatePresence mode="wait">
+                {isSearching ? (
+                  <motion.div
+                    key="search"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0 } }}
+                    className="flex flex-col w-full h-full"
+                  >
+                    <DockSearchContent
+                      initialTerm={term}
+                      inputRef={inputRef}
+                      onClose={() => setIsSearching(false)}
+                      router={router}
+                    />
+                  </motion.div>
+                ) : showMinimap ? (
+                  // --- MINIMAP MODE ---
+                  <Minimap
+                    key="minimap"
+                    completion={completion}
+                    headings={headings}
+                    isVertical={isVertical}
+                    dragControls={dragControls}
+                    isScrolling={isScrolling}
+                    onTrackPointerEnter={() => setAllowDrag(false)}
+                    onTrackPointerLeave={() => setAllowDrag(true)}
+                    onTrackScrollStart={() => {
+                      isTrackScrollingRef.current = true;
+                    }}
+                    onTrackScrollEnd={() => {
+                      isTrackScrollingRef.current = false;
+                    }}
+                    isTrackScrollingRef={isTrackScrollingRef}
+                  />
+                ) : (
+                  // --- DOCK MODE ---
+                  <motion.div
+                    key="dock"
+                    initial={{ opacity: 0, y: isVertical ? 0 : 20, x: isVertical ? 20 : 0 }}
+                    animate={{ opacity: 1, y: 0, x: 0, transition: { delay: 0.5 } }}
+                    exit={{
+                      opacity: 0,
+                      y: isVertical ? 0 : 20,
+                      x: isVertical ? 20 : 0,
+                      transitionEnd: { display: "none" },
+                    }}
+                    transition={{ duration: 0.1, ease: "easeOut" }}
+                    className={cn(
+                      "flex items-center justify-center w-full h-full",
+                      isVertical ? "flex-col" : "flex-row",
+                      isDragging && "pointer-events-none"
+                    )}
+                  >
+                    {/* DOCK ITEMS RENDER */}
+                    {NavbarDataBlog.map((item) => (
+                      <DockItem key={item.label} index={getIndex()} onHover={handleItemHover}>
+                        <Link href={item.href} aria-label={item.label}>
+                          <DockIconWrapper>
+                            <item.icon className="size-5" />
+                          </DockIconWrapper>
+                        </Link>
+                      </DockItem>
+                    ))}
 
-                <DockItem index={getIndex()} onHover={handleItemHover}>
-                  <button onClick={() => setIsSearching(true)}>
-                    <DockIconWrapper>
-                      <Search className="size-5" />
-                    </DockIconWrapper>
-                  </button>
-                </DockItem>
-
-                <DockItem index={getIndex()} onHover={handleItemHover}>
-                  <Link href="/create">
-                    <DockIconWrapper>
-                      <Pencil className="size-5" />
-                    </DockIconWrapper>
-                  </Link>
-                </DockItem>
-
-                {!isLoading &&
-                  (isAuthenticated ? NavbarDataUser : NavbarDataUnauth).map((item) => (
-                    <DockItem key={item.label} index={getIndex()} onHover={handleItemHover}>
-                      <Link href={item.href}>
+                    <DockItem index={getIndex()} onHover={handleItemHover}>
+                      <button onClick={() => setIsSearching(true)} aria-label="search">
                         <DockIconWrapper>
-                          <item.icon className="size-5" />
+                          <Search className="size-5" />
+                        </DockIconWrapper>
+                      </button>
+                    </DockItem>
+
+                    <DockItem index={getIndex()} onHover={handleItemHover}>
+                      <Link href="/create" aria-label="create">
+                        <DockIconWrapper>
+                          <Pencil className="size-5"/>
                         </DockIconWrapper>
                       </Link>
                     </DockItem>
-                  ))}
 
-                {isLoading && (
-                  <div className={cn("flex gap-2", isVertical ? "flex-col" : "flex-row")}>
-                    <div className="hidden">{getIndex()}</div>
-                    <div className="hidden">{getIndex()}</div>
-                    <Skeleton className="size-10 rounded-xl" />
-                    <Skeleton className="size-10 rounded-xl" />
-                  </div>
-                )}
+                    {!isLoading &&
+                      (isAuthenticated ? NavbarDataUser : NavbarDataUnauth).map((item) => (
+                        <DockItem key={item.label} index={getIndex()} onHover={handleItemHover}>
+                          <Link href={item.href} aria-label={item.label}>
+                            <DockIconWrapper>
+                              <item.icon className="size-5" />
+                            </DockIconWrapper>
+                          </Link>
+                        </DockItem>
+                      ))}
 
-                <DockItem index={getIndex()} onHover={handleItemHover}>
-                  <AnimatedThemeToggler className="w-full h-full block">
-                    <DockIconWrapper>
-                      <div className="relative w-full h-full flex items-center justify-center">
-                        <Sun className="size-5 absolute scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                        <Moon className="size-5 absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+                    {isLoading && (
+                      <div className={cn("flex gap-2", isVertical ? "flex-col" : "flex-row")}>
+                        <div className="hidden">{getIndex()}</div>
+                        <div className="hidden">{getIndex()}</div>
+                        <Skeleton className="size-9 rounded-xl" />
+                        <Skeleton className="size-9 rounded-xl" />
                       </div>
-                    </DockIconWrapper>
-                  </AnimatedThemeToggler>
-                </DockItem>
+                    )}
 
-                <Separator
-                  orientation={isVertical ? "horizontal" : "vertical"}
-                  className={cn(
-                    "bg-border/60 relative",
-                    isVertical ? "w-8 h-[1px] top-1" : "h-8 w-[1px] left-1"
-                  )}
-                />
+                    <DockItem index={getIndex()} onHover={handleItemHover}>
+                      <AnimatedThemeToggler className="w-full h-full block" aria-label="theme">
+                        <DockIconWrapper>
+                          <div className="relative w-full h-full flex items-center justify-center">
+                            <Sun className="size-5 absolute scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+                            <Moon className="size-5 absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+                          </div>
+                        </DockIconWrapper>
+                      </AnimatedThemeToggler>
+                    </DockItem>
 
-                <div
-                  // Apply Drag Controls here for Dock Mode
-                  onPointerDown={(e) => dragControls.start(e)}
-                  className={cn(
-                    "relative flex w-full h-full items-center justify-center cursor-grab active:cursor-grabbing",
-                    isVertical ? "py-3 top-1" : "px-3 left-1"
-                  )}
-                >
-                  {isVertical ? (
-                    <GripHorizontal className="text-paragraph" />
-                  ) : (
-                    <GripVertical className="text-paragraph" />
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
+                    <Separator
+                      orientation={isVertical ? "horizontal" : "vertical"}
+                      className={cn(
+                        "bg-border/60 relative",
+                        isVertical ? "w-8 h-[1px] top-1" : "h-8 w-[1px] left-1"
+                      )}
+                    />
+
+                    <div
+                      onPointerDown={(e) => dragControls.start(e)}
+                      role="button"
+                      aria-label="drag"
+                      className={cn(
+                        "relative flex w-full h-full items-center justify-center cursor-grab active:cursor-grabbing",
+                        isVertical ? "py-3 top-1" : "px-3 left-1"
+                      )}
+                    >
+                      {isVertical ? (
+                        <GripHorizontal className="text-paragraph" />
+                      ) : (
+                        <GripVertical className="text-paragraph" />
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -596,6 +654,7 @@ function Minimap({
   const [containerSize, setContainerSize] = useState(0);
   const [scrollDir, setScrollDir] = useState<"up" | "down">("down");
   const prevCompletion = useRef(completion);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -1259,6 +1318,7 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
           <button
             type="button"
             onClick={onClose}
+            name="esc"
             className="text-[10px] uppercase font-bold text-paragraph border border-[#EAEAEA] dark:border-[#1E1E1E] px-1.5 py-0.5 rounded hover:bg-[#d9d9d9] dark:hover:bg-[#1E1E1E] transition-colors cursor-pointer"
           >
             Esc
@@ -1296,7 +1356,7 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
                 <Link
                   key={post.slug}
                   ref={(el) => {
-                    itemRefs.current[index] = el
+                    itemRefs.current[index] = el;
                   }}
                   href={`/posts/${post.slug}`}
                   onClick={onClose}

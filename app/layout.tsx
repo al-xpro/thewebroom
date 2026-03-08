@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ConvexClientProvider } from "@/components/web/ConvexClientProvider";
+import RequireCompleteProfile from "@/components/web/RequireCompleteProfile";
 import { Toaster } from "sonner";
 
 const raleway = Raleway({
@@ -30,7 +32,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <main className="min-w-[320px] bg-white dark:bg-black">
-            <ConvexClientProvider>{children}</ConvexClientProvider>
+            <ConvexClientProvider>
+              <Suspense fallback={null}>
+                <RequireCompleteProfile />
+              </Suspense>
+              {children}
+            </ConvexClientProvider>
           </main>
           <Toaster closeButton />
         </ThemeProvider>

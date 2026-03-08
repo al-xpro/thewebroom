@@ -187,6 +187,7 @@ export function CommentSection(props: {
                       <Button
                         type="submit"
                         size="icon"
+                        aria-label="publish"
                         disabled={isSubmitting || !field.value?.trim()}
                       >
                         {isSubmitting ? (
@@ -311,6 +312,7 @@ export function CommentSection(props: {
                           <Button
                             size="sm"
                             variant="ghost"
+                            aria-label="edit"
                             onClick={() => {
                               setEditingId(comment._id);
                               setEditText(comment.body);
@@ -324,6 +326,7 @@ export function CommentSection(props: {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                aria-label="delete"
                                 className="hover:bg-[#DA2E34] dark:hover:bg-[#D93036] hover:text-white"
                               >
                                 <Trash2 className="size-4" />

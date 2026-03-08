@@ -55,7 +55,6 @@ export default defineSchema({
   passwordResetOtps: defineTable({
     email: v.string(),
     otpHash: v.optional(v.string()),
-    // Legacy field kept optional to avoid deployment/runtime break on old documents.
     otp: v.optional(v.string()),
     expiresAt: v.number(),
     attempts: v.number(),
@@ -69,6 +68,35 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_tokenHash", ["tokenHash"]),
+
+  deleteAccountReauthChallenges: defineTable({
+    userId: v.string(),
+    provider: v.literal("github"),
+    tokenHash: v.string(),
+    sourceSessionId: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_tokenHash", ["tokenHash"]),
+
+  deleteAccountReauthGrants: defineTable({
+    userId: v.string(),
+    provider: v.literal("github"),
+    expiresAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  onboardingCompletions: defineTable({
+    userId: v.string(),
+    displayName: v.string(),
+    completedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  passwordResetRequestLimits: defineTable({
+    email: v.string(),
+    requestCount: v.number(),
+    windowStartedAt: v.number(),
+  }).index("by_email", ["email"]),
 
   newsletterSubscriptions: defineTable({
     email: v.string(),

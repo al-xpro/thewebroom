@@ -56,12 +56,16 @@ async function DynamicContent({ searchParams }: { searchParams: Promise<{ topics
 }
 
 async function LoadBlogList({ searchParams }: { searchParams: Promise<{ topics?: string }> }) {
+  const { topics } = await searchParams;
+  const activeTopics = topics ? topics.split(",").filter(Boolean) : [];
+
+  return <FilteredPosts activeTopics={activeTopics} />;
+}
+
+async function FilteredPosts({ activeTopics }: { activeTopics: string[] }) {
   "use cache";
   cacheLife("seconds");
   cacheTag("blog");
-
-  const { topics } = await searchParams;
-  const activeTopics = topics ? topics.split(",").filter(Boolean) : [];
 
   const data = await fetchQuery(api.posts.getPublishedPosts);
 
@@ -81,18 +85,10 @@ async function LoadBlogList({ searchParams }: { searchParams: Promise<{ topics?:
       {filtered.map((post) => (
         <Link key={post._id} href={`/posts/${post.slug}`} className="group block">
           <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 sm:gap-0">
-            <div
-              className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0
-              -translate-x-10 transition-all duration-200 ease-out
-              group-hover:opacity-100 group-hover:translate-x-0"
-            >
+            <div className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0 -translate-x-10 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:translate-x-0">
               <ArrowRight className="h-5 w-5 text-black dark:text-white" />
             </div>
-            <div
-              className="flex w-full flex-row min-w-0 items-start justify-between
-              transition-transform duration-300 ease-out
-              md:group-hover:translate-x-10"
-            >
+            <div className="flex w-full flex-row min-w-0 items-start justify-between transition-transform duration-300 ease-out md:group-hover:translate-x-10">
               <div className="flex flex-col flex-1 min-w-0">
                 <h1 className="text-xl font-bold line-clamp-1 break-all">{post.title}</h1>
                 <p className="text-paragraph line-clamp-1 break-all">{post.subtitle}</p>

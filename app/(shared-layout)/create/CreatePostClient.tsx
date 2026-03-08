@@ -57,6 +57,7 @@ export function CreatePostClient() {
 
   const form = useForm<z.infer<typeof postSchema>>({
     resolver: zodResolver(postSchema),
+    mode: "onChange",
     defaultValues: {
       content: "",
       contentHtml: "",
@@ -164,7 +165,7 @@ export function CreatePostClient() {
               </h2>
               <p className="text-sm text-paragraph leading-relaxed">
                 Creating posts is reserved for signed-in members. <br className="hidden sm:block" />
-                &bnsp; Join the community or log in to start sharing
+                &nbsp; Join the community or log in to start sharing
                 <span className="whitespace-nowrap">your ideas.</span>
               </p>
             </div>
@@ -409,18 +410,17 @@ export function CreatePostClient() {
                     <FieldLabel id="content-label" htmlFor="content">
                       Content
                     </FieldLabel>
-                    <input id="content" hidden readOnly />
+                    <input id="content" name="content" hidden readOnly />
                     {hasMounted ? (
                       <RichTextEditor
                         aria-labelledby="content-label"
                         aria-describedby="content-label"
                         name="content"
                         value={field.value}
-                        hasError={!!visibleErrors.contentHtml}
+                        hasError={!!visibleErrors.content}
                         onChange={(text, html) => {
-                          form.setValue("content", text);
-                          form.setValue("contentHtml", html);
-                          clearError("contentHtml");
+                          form.setValue("content", text, { shouldValidate: true });
+                          form.setValue("contentHtml", html, { shouldValidate: true });
                           clearError("content");
                         }}
                         placeholder="Write your content here... Use the toolbar for formatting"
@@ -430,8 +430,8 @@ export function CreatePostClient() {
                         <div className="w-full h-[580px] bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-md" />
                       </div>
                     )}
-                    {visibleErrors.contentHtml && (
-                      <FieldError errors={[{ message: visibleErrors.contentHtml }]} />
+                    {visibleErrors.content && (
+                      <FieldError errors={[{ message: visibleErrors.content }]} />
                     )}
                   </Field>
                 )}

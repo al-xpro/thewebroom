@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { isNameComplete } from "@/lib/onboarding";
+import { isOnboardingComplete } from "@/lib/onboarding";
 import { Loader2 } from "lucide-react";
 
 export default function PostAuthPage() {
@@ -21,7 +21,7 @@ export default function PostAuthPage() {
 
     if (user === undefined) return;
 
-    if (!isNameComplete(user?.name)) {
+    if (!isOnboardingComplete(user)) {
       router.replace("/onboarding/complete-profile");
       return;
     }

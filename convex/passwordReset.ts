@@ -1,14 +1,14 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
-import { buildPasswordResetEmail } from "./emailTemplates";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { hashPassword } from "better-auth/crypto";
-import { sendEmail } from "./emailSender";
 
 const OTP_TTL_MS = 15 * 60 * 1000;
 const RESET_SESSION_TTL_MS = 15 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+const OTP_DAILY_REQUEST_LIMIT = 3;
+const OTP_DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const appUrl = (process.env.SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
   /\/$/,
@@ -108,8 +108,44 @@ export const requestPasswordReset = mutation({
           delivered: false,
           cooldownMsRemaining,
           rateLimited: true,
+          dailyLimit: false,
         };
       }
+    }
+
+    const requestLimit = await ctx.db
+      .query("passwordResetRequestLimits")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+
+    if (requestLimit) {
+      const windowExpiresAt = requestLimit.windowStartedAt + OTP_DAILY_WINDOW_MS;
+      if (now < windowExpiresAt && requestLimit.requestCount >= OTP_DAILY_REQUEST_LIMIT) {
+        return {
+          success: true,
+          delivered: false,
+          cooldownMsRemaining: windowExpiresAt - now,
+          rateLimited: true,
+          dailyLimit: true,
+        };
+      }
+
+      if (now >= windowExpiresAt) {
+        await ctx.db.patch(requestLimit._id, {
+          requestCount: 1,
+          windowStartedAt: now,
+        });
+      } else {
+        await ctx.db.patch(requestLimit._id, {
+          requestCount: requestLimit.requestCount + 1,
+        });
+      }
+    } else {
+      await ctx.db.insert("passwordResetRequestLimits", {
+        email,
+        requestCount: 1,
+        windowStartedAt: now,
+      });
     }
 
     for (const otpRecord of existingOtps) {
@@ -129,7 +165,13 @@ export const requestPasswordReset = mutation({
 
     // Prevent account enumeration by returning success regardless.
     if (!user) {
-      return { success: true, delivered: false, cooldownMsRemaining: 0, rateLimited: false };
+      return {
+        success: true,
+        delivered: false,
+        cooldownMsRemaining: 0,
+        rateLimited: false,
+        dailyLimit: false,
+      };
     }
 
     const otp = generateOtp();
@@ -144,37 +186,25 @@ export const requestPasswordReset = mutation({
       sentAt: now,
     });
 
-    const resetLink = `${appUrl}/auth/forgot-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`;
-
-    const { subject, body, html } = buildPasswordResetEmail({ email, otp, resetLink });
-    let sendResult: { delivered: boolean; provider: "resend" | "log" } = {
-      delivered: false,
-      provider: "log",
-    };
+    const resetLink = `${appUrl}/auth/otp?email=${encodeURIComponent(email)}`;
+    let queued = true;
     try {
-      sendResult = await sendEmail({
-        to: email,
-        subject,
-        html,
-        text: body,
+      await ctx.scheduler.runAfter(0, internal.emails.deliverPasswordResetEmail, {
+        email,
+        otp,
+        resetLink,
       });
     } catch (error) {
+      queued = false;
       console.error("[Email][PasswordReset][SendError]", error);
     }
-    console.log("[Email][PasswordReset][OTP]", {
-      to: email,
-      subject,
-      body,
-      html,
-      provider: sendResult.provider,
-      delivered: sendResult.delivered,
-    });
 
     return {
       success: true,
-      delivered: sendResult.delivered,
+      delivered: queued,
       cooldownMsRemaining: OTP_RESEND_COOLDOWN_MS,
       rateLimited: false,
+      dailyLimit: false,
     };
   },
 });
@@ -354,15 +384,13 @@ export const resetPassword = mutation({
       });
     }
 
-    await ctx.runMutation(
-      components.betterAuth.adapter.deleteMany as never,
-      {
-        input: {
-          model: "session",
-          where: [{ field: "userId", operator: "eq", value: user._id }],
-        },
-      } as never
-    );
+    await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+      input: {
+        model: "session",
+        where: [{ field: "userId" as const, value: user._id }],
+      },
+      paginationOpts: { numItems: 100, cursor: null },
+    });
 
     await ctx.db.delete(session._id);
 

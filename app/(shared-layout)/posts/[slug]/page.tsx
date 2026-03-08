@@ -11,7 +11,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
-import { Suspense } from "react";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -29,8 +28,8 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
 
   return {
     title: post.title,
-    description: post.subtitle ?? post.body,
-    authors: [{ name: "The Community at The Web Room" }],
+    description: post.subtitle ?? post.body?.slice(0, 150),
+    authors: [{ name: post.authorName }],
   };
 }
 
@@ -80,7 +79,7 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
             </div>
             <div className="flex flex-col items-center gap-2">
               <BookType className="size-4 sm:size-5 text-black dark:text-white" />
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
+              <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
                 {post.topic}
               </span>
             </div>
@@ -95,11 +94,13 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
 
         <div className="relative mb-8 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
           <Image
-            src={post.imageUrl || ""}
-            alt="image"
+            src={post.imageUrl ?? ""}
+            alt="post image"
             fill
-            sizes="100%"
+            sizes="(max-width: 640px) 100vw, 33vw"
+            priority
             loading="eager"
+            fetchPriority="high"
             className="object-cover transition-transform duration-500"
           />
         </div>

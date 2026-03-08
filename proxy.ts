@@ -5,6 +5,7 @@ const AUTH_ROUTES = [
   "/auth/login",
   "/auth/sign-up",
   "/auth/forgot-password",
+  "/auth/otp",
   "/auth/reset-password",
 ];
 
@@ -21,10 +22,17 @@ export async function proxy(request: NextRequest) {
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
 
   if (isAuthRoute) {
+    if (pathname.startsWith("/auth/reset-password")) {
+      const token = request.nextUrl.searchParams.get("token")?.trim();
+      if (!token) {
+        return NextResponse.redirect(new URL("/auth/forgot-password", request.url));
+      }
+    }
+
     try {
       const token = await getToken();
       if (token) {
-        return NextResponse.redirect(new URL("/", request.url));
+        return NextResponse.redirect(new URL("/post-auth", request.url));
       }
     } catch {
       // If token check fails, let the request through — the page will handle it.

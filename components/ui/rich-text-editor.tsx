@@ -123,6 +123,8 @@ export function RichTextEditor({
         ...(name ? { name } : {}),
         role: "textbox",
         "aria-multiline": "true",
+        "aria-labelledby": "content-label",
+        "aria-label": "content editor",
       },
     },
     content: value ?? "",
@@ -540,6 +542,10 @@ export function RichTextEditor({
         editor={editor}
         id={id}
         name={name}
+        role="textbox"
+        aria-multiline="true"
+        aria-labelledby="content-label"
+        aria-label="content editor"
         onMouseDown={() => editor.chain().focus().run()}
         className="
           relative prose prose-neutral dark:prose-invert max-w-none

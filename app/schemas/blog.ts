@@ -16,10 +16,7 @@ const imageField = z
     (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
     "Only JPEG, PNG, WebP, AVIF and TIFF images are accepted"
   )
-  .refine(
-    (file) => file.size <= MAX_IMAGE_SIZE,
-    "Image must be smaller than 1 MB"
-  );
+  .refine((file) => file.size <= MAX_IMAGE_SIZE, "Image must be smaller than 1 MB");
 
 const baseSchema = z.object({
   title: z
@@ -45,10 +42,7 @@ const baseSchema = z.object({
     .min(1000, "Content must be at least 1000 characters")
     .max(100000, "Content must be less than 100000 characters"),
 
-  contentHtml: z
-    .string()
-    .min(1000, "Content must be at least 1000 characters")
-    .max(100000, "Content must be less than 100000 characters"),
+  contentHtml: z.string(),
 });
 
 // Create: image is required — a new post must have a featured image.

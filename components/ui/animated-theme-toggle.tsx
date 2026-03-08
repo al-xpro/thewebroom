@@ -79,6 +79,7 @@ export const AnimatedThemeToggler = ({
     <button
       ref={buttonRef}
       onClick={toggleTheme}
+      name="theme"
       className={cn("bg-transparent border-none p-0 cursor-pointer outline-none focus-visible:ring-2 rounded-xs focus-visible:ring-primary/50", className)}
       {...props} 
     >

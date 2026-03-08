@@ -59,8 +59,9 @@ export default function MyPostsPage() {
       await deletePostAction(pendingDelete._id);
       showSuccessToast("Post deleted successfully");
       setPendingDelete(null);
-    } catch (error: any) {
-      showErrorToast(error?.message || "Failed to delete post");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete post";
+      showErrorToast(message);
     } finally {
       setIsDeleting(false);
     }
@@ -68,8 +69,8 @@ export default function MyPostsPage() {
 
   if (isLoading || !isAuthenticated) return null;
 
-  const postsReady = posts !== undefined && user !== undefined;
-  const userPosts = postsReady ? posts.filter((post: any) => post.authorId === user._id) : [];
+  const postsReady = posts !== undefined && user != null;
+  const userPosts = postsReady ? posts.filter((post) => post.authorId === user._id) : [];
 
   return (
     <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4">
@@ -80,10 +81,10 @@ export default function MyPostsPage() {
             <div className="space-y-1">
               <h2 className="text-xl font-extrabold text-destructive">Delete post?</h2>
               <p className="text-sm text-paragraph leading-relaxed">
-                This will permanently delete{" "}
+                This will permanently delete&nbsp;
                 <span className="font-semibold text-black dark:text-white">
-                  "{pendingDelete.title}".
-                </span>{" "}
+                  &quot;{pendingDelete.title}&quot;.
+                </span>
                 <br />
                 This action cannot be undone.
               </p>
@@ -160,32 +161,27 @@ export default function MyPostsPage() {
             ))}
           </div>
         ) : userPosts.length === 0 ? (
-          <Card className="text-center py-20">
+          <Card className="text-center py-52 sm:py-[106px]">
             <CardContent className="space-y-4">
               <p className="text-lg font-medium">No posts yet.</p>
-              <Link href="/create" className={buttonVariants()}>
-                <Plus className="size-4 mr-2" />
-                Create Your First Post
-              </Link>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-6">
-            {userPosts.map((post: any) => (
+            {userPosts.map((post, i) => (
               <Card
                 key={post._id}
                 className="overflow-hidden flex flex-col sm:flex-row px-3 sm:px-4"
               >
                 <div className="relative w-full h-48 sm:h-auto sm:w-1/3 flex-shrink-0">
                   <Image
-                    src={
-                      post.imageUrl ??
-                      "https://images.unsplash.com/photo-1761019646782-4bc46ba43fe9?q=80&w=1631&auto=format&fit=crop"
-                    }
+                    src={post.imageUrl ?? ""}
                     alt="post image"
                     fill
-                    sizes="100%"
-                    loading="eager"
+                    sizes="(max-width: 640px) 100vw, 33vw"
+                    priority={i === 0}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    fetchPriority="high"
                     className="object-cover rounded-md"
                   />
                 </div>
@@ -193,9 +189,9 @@ export default function MyPostsPage() {
                 <div className="flex flex-col flex-1 min-w-0">
                   <CardContent className="flex-1 pt-6 pb-4 px-4">
                     <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-black dark:text-white truncate">
+                      <h2 className="text-xl font-bold text-black dark:text-white truncate">
                         {post.title}
-                      </h3>
+                      </h2>
                       <p className="text-sm text-paragraph truncate">{post.subtitle}</p>
                       <div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-paragraph">
                         <div className="flex gap-1 items-center text-black dark:text-white">

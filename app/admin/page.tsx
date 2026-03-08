@@ -8,7 +8,6 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  FileText,
   CheckCircle,
   EyeOffIcon,
   AlertTriangle,
@@ -212,6 +211,9 @@ export default function AdminPage() {
                               <Button
                                 size="sm"
                                 variant="secondary"
+                                aria-label={
+                                  post.status === "published" ? "Hide post" : "Publish post"
+                                }
                                 onClick={() =>
                                   handleToggleVisibility(post._id, post.status || "published")
                                 }
@@ -228,6 +230,7 @@ export default function AdminPage() {
                               <Button
                                 size="sm"
                                 variant="destructive"
+                                aria-label={`Delete post ${post.title}`}
                                 onClick={() => setDeleteTarget({ id: post._id, title: post.title })}
                                 disabled={isPending}
                                 className="h-8 w-8 p-0"

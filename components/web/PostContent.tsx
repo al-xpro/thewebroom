@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, Check, Terminal } from "lucide-react";
 import { SiNextdotjs, SiReact } from "react-icons/si";
 import { BiLogoTypescript, BiLogoJavascript } from "react-icons/bi";
@@ -20,6 +20,7 @@ function CopyButton({ getText }: { getText: () => string }) {
     <button
       type="button"
       onClick={handle}
+      aria-label="copy button"
       className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E]"
     >
       <AnimatePresence mode="wait">
@@ -446,13 +447,14 @@ interface PostContentProps {
 export function PostContent({ html, className = "" }: PostContentProps) {
   const [mounted, setMounted] = useState(false);
   const [nodes, setNodes] = useState<PostNode[]>([]);
+  const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setNodes(parsePostHtml(html));
     setMounted(true);
   }, [html]);
 
-  const base = `text-lg leading-relaxed text-paragraph w-full ${className}`;
+  const base = `text-lg leading-relaxed text-paragraph break-words w-full ${className}`;
 
   if (!mounted) {
     return (
@@ -465,7 +467,7 @@ export function PostContent({ html, className = "" }: PostContentProps) {
   }
 
   return (
-    <article className={base}>
+    <article ref={articleRef} className={base}>
       {nodes.map((node, i) => {
         if (node.kind === "html") return <HtmlChunk key={i} html={node.html} />;
         if (node.kind === "terminal") return <TerminalBlock key={i} data={node.data} />;

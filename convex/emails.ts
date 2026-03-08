@@ -1,9 +1,10 @@
-import { mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { internalAction, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { buildWelcomeEmail, buildPasswordResetEmail } from "./emailTemplates";
 import { sendEmail } from "./emailSender";
 
-export const sendWelcomeEmail = mutation({
+export const deliverWelcomeEmail = internalAction({
   args: {
     email: v.string(),
     name: v.optional(v.string()),
@@ -21,11 +22,8 @@ export const sendWelcomeEmail = mutation({
       text: body,
     });
 
-    console.log("[Email][Welcome]", {
+    console.log("[Email][Welcome][Delivery]", {
       to: args.email,
-      subject,
-      body,
-      html,
       provider: result.provider,
       delivered: result.delivered,
     });
@@ -34,7 +32,7 @@ export const sendWelcomeEmail = mutation({
   },
 });
 
-export const sendPasswordResetEmail = mutation({
+export const deliverPasswordResetEmail = internalAction({
   args: {
     email: v.string(),
     otp: v.string(),
@@ -54,15 +52,42 @@ export const sendPasswordResetEmail = mutation({
       text: body,
     });
 
-    console.log("[Email][PasswordReset]", {
+    console.log("[Email][PasswordReset][Delivery]", {
       to: args.email,
-      subject,
-      body,
-      html,
       provider: result.provider,
       delivered: result.delivered,
     });
 
     return { success: true, delivered: result.delivered };
+  },
+});
+
+export const sendWelcomeEmail = mutation({
+  args: {
+    email: v.string(),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.scheduler.runAfter(0, internal.emails.deliverWelcomeEmail, {
+      email: args.email,
+      name: args.name,
+    });
+    return { success: true, queued: true };
+  },
+});
+
+export const sendPasswordResetEmail = mutation({
+  args: {
+    email: v.string(),
+    otp: v.string(),
+    resetLink: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.scheduler.runAfter(0, internal.emails.deliverPasswordResetEmail, {
+      email: args.email,
+      otp: args.otp,
+      resetLink: args.resetLink,
+    });
+    return { success: true, queued: true };
   },
 });

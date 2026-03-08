@@ -33,9 +33,9 @@ export default function Home() {
         <div className="mx-auto space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div className="text-left">
-              <h6 className="text-sm font-medium text-primary uppercase tracking-[0.18em]">
+              <h2 className="text-sm font-medium text-primary uppercase tracking-[0.18em]">
                 Latest Posts
-              </h6>
+              </h2>
             </div>
           </div>
 

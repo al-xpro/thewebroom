@@ -21,7 +21,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Upload } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
-import { toast } from "sonner";
 import Footer from "@/components/web/Footer";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import Image from "next/image";
@@ -376,7 +375,7 @@ export function EditPostClient({ post }: EditPostClientProps) {
                     <FieldLabel id="content-label" htmlFor="content">
                       Content
                     </FieldLabel>
-                    <input id="content" hidden readOnly />
+                    <input id="content" name="content" hidden readOnly />
                     <RichTextEditor
                       aria-labelledby="content-label"
                       aria-describedby="content-label"

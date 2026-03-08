@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Send } from "lucide-react";
 import { Button } from "./button";
@@ -12,10 +11,12 @@ export function PlaceholdersAndVanishInput({
   placeholder,
   className,
   onSubmit,
+  id
 }: {
   placeholder: string;
   className?: string;
   onSubmit?: (email: string) => void;
+  id?: string
 }) {
   const [currentPlaceholder, setCurrentPlaceholder] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -184,11 +185,13 @@ export function PlaceholdersAndVanishInput({
         )}
       />
 
+
       <input
         ref={inputRef}
         value={value}
         type="email"
         name="email"
+        id={id}
         autoComplete="email"
         required
         pattern={EMAIL_REGEX.source}
