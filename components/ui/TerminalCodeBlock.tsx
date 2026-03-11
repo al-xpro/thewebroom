@@ -176,7 +176,7 @@ export default function TerminalCodeBlockComponent({
 
         {/* Layer 2: Editor (Top) */}
         <NodeViewContent
-          as="pre"
+          as="div"
           className={`
             col-start-1 row-start-1 
             whitespace-pre overflow-x-auto outline-none 

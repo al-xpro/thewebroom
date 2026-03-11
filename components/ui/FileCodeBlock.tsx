@@ -239,7 +239,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
 
           {/* LAYER 2: EDITOR (NodeViewContent) */}
           <NodeViewContent
-            as="pre"
+            as="div"
             data-tiptap-content-target="true"
             className={`
               col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-2
