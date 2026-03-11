@@ -42,4 +42,19 @@ http.route({
   }),
 });
 
+http.route({
+  path: "/published-posts",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    const posts = await ctx.runQuery(api.posts.getPublishedPosts);
+    const simplified = posts.map((p: any) => ({
+      slug: p.slug,
+      createdAt: p._creationTime,
+    }));
+    return new Response(JSON.stringify(simplified), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
 export default http;
