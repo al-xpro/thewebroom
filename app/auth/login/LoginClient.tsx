@@ -19,15 +19,19 @@ import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import Link from "next/link";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useSearchParams } from "next/navigation";
 
 type LoginFields = keyof z.infer<typeof loginSchema>;
 
 export default function LoginClient() {
   const [isPending, startTransition] = useTransition();
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<LoginFields, string>>>({});
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+  const searchParams = useSearchParams();
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
+  const assertEmailNotBanned = useMutation(api.auth.assertEmailNotBanned);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -61,6 +65,22 @@ export default function LoginClient() {
 
   function onSubmit(data: z.infer<typeof loginSchema>) {
     startTransition(async () => {
+      try {
+        const banCheck = await assertEmailNotBanned({ email: data.email });
+        if (!banCheck.allowed) {
+          const message =
+            banCheck.message || "This account is permanently banned and cannot access the app.";
+          setBlockedMessage(message);
+          showErrorToast(message);
+          return;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to validate account status";
+        setBlockedMessage(message);
+        showErrorToast(message);
+        return;
+      }
+
       await authClient.signIn.email({
         email: data.email,
         password: data.password,
@@ -102,7 +122,7 @@ export default function LoginClient() {
     startTransition(async () => {
       await authClient.signIn.social({
         provider,
-        requestSignUp: true,
+        requestSignUp: false,
         callbackURL: "/post-auth",
         newUserCallbackURL: "/onboarding/complete-profile?force=1",
         fetchOptions: {
@@ -135,6 +155,13 @@ export default function LoginClient() {
               Enter your email below to login&nbsp;
               <span className="whitespace-nowrap">to your account.</span>
             </p>
+            {(searchParams.get("banned") === "1" || blockedMessage) && (
+              <p className="text-sm text-destructive">
+                {blockedMessage ||
+                  searchParams.get("reason") ||
+                  "Your account has been permanently banned. Access is revoked."}
+              </p>
+            )}
           </div>
           <Controller
             name="email"

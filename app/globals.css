@@ -222,3 +222,14 @@ html:not(.dark) .shiki span {
 .dark .ProseMirror p.is-editor-empty:first-child::before {
   color: #666666;
 }
+
+
+span[data-badge] {
+  display: inline;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: inherit;
+  border-radius: 7px;
+  padding: 0.1rem 0.3rem;
+}

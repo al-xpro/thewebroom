@@ -326,7 +326,7 @@ function HtmlChunk({ html }: { html: string }) {
 
         [&_table]:table-fixed [&_table]:my-16 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative 
         [&_table]:border-separate [&_table]:border-spacing-0 [&_table]:[scrollbar-width:none] [&_table]:[-ms-overflow-style:none] [&_table]:[&::-webkit-scrollbar]:hidden
-        [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden [&_table]:justify-center-safe
+        [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden  [&_table]:justify-center-safe [&_colgroup]:hidden [&_col]:hidden
         [&_table]:mask-[linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
         [&_table]:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
         [&_td]:min-w-[150px] [&_td]:max-w-[150px]

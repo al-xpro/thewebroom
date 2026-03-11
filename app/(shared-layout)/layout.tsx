@@ -1,3 +1,4 @@
+import { PageBlurOverlay } from "@/components/ui/progressive-blur";
 import { DockNavigation } from "@/components/web/DockNavigation";
 import { ReactNode, Suspense } from "react";
 
@@ -6,6 +7,7 @@ export default function SharedLayout({ children }: { children: ReactNode }) {
     <>
       <Suspense fallback={null}>
         <DockNavigation />
+        <PageBlurOverlay />
       </Suspense>
       {children}
     </>

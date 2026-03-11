@@ -106,7 +106,10 @@ function useReadingProgress() {
 export function DockNavigation() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const pathname = usePathname();
-  const isPostPage = pathname?.startsWith("/posts/") && pathname !== "/posts";
+  const isPostPage =
+    (pathname?.startsWith("/posts/") && pathname !== "/posts") ||
+    pathname?.includes("privacy-policy") ||
+    pathname?.includes("terms-and-conditions");
   const [isMounted, setIsMounted] = useState(false);
   const [allowDrag, setAllowDrag] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +119,7 @@ export function DockNavigation() {
   const isTrackScrollingRef = useRef(false);
   const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
   const [postExists, setPostExists] = useState(false);
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
     setPostExists(false);
@@ -244,14 +248,15 @@ export function DockNavigation() {
 
   // --- Drag Logic ---
   const handleDragStart = () => {
+    isDraggingRef.current = true;
     setIsDragging(true);
     setHoveredIndex(null);
   };
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    isDraggingRef.current = false;
     setIsDragging(false);
     setIsSnapping(true);
-
     setHoveredIndex(null);
 
     const w = window.innerWidth;
@@ -271,20 +276,29 @@ export function DockNavigation() {
       clientY = info.point.y;
     }
 
-    const x = clientX;
-    const y = clientY;
     const slope = h / w;
-
     let newPos: DockPosition = "bottom";
-    if (y < x * slope && y < h - x * slope) newPos = "top";
-    else if (y > x * slope && y > h - x * slope) newPos = "bottom";
-    else if (y > x * slope && y < h - x * slope) newPos = "left";
+    if (clientY < clientX * slope && clientY < h - clientX * slope) newPos = "top";
+    else if (clientY > clientX * slope && clientY > h - clientX * slope) newPos = "bottom";
+    else if (clientY > clientX * slope && clientY < h - clientX * slope) newPos = "left";
     else newPos = "right";
 
     if (newPos !== position) setPosition(newPos);
-
     setTimeout(() => setIsSnapping(false), 600);
   };
+
+  useEffect(() => {
+    if (!showMinimap) return;
+
+    const prevent = (e: TouchEvent) => {
+      if (isDraggingRef.current) {
+        e.preventDefault();
+      }
+    };
+
+    document.body.addEventListener("touchmove", prevent, { passive: false });
+    return () => document.body.removeEventListener("touchmove", prevent);
+  }, [showMinimap]);
 
   useEffect(() => {
     if (isDragging || isSnapping) {
@@ -299,6 +313,23 @@ export function DockNavigation() {
       document.body.style.overflow = "";
     };
   }, [isDragging, isSnapping]);
+
+  const dragY = useMotionValue(0);
+
+  useEffect(() => {
+    if (!showMinimap || !isVertical) return; // only clamp when vertical
+
+    const unsubscribe = dragY.on("change", (y) => {
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      const halfDock = dockSize.height / 2;
+      const padding = 24;
+      const maxY = vh / 2 - halfDock - padding;
+      if (y < -maxY) dragY.set(-maxY);
+      if (y > maxY) dragY.set(maxY);
+    });
+
+    return unsubscribe;
+  }, [showMinimap, isVertical, dragY, dockSize.height]);
 
   // --- Keyboard Shortcuts ---
   useEffect(() => {
@@ -378,8 +409,10 @@ export function DockNavigation() {
   const dragConstraints = useMemo(() => {
     if (typeof window === "undefined") return { top: 0, bottom: 0, left: 0, right: 0 };
     const padding = 24;
-    const maxX = (window.innerWidth - dockSize.width) / 2 - padding;
-    const maxY = (window.innerHeight - dockSize.height) / 2 - padding;
+    const vw = window.visualViewport?.width ?? window.innerWidth;
+    const vh = window.visualViewport?.height ?? window.innerHeight;
+    const maxX = (vw - dockSize.width) / 2 - padding;
+    const maxY = (vh - dockSize.height) / 2 - padding;
     return {
       top: -maxY,
       bottom: maxY,
@@ -389,7 +422,8 @@ export function DockNavigation() {
   }, [dockSize]);
 
   useEffect(() => {
-    const handleResize = () => {
+    if (!dockRef.current) return;
+    const update = () => {
       if (dockRef.current) {
         setDockSize({
           width: dockRef.current.offsetWidth,
@@ -397,9 +431,23 @@ export function DockNavigation() {
         });
       }
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const ro = new ResizeObserver(update);
+    ro.observe(dockRef.current);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.visualViewport?.removeEventListener("resize", update);
+    };
   }, []);
+
+  useEffect(() => {
+    if (dockRef.current) {
+      setDockSize({
+        width: dockRef.current.offsetWidth,
+        height: dockRef.current.offsetHeight,
+      });
+    }
+  }, [showMinimap]);
 
   let renderIndex = 0;
   const getIndex = () => renderIndex++;
@@ -434,11 +482,35 @@ export function DockNavigation() {
               dragMomentum={false}
               dragElastic={1.0}
               onDragStart={handleDragStart}
+              onPointerDown={(e) => {
+                if (!showMinimap) return;
+                if (isScrolling || isTrackScrollingRef.current) return;
+                isDraggingRef.current = true;
+                document.documentElement.style.overflow = "hidden";
+                document.body.style.overflow = "hidden";
+                dragControls.start(e);
+              }}
+              onPointerUp={() => {
+                if (!isDragging) {
+                  // Tap without drag — unlock scroll immediately
+                  isDraggingRef.current = false;
+                  document.documentElement.style.overflow = "";
+                  document.body.style.overflow = "";
+                }
+              }}
+              onPointerCancel={() => {
+                if (!isDragging) {
+                  isDraggingRef.current = false;
+                  document.documentElement.style.overflow = "";
+                  document.body.style.overflow = "";
+                }
+              }}
               onDragEnd={handleDragEnd}
               dragConstraints={dragConstraints}
               dragSnapToOrigin
               dragTransition={{ bounceStiffness: 600, bounceDamping: 100 }}
               onMouseLeave={handleItemLeave}
+              style={showMinimap ? { y: dragY } : undefined}
               className={cn(
                 "relative flex gap-2 rounded-2xl border border-gray bg-white dark:bg-black shadow-2xl backdrop-blur-2xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
                 isSearching
@@ -500,6 +572,8 @@ export function DockNavigation() {
                     isVertical={isVertical}
                     dragControls={dragControls}
                     isScrolling={isScrolling}
+                    isDragging={isDragging}
+                    isDraggingRef={isDraggingRef}
                     onTrackPointerEnter={() => setAllowDrag(false)}
                     onTrackPointerLeave={() => setAllowDrag(true)}
                     onTrackScrollStart={() => {
@@ -551,7 +625,7 @@ export function DockNavigation() {
                     <DockItem index={getIndex()} onHover={handleItemHover}>
                       <Link href="/create" aria-label="create">
                         <DockIconWrapper>
-                          <Pencil className="size-5"/>
+                          <Pencil className="size-5" />
                         </DockIconWrapper>
                       </Link>
                     </DockItem>
@@ -631,6 +705,8 @@ interface MinimapProps {
   isVertical: boolean;
   dragControls: any;
   isScrolling: boolean;
+  isDragging: boolean;
+  isDraggingRef: React.RefObject<boolean>;
   onTrackPointerEnter: () => void;
   onTrackPointerLeave: () => void;
   onTrackScrollStart: () => void;
@@ -644,6 +720,8 @@ function Minimap({
   isVertical,
   dragControls,
   isScrolling,
+  isDragging,
+  isDraggingRef,
   onTrackPointerEnter,
   onTrackPointerLeave,
   onTrackScrollStart,
@@ -773,6 +851,7 @@ function Minimap({
         filter: "blur(5px)",
       }}
       transition={{ duration: 0 }}
+      dragSnapToOrigin
       className={cn(
         "relative flex items-center justify-between p-1",
         isVertical ? "flex-col h-full w-full" : "flex-row w-full h-full"
@@ -781,18 +860,20 @@ function Minimap({
       {/* THE MINIMAP TRACK (Interactive area) */}
       <div
         ref={containerRef}
+        data-minimap-track="true"
         className={cn(
           "relative flex items-center justify-between grow cursor-pointer",
-          isVertical ? "flex-col w-full px-1" : "flex-row h-full py-1"
+          isVertical ? "flex-col w-full px-1" : "flex-row h-full py-1",
+          isDragging && "select-none pointer-events-none"
         )}
-        onMouseMove={handleMouseMove}
+        onMouseMove={isDragging ? undefined : handleMouseMove}
         onPointerDown={(e) => {
           e.stopPropagation();
         }}
         onMouseLeave={handleMouseLeave}
-        onPointerEnter={onTrackPointerEnter}
-        onPointerLeave={onTrackPointerLeave}
-        onClick={handleTrackClick} // Click anywhere to scroll
+        onPointerEnter={isDragging ? undefined : onTrackPointerEnter}
+        onPointerLeave={isDragging ? undefined : onTrackPointerLeave}
+        onClick={isDragging ? undefined : handleTrackClick}
       >
         {lines.map((line) => (
           <MinimapLine
@@ -865,12 +946,8 @@ function Minimap({
 
       {/* Grip Handle */}
       <div
-        onPointerDown={(e) => {
-          if (isScrolling || isTrackScrollingRef.current) return;
-          dragControls.start(e);
-        }}
         className={cn(
-          "flex items-center justify-center shrink-0 text-paragraph transition-colors",
+          "flex items-center justify-center shrink-0 text-paragraph transition-colors select-none touch-none",
           isVertical ? "h-6 w-full" : "w-6 h-full"
         )}
       >

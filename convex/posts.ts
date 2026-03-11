@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { authComponent } from "./auth";
+import { mutation, query, type MutationCtx } from "./_generated/server";
+import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { Doc, Id } from "./_generated/dataModel";
+import { components, internal } from "./_generated/api";
 
 const TOPIC_VALUES = [
   "Web Architecture",
@@ -10,6 +11,10 @@ const TOPIC_VALUES = [
   "Productivity",
 ] as const;
 type Topic = (typeof TOPIC_VALUES)[number];
+
+type BetterAuthUserContact = {
+  email?: string | null;
+};
 
 // Utility function to generate URL-safe slug
 function generateSlug(title: string): string {
@@ -23,14 +28,18 @@ function generateSlug(title: string): string {
 }
 
 // Utility function to check if slug is unique
-async function getUniqueSlug(ctx: any, baseSlug: string, excludeId?: Id<"posts">): Promise<string> {
+async function getUniqueSlug(
+  ctx: MutationCtx,
+  baseSlug: string,
+  excludeId?: Id<"posts">
+): Promise<string> {
   let slug = baseSlug;
   let counter = 1;
 
   while (true) {
     const existing = await ctx.db
       .query("posts")
-      .withIndex("by_slug", (q: any) => q.eq("slug", slug))
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
       .first();
 
     if (!existing || (excludeId && existing._id === excludeId)) {
@@ -40,6 +49,34 @@ async function getUniqueSlug(ctx: any, baseSlug: string, excludeId?: Id<"posts">
     slug = `${baseSlug}-${counter}`;
     counter++;
   }
+}
+
+function getAppUrl() {
+  return (
+    process.env.SITE_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+}
+
+async function getPostAuthorEmail(ctx: MutationCtx, authorId: string) {
+  const userById = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "_id", operator: "eq", value: authorId }],
+  })) as BetterAuthUserContact | null;
+
+  const emailById = userById?.email?.trim();
+  if (emailById && emailById.length > 0) return emailById;
+
+  // Fallback for older records where posts.authorId may reference legacy userId.
+  const userByLegacyId = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "userId", operator: "eq", value: authorId }],
+  })) as BetterAuthUserContact | null;
+
+  const emailByLegacyId = userByLegacyId?.email?.trim();
+  return emailByLegacyId && emailByLegacyId.length > 0 ? emailByLegacyId : null;
 }
 
 export const createPost = mutation({
@@ -72,6 +109,34 @@ export const createPost = mutation({
       throw new ConvexError("User not found");
     }
 
+    await assertUserNotBanned(ctx, { _id: user._id, email: user.email });
+
+    // Check rate limit for post creation
+    const rateLimit = await ctx.db
+      .query("rateLimits")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .first();
+
+    const now = Date.now();
+    const POST_RATE_LIMIT = 2;
+    const POST_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+    if (rateLimit) {
+      const windowStart = rateLimit.postWindowStart || now;
+      const timeSinceWindowStart = now - windowStart;
+
+      // Reset window if 24 hours have passed
+      if (timeSinceWindowStart <= POST_WINDOW_MS) {
+        const currentCount = rateLimit.postCount || 0;
+        if (currentCount >= POST_RATE_LIMIT) {
+          const timeUntilReset = POST_WINDOW_MS - timeSinceWindowStart;
+          throw new ConvexError(
+            `You can only publish ${POST_RATE_LIMIT} posts per day. Please try again in ${Math.ceil(timeUntilReset / 60000)} minutes.`
+          );
+        }
+      }
+    }
+
     // Generate slug from title
     const baseSlug = generateSlug(args.title);
     const uniqueSlug = await getUniqueSlug(ctx, baseSlug);
@@ -90,6 +155,33 @@ export const createPost = mutation({
       topic: (args.topic ?? "Web Architecture") as Topic,
       status: "published",
     });
+
+    // Update rate limit
+    if (rateLimit) {
+      const windowStart = rateLimit.postWindowStart || now;
+      const timeSinceWindowStart = now - windowStart;
+
+      if (timeSinceWindowStart > POST_WINDOW_MS) {
+        // Reset window
+        await ctx.db.patch(rateLimit._id, {
+          postWindowStart: now,
+          postCount: 1,
+        });
+      } else {
+        // Increment counter
+        const currentCount = rateLimit.postCount || 0;
+        await ctx.db.patch(rateLimit._id, {
+          postCount: currentCount + 1,
+        });
+      }
+    } else {
+      // Create new rate limit entry
+      await ctx.db.insert("rateLimits", {
+        userId: user._id,
+        postWindowStart: now,
+        postCount: 1,
+      });
+    }
 
     return { id: blogArticle, slug: uniqueSlug };
   },
@@ -175,7 +267,7 @@ export const getPostBySlug = query({
   handler: async (ctx, args) => {
     const post = await ctx.db
       .query("posts")
-      .withIndex("by_slug", (q: any) => q.eq("slug", args.slug))
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
 
     if (!post) return null;
@@ -212,14 +304,14 @@ export const updatePost = mutation({
       throw new ConvexError("Not authenticated");
     }
 
+    await assertUserNotBanned(ctx, { _id: user._id, email: user.email });
+
     const post = await ctx.db.get(args.postId);
     if (!post) {
       throw new ConvexError("Post not found");
     }
 
-    const isAdmin = process.env.NEXT_PUBLIC_ADMIN_ID
-      ? user._id.toString() === process.env.NEXT_PUBLIC_ADMIN_ID
-      : false;
+    const isAdmin = isAdminUserRecord(user);
 
     const isAuthor = post.authorId.toString() === user._id.toString();
 
@@ -245,17 +337,61 @@ export const updatePost = mutation({
     if (args.topic !== undefined) patch.topic = args.topic as Topic;
     if (args.status !== undefined) patch.status = args.status;
     if (args.minRead !== undefined) {
-      console.log(`[updatePost] Updating minRead: ${post.minRead} → ${args.minRead}`);
       patch.minRead = args.minRead;
     }
     if (args.imageStorageId !== undefined) {
-      console.log(
-        `[updatePost] Updating image: ${post.imageStorageId || "none"} → ${args.imageStorageId}`
-      );
       patch.imageStorageId = args.imageStorageId;
     }
 
     await ctx.db.patch(args.postId, patch);
+
+    const nextStatus = args.status ?? post.status;
+    const becameHidden = nextStatus === "hidden" && post.status !== "hidden";
+    const becamePublished = nextStatus === "published" && post.status === "hidden";
+    if (isAdmin && (becameHidden || becamePublished)) {
+      const authorEmail = await getPostAuthorEmail(ctx, post.authorId);
+      if (authorEmail) {
+        const finalTitle = args.title ?? post.title;
+        const finalSlug = patch.slug ?? post.slug;
+        const slugPath = finalSlug ? `/posts/${finalSlug}` : "/profile";
+        const postLink = `${getAppUrl()}${slugPath}`;
+        const editPath = finalSlug ? `/edit/${finalSlug}` : "/profile";
+        const editLink = `${getAppUrl()}${editPath}`;
+        try {
+          if (becameHidden) {
+            await ctx.scheduler.runAfter(0, internal.emails.deliverPostHiddenModerationEmail, {
+              name: post.authorName,
+              email: authorEmail,
+              postTitle: finalTitle,
+              editLink,
+            });
+          } else {
+            await ctx.scheduler.runAfter(
+              0,
+              (internal.emails as any).deliverPostPublishedModerationEmail,
+              {
+                name: post.authorName,
+                email: authorEmail,
+                postTitle: finalTitle,
+                postLink,
+              }
+            );
+          }
+        } catch (error) {
+          console.error(
+            becameHidden ? "[Email][PostHidden][QueueError]" : "[Email][PostPublished][QueueError]",
+            error
+          );
+        }
+      } else {
+        console.warn("[Email][Moderation][SkipNoAuthorEmail]", {
+          postId: args.postId,
+          authorId: post.authorId,
+          statusBefore: post.status ?? "published",
+          statusAfter: nextStatus ?? "published",
+        });
+      }
+    }
 
     return { success: true };
   },
@@ -269,18 +405,38 @@ export const deletePost = mutation({
       throw new ConvexError("Not authenticated");
     }
 
+    await assertUserNotBanned(ctx, { _id: user._id, email: user.email });
+
     const post = await ctx.db.get(args.postId);
     if (!post) {
       throw new ConvexError("Post not found");
     }
 
-    const isAdmin = process.env.NEXT_PUBLIC_ADMIN_ID
-      ? user._id.toString() === process.env.NEXT_PUBLIC_ADMIN_ID
-      : false;
+    const isAdmin = isAdminUserRecord(user);
     const isAuthor = post.authorId.toString() === user._id.toString();
 
     if (!isAdmin && !isAuthor) {
       throw new ConvexError("Not authorized to delete this post");
+    }
+
+    if (isAdmin) {
+      const authorEmail = await getPostAuthorEmail(ctx, post.authorId);
+      if (authorEmail) {
+        try {
+          await ctx.scheduler.runAfter(0, internal.emails.deliverPostDeletedModerationEmail, {
+            name: post.authorName,
+            email: authorEmail,
+            postTitle: post.title,
+          });
+        } catch (error) {
+          console.error("[Email][PostDeleted][QueueError]", error);
+        }
+      } else {
+        console.warn("[Email][PostDeleted][SkipNoAuthorEmail]", {
+          postId: args.postId,
+          authorId: post.authorId,
+        });
+      }
     }
 
     await ctx.db.delete(args.postId);

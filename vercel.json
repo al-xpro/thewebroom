@@ -1,0 +1,62 @@
+{
+  "firewall": {
+    "rules": [
+      {
+        "name": "Block AI scrapers",
+        "description": "Block known AI training scrapers",
+        "conditionGroup": [
+          {
+            "conditions": [
+              {
+                "type": "user_agent",
+                "op": "re",
+                "value": "(?i)(GPTBot|ChatGPT-User|CCBot|anthropic-ai|Claude-Web|Omgilibot|FacebookBot|Bytespider|PetalBot)"
+              }
+            ]
+          }
+        ],
+        "action": { "type": "block" }
+      },
+      {
+        "name": "Rate limit auth endpoints",
+        "description": "Limit auth endpoint to 20 req/min per IP",
+        "conditionGroup": [
+          {
+            "conditions": [
+              { "type": "path", "op": "pre", "value": "/api/auth" }
+            ]
+          }
+        ],
+        "action": {
+          "type": "rate_limit",
+          "rateLimit": {
+            "algo": "fixed_window",
+            "window": 60,
+            "limit": 20,
+            "keys": ["ip"]
+          }
+        }
+      },
+      {
+        "name": "Rate limit post creation",
+        "description": "Limit /api/create-blog to 10 req/min per IP",
+        "conditionGroup": [
+          {
+            "conditions": [
+              { "type": "path", "op": "eq", "value": "/api/create-blog" }
+            ]
+          }
+        ],
+        "action": {
+          "type": "rate_limit",
+          "rateLimit": {
+            "algo": "fixed_window",
+            "window": 60,
+            "limit": 10,
+            "keys": ["ip"]
+          }
+        }
+      }
+    ]
+  }
+}

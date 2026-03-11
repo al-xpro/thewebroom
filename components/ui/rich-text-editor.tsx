@@ -26,6 +26,7 @@ import {
   Tag,
   MessageSquareQuote,
   TableIcon,
+  StickyNote,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { FileCodeBlock } from "@/lib/extension/file-code-block";
@@ -49,6 +50,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./input";
 import { LimitTableRows } from "@/lib/extension/limit-table-rows";
+import { Callout } from "@/lib/extension/callout";
 
 interface RichTextEditorProps {
   value?: string;
@@ -76,8 +78,8 @@ export function RichTextEditor({
   const [isLinkExsists, setIsLinkExists] = useState(false);
 
   // Table Configuration State
-  const [tableRows, setTableRows] = useState(3);
-  const [tableCols, setTableCols] = useState(3);
+  const [tableRows, setTableRows] = useState(2);
+  const [tableCols, setTableCols] = useState(2);
   const [withHeaderRow, setWithHeaderRow] = useState(true);
 
   const editor = useEditor({
@@ -86,10 +88,13 @@ export function RichTextEditor({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
         link: false,
+        code: false,
+        blockquote: false,
       }),
       FileCodeBlock,
       TerminalCodeBlock,
       Badge,
+      Callout,
       Caption,
       Table.configure({
         resizable: false,
@@ -114,7 +119,7 @@ export function RichTextEditor({
         linkOnPaste: true,
       }),
       TextAlign.configure({
-        types: ["heading", "paragraph", "caption"],
+        types: ["heading", "paragraph", "caption", "callout"],
       }),
     ],
     editorProps: {
@@ -304,6 +309,17 @@ export function RichTextEditor({
           title="Caption"
         >
           <MessageSquareQuote className="h-4 w-4" />
+        </Button>
+
+        <Button
+          type="button"
+          onClick={() => editor.chain().focus().toggleCallout().run()}
+          disabled={isToolbarDisabled}
+          variant={editor.isActive("callout") ? "default" : "outline"}
+          size="sm"
+          title="Callout"
+        >
+          <StickyNote className="h-4 w-4" />
         </Button>
 
         <div className="hidden sm:block w-px h-6 bg-border" />
@@ -593,12 +609,15 @@ export function RichTextEditor({
           [&_.ProseMirror_code]:text-sm
           [&_.ProseMirror_pre_code]:bg-transparent
           [&_.ProseMirror_pre_code]:p-0
-          [&_.ProseMirror_blockquote]:border-l-4
-          [&_.ProseMirror_blockquote]:pl-4
-          [&_.ProseMirror_blockquote]:italic
-          [&_.ProseMirror_blockquote]:my-6
-          [&_.ProseMirror_blockquote]:border-black/10
-          dark:[&_.ProseMirror_blockquote]:border-white/20
+
+          [&_.ProseMirror_div[data-callout]]:rounded-md
+          [&_.ProseMirror_div[data-callout]]:px-4
+          [&_.ProseMirror_div[data-callout]]:py-3
+          [&_.ProseMirror_div[data-callout]]:my-4
+          [&_.ProseMirror_div[data-callout]]:bg-[#EDEDED]
+          dark:[&_.ProseMirror_div[data-callout]]:bg-[#0A0A0A]
+          [&_.ProseMirror_div[data-callout]]:text-sm
+
 
           [&_.ProseMirror_hr]:my-8
           [&_.ProseMirror_hr]:border-t-2
@@ -610,7 +629,7 @@ export function RichTextEditor({
 
           [&_table]:table-fixed [&_table]:my-16 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative
           [&_table]:border-separate [&_table]:border-spacing-0
-          [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden [&_table]:justify-center-safe
+          [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden [&_table]:justify-center-safe [&_colgroup]:hidden [&_col]:hidden
           [&_table]:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
           [&_table]:[mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
           [&_table]:[scrollbar-width:none] [&_table]:[-ms-overflow-style:none] [&_table]:[&::-webkit-scrollbar]:hidden

@@ -2,7 +2,7 @@
 
 import { NodeViewWrapper, NodeViewContent } from "@tiptap/react";
 import { Copy, Check } from "lucide-react";
-import { SiTypescript, SiJavascript, SiNextdotjs, SiReact } from "react-icons/si";
+import { SiNextdotjs, SiReact } from "react-icons/si";
 import { useState, useEffect } from "react";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { motion } from "framer-motion";
@@ -103,7 +103,13 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
   const lines = node.textContent.split("\n");
 
   return (
-    <NodeViewWrapper className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <NodeViewWrapper
+      className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]"
+      data-tiptap-custom="file-code-block-wrapper"
+      data-language={node.attrs.language}
+      data-filename={node.attrs.filename}
+      data-file-icon={node.attrs.fileIcon}
+    >
       {/* HEADER */}
       <div
         contentEditable={false}
@@ -234,6 +240,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
           {/* LAYER 2: EDITOR (NodeViewContent) */}
           <NodeViewContent
             as="pre"
+            data-tiptap-content-target="true"
             className={`
               col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-2
               whitespace-pre outline-none min-w-max 

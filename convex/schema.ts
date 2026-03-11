@@ -46,11 +46,27 @@ export default defineSchema({
 
   rateLimits: defineTable({
     userId: v.string(),
-    lastPostTime: v.optional(v.number()),
-    lastCommentTime: v.optional(v.number()),
-    dailyPostCount: v.optional(v.number()),
-    hourlyCommentCount: v.optional(v.number()),
+    // Posts: max 2 per 24 hours
+    postWindowStart: v.optional(v.number()),
+    postCount: v.optional(v.number()),
+    // Comments: max 3 per 6 hours
+    commentWindowStart: v.optional(v.number()),
+    commentCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
+
+  accountCreationLimits: defineTable({
+    ipAddress: v.string(),
+    createdAt: v.number(),
+    accountEmail: v.string(),
+  })
+    .index("by_ipAddress", ["ipAddress"])
+    .index("by_email", ["accountEmail"]),
+
+  otpLockouts: defineTable({
+    email: v.string(),
+    lockedUntil: v.number(),
+    reason: v.string(),
+  }).index("by_email", ["email"]),
 
   passwordResetOtps: defineTable({
     email: v.string(),
@@ -98,8 +114,16 @@ export default defineSchema({
     windowStartedAt: v.number(),
   }).index("by_email", ["email"]),
 
-  newsletterSubscriptions: defineTable({
+  bannedUsers: defineTable({
     email: v.string(),
-    createdAt: v.number(),
-  }).index("by_email", ["email"]),
+    userId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+    active: v.boolean(),
+    bannedAt: v.number(),
+    bannedByUserId: v.string(),
+    notifiedAt: v.optional(v.number()),
+  })
+    .index("by_email", ["email"])
+    .index("by_userId", ["userId"])
+    .index("by_active", ["active"]),
 });

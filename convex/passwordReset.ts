@@ -5,7 +5,8 @@ import { hashPassword } from "better-auth/crypto";
 
 const OTP_TTL_MS = 15 * 60 * 1000;
 const RESET_SESSION_TTL_MS = 15 * 60 * 1000;
-const OTP_MAX_ATTEMPTS = 5;
+const OTP_MAX_ATTEMPTS = 3; // Lock out after 3 failed attempts
+const OTP_LOCKOUT_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hour lockout
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 const OTP_DAILY_REQUEST_LIMIT = 3;
 const OTP_DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -85,6 +86,29 @@ export const requestPasswordReset = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const email = args.email.trim().toLowerCase();
+
+    // Check if user is locked out due to too many OTP attempts
+    const lockout = await ctx.db
+      .query("otpLockouts")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+
+    if (lockout && lockout.lockedUntil > now) {
+      return {
+        success: true,
+        delivered: false,
+        cooldownMsRemaining: lockout.lockedUntil - now,
+        rateLimited: true,
+        dailyLimit: false,
+        locked: true,
+        lockMessage: "Too many failed attempts. Please try again after 24 hours.",
+      };
+    }
+
+    // Remove expired lockout
+    if (lockout && lockout.lockedUntil <= now) {
+      await ctx.db.delete(lockout._id);
+    }
 
     const existingOtps = await ctx.db
       .query("passwordResetOtps")
@@ -248,6 +272,7 @@ export const verifyOTPAndCreateSession = mutation({
   handler: async (ctx, args) => {
     const email = args.email.trim().toLowerCase();
     const otp = args.otp.trim();
+    const now = Date.now();
 
     const otpRecord = await getLatestOtpRecord(ctx, email);
 
@@ -255,13 +280,35 @@ export const verifyOTPAndCreateSession = mutation({
       throw new ConvexError("Invalid or expired code");
     }
 
-    if (Date.now() > otpRecord.expiresAt) {
+    if (now > otpRecord.expiresAt) {
       await ctx.db.delete(otpRecord._id);
       throw new ConvexError("Code expired");
     }
 
     if (otpRecord.attempts >= OTP_MAX_ATTEMPTS) {
-      throw new ConvexError("Too many attempts. Request a new code.");
+      // Create a lockout entry
+      const existingLockout = await ctx.db
+        .query("otpLockouts")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .first();
+
+      if (existingLockout) {
+        // Update existing lockout to extend the time
+        await ctx.db.patch(existingLockout._id, {
+          lockedUntil: now + OTP_LOCKOUT_DURATION_MS,
+        });
+      } else {
+        // Create new lockout
+        await ctx.db.insert("otpLockouts", {
+          email,
+          lockedUntil: now + OTP_LOCKOUT_DURATION_MS,
+          reason: "Too many failed OTP attempts",
+        });
+      }
+
+      throw new ConvexError(
+        "Too many failed attempts. Your account is locked for 24 hours. Please try again later."
+      );
     }
 
     const expectedOtpHash = await getStoredOtpHash(otpRecord);
@@ -271,8 +318,38 @@ export const verifyOTPAndCreateSession = mutation({
 
     const hashedOtp = await sha256Hex(otp);
     if (!constantTimeEqual(hashedOtp, expectedOtpHash)) {
-      await ctx.db.patch(otpRecord._id, { attempts: otpRecord.attempts + 1 });
-      throw new ConvexError("Invalid code");
+      // Increment attempt counter
+      const newAttempts = otpRecord.attempts + 1;
+      await ctx.db.patch(otpRecord._id, { attempts: newAttempts });
+
+      // Check if this is the final attempt
+      if (newAttempts >= OTP_MAX_ATTEMPTS) {
+        // Create a lockout entry immediately
+        const existingLockout = await ctx.db
+          .query("otpLockouts")
+          .withIndex("by_email", (q) => q.eq("email", email))
+          .first();
+
+        if (existingLockout) {
+          await ctx.db.patch(existingLockout._id, {
+            lockedUntil: now + OTP_LOCKOUT_DURATION_MS,
+          });
+        } else {
+          await ctx.db.insert("otpLockouts", {
+            email,
+            lockedUntil: now + OTP_LOCKOUT_DURATION_MS,
+            reason: "Too many failed OTP attempts",
+          });
+        }
+
+        throw new ConvexError(
+          `Invalid code. Your account is now locked for 24 hours due to ${OTP_MAX_ATTEMPTS} failed attempts.`
+        );
+      }
+
+      throw new ConvexError(
+        `Invalid code. ${OTP_MAX_ATTEMPTS - newAttempts} attempt(s) remaining.`
+      );
     }
 
     await ctx.db.delete(otpRecord._id);
@@ -292,7 +369,7 @@ export const verifyOTPAndCreateSession = mutation({
     await ctx.db.insert("passwordResetSessions", {
       email,
       tokenHash,
-      expiresAt: Date.now() + RESET_SESSION_TTL_MS,
+      expiresAt: now + RESET_SESSION_TTL_MS,
     });
 
     return { success: true, resetToken };

@@ -1,10 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { authComponent } from "./auth";
-
-const ADMIN_USER_ID = process.env.ADMIN_USER_ID || "";
-
-const isAdmin = (userId: string) => userId.toString() === ADMIN_USER_ID;
+import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 
 export const getIsAdmin = query({
   args: {},
@@ -17,7 +13,7 @@ export const getIsAdmin = query({
     }
     if (!user) return false;
 
-    return user._id.toString() === ADMIN_USER_ID;
+    return isAdminUserRecord(user);
   },
 });
 
@@ -67,45 +63,71 @@ export const createComment = mutation({
       throw new ConvexError("Not authenticated");
     }
 
+    await assertUserNotBanned(ctx, { _id: user._id, email: user.email });
+
+    // Check rate limit for comment creation
     const rateLimit = await ctx.db
       .query("rateLimits")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .first();
 
     const now = Date.now();
-    const COMMENT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
     const COMMENT_RATE_LIMIT = 3;
+    const COMMENT_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 hours
 
     if (rateLimit) {
-      const timeSinceLastComment = now - (rateLimit.lastCommentTime || 0);
-      const dailyCount =
-        timeSinceLastComment > COMMENT_COOLDOWN_MS ? 0 : rateLimit.hourlyCommentCount || 0;
+      const windowStart = rateLimit.commentWindowStart || now;
+      const timeSinceWindowStart = now - windowStart;
 
-      if (dailyCount >= COMMENT_RATE_LIMIT) {
-        throw new ConvexError(
-          `Rate limit exceeded. You can post ${COMMENT_RATE_LIMIT} comments per day.`
-        );
+      // Reset window if 6 hours have passed
+      if (timeSinceWindowStart <= COMMENT_WINDOW_MS) {
+        const currentCount = rateLimit.commentCount || 0;
+        if (currentCount >= COMMENT_RATE_LIMIT) {
+          const timeUntilReset = COMMENT_WINDOW_MS - timeSinceWindowStart;
+          throw new ConvexError(
+            `You can only post ${COMMENT_RATE_LIMIT} comments every 6 hours. Please try again in ${Math.ceil(timeUntilReset / 60000)} minutes.`
+          );
+        }
       }
-
-      await ctx.db.patch(rateLimit._id, {
-        lastCommentTime: now,
-        hourlyCommentCount: dailyCount + 1,
-      });
-    } else {
-      await ctx.db.insert("rateLimits", {
-        userId: user._id,
-        lastCommentTime: now,
-        hourlyCommentCount: 1,
-      });
     }
 
-    return await ctx.db.insert("comments", {
+    // Create the comment
+    const commentId = await ctx.db.insert("comments", {
       postId: args.postId,
       body: args.body,
       authorId: user._id,
       authorName: user.name || "",
       status: "visible",
     });
+
+    // Update or create rate limit
+    if (rateLimit) {
+      const windowStart = rateLimit.commentWindowStart || now;
+      const timeSinceWindowStart = now - windowStart;
+
+      if (timeSinceWindowStart > COMMENT_WINDOW_MS) {
+        // Reset window
+        await ctx.db.patch(rateLimit._id, {
+          commentWindowStart: now,
+          commentCount: 1,
+        });
+      } else {
+        // Increment counter
+        const currentCount = rateLimit.commentCount || 0;
+        await ctx.db.patch(rateLimit._id, {
+          commentCount: currentCount + 1,
+        });
+      }
+    } else {
+      // Create new rate limit entry
+      await ctx.db.insert("rateLimits", {
+        userId: user._id,
+        commentWindowStart: now,
+        commentCount: 1,
+      });
+    }
+
+    return commentId;
   },
 });
 
@@ -126,7 +148,7 @@ export const updateComment = mutation({
     }
 
     const isOwner = comment.authorId.toString() === user._id.toString();
-    if (!isOwner && !isAdmin(user._id.toString())) {
+    if (!isOwner && !isAdminUserRecord(user)) {
       throw new ConvexError("Not authorized to edit this comment");
     }
 
@@ -149,7 +171,7 @@ export const deleteComment = mutation({
     }
 
     const isOwner = comment.authorId.toString() === user._id.toString();
-    if (!isOwner && !isAdmin(user._id.toString())) {
+    if (!isOwner && !isAdminUserRecord(user)) {
       throw new ConvexError("Not authorized to delete this comment");
     }
 

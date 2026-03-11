@@ -15,6 +15,8 @@ const raleway = Raleway({
 export const metadata: Metadata = {
   title: "The Web Room",
   description: "A place where you can learn web development and be a part of a community.",
+  category: "Blog",
+  authors: [{ name: "The Community at The Web Room" }],
 };
 
 export default function RootLayout({

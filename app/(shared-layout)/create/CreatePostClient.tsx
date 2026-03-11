@@ -83,9 +83,10 @@ export function CreatePostClient() {
   async function onSubmit(values: z.infer<typeof postSchema>) {
     setIsPending(true);
     try {
-      await createBlogAction(values);
+      
+      const { slug } = await createBlogAction(values);
       showSuccessToast("Post published successfully!");
-      router.push("/my-posts");
+      router.push(`/blog/${slug}`);
     } catch (error) {
       if (isRedirectError(error)) throw error;
       showErrorToast(error instanceof Error ? error.message : "Failed to publish post");

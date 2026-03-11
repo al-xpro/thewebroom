@@ -15,7 +15,7 @@ export default function Newsletter() {
         </div>
 
         <div>
-          <p className="text-left pt-4 md:text-xl leading-normal text-paragraph">
+          <p className="text-left pt-4 text-lg leading-normal text-paragraph">
             Love reading? Sign up for our newsletter to receive the latest updates on web
             development and more!
           </p>

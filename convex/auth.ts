@@ -10,6 +10,25 @@ import { verifyPassword } from "better-auth/crypto";
 const GITHUB_DELETE_REAUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const GITHUB_DELETE_REAUTH_GRANT_TTL_MS = 5 * 60 * 1000;
 const DISPLAY_NAME_PATTERN = /^[a-zA-Z0-9\s-]+$/;
+const ADMIN_USER_IDS = [
+  process.env.ADMIN_USER_ID,
+  process.env.ADMIN_ID,
+  process.env.NEXT_PUBLIC_ADMIN_ID,
+  process.env.NEXT_PUBLIC_ADMIN_USER_ID,
+]
+  .flatMap((value) => (value ? value.split(",") : []))
+  .map((value) => value.trim())
+  .filter((value) => value.length > 0);
+
+const ADMIN_EMAILS = [
+  process.env.ADMIN_EMAILS,
+  process.env.ADMIN_EMAIL,
+  process.env.NEXT_PUBLIC_ADMIN_EMAILS,
+  process.env.NEXT_PUBLIC_ADMIN_EMAIL,
+]
+  .flatMap((value) => (value ? value.split(",") : []))
+  .map((email) => email.trim().toLowerCase())
+  .filter((email) => email.length > 0);
 
 function getAuthSiteUrl() {
   return (
@@ -48,11 +67,66 @@ function sanitizeDisplayName(rawName: string) {
   return name;
 }
 
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function isAdminEmail(email: string | null | undefined) {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(normalizeEmail(email));
+}
+
+export function isAdminUserRecord(user: { _id: string; email?: string | null }) {
+  if (ADMIN_USER_IDS.includes(user._id.toString())) return true;
+  return isAdminEmail(user.email);
+}
+
 async function getOnboardingCompletion(ctx: MutationCtx | QueryCtx, userId: string) {
   return await ctx.db
     .query("onboardingCompletions")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .first();
+}
+
+async function getActiveBanByEmail(ctx: MutationCtx | QueryCtx, email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const bans = await ctx.db
+    .query("bannedUsers")
+    .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
+    .collect();
+  return bans.find((ban) => ban.active) ?? null;
+}
+
+async function getActiveBanByUserId(ctx: MutationCtx | QueryCtx, userId: string) {
+  const bans = await ctx.db
+    .query("bannedUsers")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .collect();
+  return bans.find((ban) => ban.active) ?? null;
+}
+
+async function requireAdmin(ctx: MutationCtx | QueryCtx) {
+  const user = await authComponent.getAuthUser(ctx);
+  if (!isAdminUserRecord(user)) {
+    throw new ConvexError("Not authorized");
+  }
+  return user;
+}
+
+export async function assertUserNotBanned(
+  ctx: MutationCtx | QueryCtx,
+  user: { _id: string; email: string }
+) {
+  const banByUserId = await getActiveBanByUserId(ctx, user._id);
+  const banByEmail = await getActiveBanByEmail(ctx, user.email);
+  const ban = banByUserId ?? banByEmail;
+  if (!ban) return;
+
+  throw new ConvexError(
+    ban.reason
+      ? `This account is banned: ${ban.reason}`
+      : "This account has been permanently banned"
+  );
 }
 
 export const authComponent = createClient<DataModel>(components.betterAuth);
@@ -83,13 +157,23 @@ export const createAuth = (
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    let user = null;
+    try {
+      user = await authComponent.safeGetAuthUser(ctx);
+    } catch {
+      return null;
+    }
     if (!user) return null;
 
     const completion = await getOnboardingCompletion(ctx, user._id);
+    const banByUserId = await getActiveBanByUserId(ctx, user._id);
+    const banByEmail = await getActiveBanByEmail(ctx, user.email);
+    const ban = banByUserId ?? banByEmail;
     return {
       ...user,
       onboardingCompleted: Boolean(completion),
+      isBanned: Boolean(ban),
+      banReason: ban?.reason ?? null,
     };
   },
 });
@@ -103,6 +187,181 @@ export const getAuthProviderStatus = query({
       siteUrl,
       githubConfigured: Boolean(githubClientId && githubClientSecret),
     };
+  },
+});
+
+export const getIsAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return false;
+    return isAdminUserRecord(user);
+  },
+});
+
+export const getBanStatusByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const ban = await getActiveBanByEmail(ctx, args.email);
+    return {
+      banned: Boolean(ban),
+      reason: ban?.reason ?? null,
+    };
+  },
+});
+
+export const assertEmailNotBanned = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const ban = await getActiveBanByEmail(ctx, args.email.trim().toLowerCase());
+    if (!ban) {
+      return {
+        allowed: true,
+        banned: false,
+        reason: null,
+        message: null,
+      };
+    }
+
+    const reason = ban.reason?.trim() || "Violation of platform policies";
+    return {
+      allowed: false,
+      banned: true,
+      reason,
+      message: "Violation of platform policies",
+    };
+  },
+});
+
+export const listUsersForAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    const result = await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "user",
+      paginationOpts: { numItems: 500, cursor: null },
+      sortBy: { field: "createdAt", direction: "desc" },
+    });
+
+    const users = Array.isArray(result)
+      ? result
+      : Array.isArray((result as { page?: unknown[] }).page)
+        ? ((result as { page: unknown[] }).page as Array<Record<string, unknown>>)
+        : [];
+
+    const activeBans = await ctx.db
+      .query("bannedUsers")
+      .withIndex("by_active", (q) => q.eq("active", true))
+      .collect();
+
+    const bansByEmail = new Map(activeBans.map((ban) => [ban.email, ban]));
+
+    return users
+      .filter((u) => typeof u.email === "string")
+      .map((u) => {
+        const email = normalizeEmail(String(u.email));
+        const ban = bansByEmail.get(email) ?? null;
+        const userId = String(u._id);
+        return {
+          _id: userId,
+          email,
+          name: typeof u.name === "string" ? u.name : "",
+          createdAt: typeof u.createdAt === "number" ? u.createdAt : 0,
+          isAdmin: isAdminUserRecord({ _id: userId, email }),
+          isBanned: Boolean(ban),
+          banReason: ban?.reason ?? null,
+          bannedAt: ban?.bannedAt ?? null,
+        };
+      });
+  },
+});
+
+export const banUserByAdmin = mutation({
+  args: {
+    email: v.string(),
+    userId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const email = normalizeEmail(args.email);
+
+    if (isAdminEmail(email)) {
+      throw new ConvexError("Cannot ban an admin account");
+    }
+
+    let targetUserId = args.userId?.trim() || undefined;
+    let targetUser:
+      | {
+          _id?: unknown;
+          email?: unknown;
+        }
+      | null
+      | undefined;
+    if (!targetUserId) {
+      targetUser = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+        model: "user",
+        where: [{ field: "email", operator: "eq", value: email }],
+      });
+      if (targetUser && typeof targetUser._id === "string") {
+        targetUserId = targetUser._id;
+      }
+    }
+
+    if (targetUserId && ADMIN_USER_IDS.includes(targetUserId)) {
+      throw new ConvexError("Cannot ban an admin account");
+    }
+    if (targetUser && typeof targetUser.email === "string" && isAdminEmail(targetUser.email)) {
+      throw new ConvexError("Cannot ban an admin account");
+    }
+
+    const existing = await ctx.db
+      .query("bannedUsers")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .collect();
+
+    for (const ban of existing) {
+      await ctx.db.patch(ban._id, {
+        active: true,
+        reason: args.reason?.trim() || ban.reason,
+        bannedAt: Date.now(),
+        bannedByUserId: admin._id,
+        userId: targetUserId ?? ban.userId,
+      });
+    }
+
+    if (existing.length === 0) {
+      await ctx.db.insert("bannedUsers", {
+        email,
+        userId: targetUserId,
+        reason: args.reason?.trim() || undefined,
+        active: true,
+        bannedAt: Date.now(),
+        bannedByUserId: admin._id,
+      });
+    }
+
+    if (targetUserId) {
+      await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "session",
+          where: [{ field: "userId" as const, value: targetUserId }],
+        },
+        paginationOpts: { numItems: 100, cursor: null },
+      });
+    }
+
+    try {
+      await ctx.scheduler.runAfter(0, internal.emails.deliverBannedUserEmail, {
+        email,
+        reason: args.reason?.trim() || undefined,
+      });
+    } catch (error) {
+      console.error("[Email][Ban][QueueError]", error);
+    }
+
+    return { success: true };
   },
 });
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { isOnboardingComplete } from "@/lib/onboarding";
+import { authClient } from "@/lib/auth-client";
 import { Loader2 } from "lucide-react";
 
 export default function PostAuthPage() {
@@ -19,7 +20,29 @@ export default function PostAuthPage() {
       return;
     }
 
-    if (user === undefined) return;
+    if (user === undefined) {
+      const timeout = window.setTimeout(() => {
+        void authClient.signOut().finally(() => {
+          router.replace("/auth/login");
+        });
+      }, 5000);
+      return () => window.clearTimeout(timeout);
+    }
+    if (user === null) {
+      void authClient.signOut().finally(() => {
+        router.replace("/auth/login");
+      });
+      return;
+    }
+
+    if (user.isBanned) {
+      void authClient.signOut().finally(() => {
+        const params = new URLSearchParams({ banned: "1" });
+        if (user.banReason) params.set("reason", user.banReason);
+        router.replace(`/auth/login?${params.toString()}`);
+      });
+      return;
+    }
 
     if (!isOnboardingComplete(user)) {
       router.replace("/onboarding/complete-profile");

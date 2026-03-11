@@ -19,7 +19,7 @@ export default function Home() {
           <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
             <AuroraText>The Web Room</AuroraText>
           </h1>
-          <p className="md:text-xl text-paragraph leading-relaxed">
+          <p className="text-lg text-paragraph leading-relaxed">
             "Welcome to our blog! Here, our community share everything related to web development,
             including tutorials, tips, and insights. Join hundreds of developers and stay up-to-date
             with the latest trends and best practices."
@@ -65,7 +65,7 @@ export default function Home() {
         <h2 className="text-sm uppercase font-medium tracking-[0.18em] text-left text-primary">
           Beyond the Blog
         </h2>
-        <p className="text-left md:text-xl leading-normal text-paragraph">
+        <p className="text-left text-lg leading-normal text-paragraph">
           Check out each and every one of us. We're a team of passionate web developers who are
           dedicated to sharing knowledge and insights with you.
         </p>

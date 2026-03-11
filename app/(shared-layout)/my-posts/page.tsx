@@ -14,6 +14,8 @@ import {
   Calendar,
   ClockFading,
   BookType,
+  Circle,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -131,19 +133,29 @@ export default function MyPostsPage() {
             {[1, 2].map((i) => (
               <Skeleton
                 key={i}
-                className="overflow-hidden flex flex-col sm:flex-row w-full h-full px-3 sm:px-4 py-6 rounded-2xl"
+                className="overflow-hidden flex flex-col sm:flex-row w-full h-full px-3 sm:px-4 py-5 rounded-xl"
               >
-                <div className="relative w-full h-48 sm:w-1/3 flex-shrink-0">
+                <div className="relative w-full h-56 sm:w-1/3 flex-shrink-0">
                   <div className="flex w-full h-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-md" />
                 </div>
-                <div className="flex flex-col w-full h-full px-3">
-                  <div className="flex flex-col w-full h-full sm:px-8 pt-12 pb-3 sm:pt-auto sm:pb-auto sm:py-6 gap-4">
-                    <div className="flex flex-col flex-1 space-y-3">
+                <div className="flex flex-col w-full h-full px-2 gap-2">
+                  <div className="flex flex-col w-full h-full sm:px-8 pt-6 sm:pt-12 pb-3 sm:py-4 gap-4">
+                    <div className="flex flex-col flex-1 gap-3">
                       <div className="h-8 w-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
                       <div className="h-4 w-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {[1, 2, 3].map((j) => (
+                      <div className="flex w-full items-center justify-start gap-4">
+                        {[1, 2].map((j) => (
+                          <div key={j} className="flex gap-2">
+                            <div className="h-5 w-5 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-full" />
+                            <div className="h-5 w-16 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex w-full items-center justify-start gap-4">
+                      {[1, 2].map((j) => (
                         <div key={j} className="flex gap-2">
                           <div className="h-5 w-5 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-full" />
                           <div className="h-5 w-16 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
@@ -151,7 +163,7 @@ export default function MyPostsPage() {
                       ))}
                     </div>
                   </div>
-                  <div className="flex gap-2 pt-4 sm:px-3 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
+                  <div className="flex gap-2 pt-4 sm:px-8 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
                     {[1, 2, 3].map((j) => (
                       <div key={j} className="h-7 w-18 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
                     ))}
@@ -194,19 +206,36 @@ export default function MyPostsPage() {
                       </h2>
                       <p className="text-sm text-paragraph truncate">{post.subtitle}</p>
                       <div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-paragraph">
-                        <div className="flex gap-1 items-center text-black dark:text-white">
-                          <Calendar className="size-4" />
-                          <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
+                        <div className="flex w-full items-center justify-start gap-4">
+                          <div className="flex gap-1 items-center text-black dark:text-white">
+                            <Calendar className="size-4" />
+                            <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
+                          </div>
+                          <div className="flex gap-1 items-center">
+                            <BookType className="size-4 text-black dark:text-white" />
+                            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              {post.topic}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex gap-1 items-center">
-                          <BookType className="size-4 text-black dark:text-white" />
-                          <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                            {post.topic}
-                          </span>
-                        </div>
-                        <div className="flex gap-1 items-center text-black dark:text-white">
-                          <ClockFading className="size-4" />
-                          <p>{post.minRead} min read</p>
+
+                        <div className="flex w-full items-center justify-start gap-4">
+                          <div className="flex gap-1 items-center text-black dark:text-white">
+                            <ClockFading className="size-4" />
+                            <p>{post.minRead} min read</p>
+                          </div>
+                          <div className="flex gap-1 items-center text-black dark:text-white">
+                            <Info className="size-4" />
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                (post.status || "published") === "published"
+                                  ? "bg-[#EAFAEA] text-[#287A3A] dark:bg-[#0F2E18] dark:text-[#62C073]"
+                                  : "bg-[#FFF4D6] text-[#A35200] dark:bg-[#331C00] dark:text-[#F2A20D]"
+                              }`}
+                            >
+                              {post.status}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

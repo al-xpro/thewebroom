@@ -11,6 +11,7 @@ declare module "@tiptap/core" {
 
 export const Badge = Mark.create({
   name: "badge",
+  priority: 1001,
 
   addOptions() {
     return {
@@ -22,8 +23,14 @@ export const Badge = Mark.create({
     return [
       {
         tag: "span",
-        getAttrs: (element) =>
-          (element as HTMLElement).hasAttribute("data-badge") ? {} : false,
+        getAttrs: (element) => ((element as HTMLElement).hasAttribute("data-badge") ? {} : false),
+      },
+      {
+        tag: "code",
+        getAttrs: (element) => {
+          const el = element as HTMLElement;
+          return el.closest("pre") ? false : {};
+        },
       },
     ];
   },
@@ -33,7 +40,8 @@ export const Badge = Mark.create({
       "span",
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
         "data-badge": "",
-        class: "inline-flex items-center justify-center px-1 rounded-md text-[length:inherit] text-black dark:text-white font-mono tracking-tight bg-[#EAEAEA] dark:bg-[#0A0A0A] border border-[#EAEAEA] dark:border-[#1E1E1E]",
+        class:
+          "text-[length:inherit] px-1 text-black dark:text-white font-mono tracking-tight bg-[#EAEAEA] dark:bg-[#0A0A0A] border border-[#EAEAEA] dark:border-[#1E1E1E]",
       }),
       0,
     ];

@@ -47,8 +47,6 @@ function InteractiveOTP({
   onComplete,
   disabled = false,
   autoFocus = true,
-  cardTitle = "Verify your one-time code",
-  cardDescription = "Type all 6 digits to continue.",
   className,
 }: ClerkOTPProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -93,7 +91,7 @@ function InteractiveOTP({
   return (
     <div
       className={cn(
-        "relative flex w-full max-w-[350px] flex-col rounded-md border bg-neutral-50 p-4 shadow-[0_3px_10px_rgb(0,0,0,0.2)] dark:bg-neutral-900",
+        "relative flex w-full h-full max-w-[350px] flex-col rounded-md p-4",
         className
       )}
       role="button"
@@ -113,6 +111,8 @@ function InteractiveOTP({
       <input
         ref={inputRef}
         type="text"
+        name="otp"
+        id="otp"
         inputMode="numeric"
         autoComplete="one-time-code"
         pattern="[0-9]*"
@@ -134,9 +134,9 @@ function InteractiveOTP({
             <div
               key={index}
               className={cn(
-                "text-primary relative flex h-12 w-9 items-center justify-center rounded-md bg-gradient-to-br from-neutral-100 to-neutral-50 text-lg font-semibold dark:from-neutral-800 dark:to-neutral-800",
+                "text-primary relative flex h-12 w-9 items-center justify-center rounded-md text-lg font-semibold bg-[#EDEDED] dark:bg-[#0A0A0A]",
                 "shadow-[0_3px_10px_rgb(0,0,0,0.2)]",
-                isActive && !disabled && "ring-2 ring-cyan-400",
+                isActive && !disabled && "ring-2 ring-primary",
                 disabled && "opacity-60"
               )}
             >
@@ -144,11 +144,6 @@ function InteractiveOTP({
             </div>
           );
         })}
-      </div>
-
-      <div className="w-full px-1">
-        <h3 className="text-primary text-sm font-semibold">{cardTitle}</h3>
-        <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">{cardDescription}</p>
       </div>
     </div>
   );

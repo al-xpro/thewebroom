@@ -74,14 +74,8 @@ export function CommentSection(props: {
         showSuccessToast("Comment posted");
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Failed to create comment";
-        // Rate limit errors come back from the server with a specific message.
-        // Show them inline under the textarea so the user understands why
-        // their comment wasn't posted rather than seeing a generic toast.
-        if (msg.toLowerCase().includes("rate limit")) {
-          setVisibleErrors({ body: msg });
-        } else {
-          showErrorToast(msg);
-        }
+        // All errors show inline under textarea for context-specific UX
+        setVisibleErrors({ body: msg });
       }
     });
   }

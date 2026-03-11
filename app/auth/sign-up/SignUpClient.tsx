@@ -16,22 +16,45 @@ import { createPendingName } from "@/lib/onboarding";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
 type SignUpFields = keyof z.infer<typeof signUpSchema>;
 
+/**
+ * Get client IP address via IP geolocation API
+ * Falls back to 'unknown' if unable to determine
+ */
+async function getClientIpAddress(): Promise<string> {
+  try {
+    const response = await fetch("https://api.ipify.org?format=json", { 
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return data.ip || "unknown";
+    }
+  } catch {
+    // IP service may be unavailable or blocked
+  }
+  return "unknown";
+}
+
 export default function SignUpClient() {
   const [isPending, startTransition] = useTransition();
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<SignUpFields, string>>>({});
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
+  const assertEmailNotBanned = useMutation(api.auth.assertEmailNotBanned);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
@@ -68,6 +91,40 @@ export default function SignUpClient() {
     const pendingName = createPendingName();
 
     startTransition(async () => {
+      try {
+        // Check if email is banned
+        const banCheck = await assertEmailNotBanned({ email: data.email });
+        if (!banCheck.allowed) {
+          const message =
+            banCheck.message || "This email is permanently banned and cannot create new accounts.";
+          setBlockedMessage(message);
+          setVisibleErrors({});
+          return;
+        }
+
+        // Check IP-based rate limit (1 account per IP per 24 hours)
+        const ipAddress = await getClientIpAddress();
+        const rateLimitCheck = await fetch("/api/auth/check-rate-limit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ipAddress, email: data.email }),
+        });
+
+        if (!rateLimitCheck.ok) {
+          const errorData = await rateLimitCheck.json();
+          const message = errorData.message || "Too many accounts created from this IP. Please try again later.";
+          setBlockedMessage(message);
+          setVisibleErrors({});
+          return;
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to validate account status";
+        setBlockedMessage(message);
+        setVisibleErrors({});
+        return;
+      }
+
       await authClient.signUp.email({
         email: data.email,
         name: pendingName,
@@ -78,7 +135,8 @@ export default function SignUpClient() {
             router.push("/onboarding/complete-profile?force=1");
           },
           onError: (error) => {
-            showErrorToast(error.error.message);
+            setBlockedMessage(error.error.message);
+            setVisibleErrors({});
           },
         },
       });
@@ -143,6 +201,13 @@ export default function SignUpClient() {
             <p className="text-paragraph text-sm">
               Create account first, then choose your profile name.
             </p>
+            {(searchParams.get("banned") === "1" || blockedMessage) && (
+              <p className="text-sm text-destructive">
+                {blockedMessage ||
+                  searchParams.get("reason") ||
+                  "This email has been permanently banned. You cannot create an account."}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

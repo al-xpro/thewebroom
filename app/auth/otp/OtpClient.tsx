@@ -68,8 +68,8 @@ export default function OtpClient() {
       router.push(`/auth/reset-password?token=${encodeURIComponent(result.resetToken)}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid OTP";
+      // Show error inline, don't duplicate in toast
       setOtpError(message);
-      showErrorToast(message);
       setOtpValue("");
     } finally {
       setIsSubmitting(false);
@@ -131,8 +131,6 @@ export default function OtpClient() {
         <div className="flex w-full justify-center">
           <ClerkOTP
             delay={3500}
-            cardTitle="Hover to Animate"
-            cardDescription="Animation only triggers when hovering over the card. Random digits generated each time."
             whileHover={true}
             value={otpValue}
             onChange={(value) => {
