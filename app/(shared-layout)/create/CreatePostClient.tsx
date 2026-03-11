@@ -26,7 +26,6 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { useConvexAuth } from "convex/react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { sanitizeError } from "@/lib/error";
 
 export function CreatePostClient() {
   const router = useRouter();
@@ -90,7 +89,7 @@ export function CreatePostClient() {
       router.push(`/blog/${slug}`);
     } catch (error) {
       if (isRedirectError(error)) throw error;
-      showErrorToast(sanitizeError(error));
+      showErrorToast(error instanceof Error ? error.message : "Failed to publish post");
     } finally {
       setIsPending(false);
     }
