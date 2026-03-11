@@ -11,6 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
+import { connection } from "next/server";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -18,23 +19,64 @@ interface PostSlugRouteProps {
   }>;
 }
 
+const fallbackMetadata: Metadata = {
+  title: "Post",
+  description: "Read our latest articles and insights.",
+  authors: [{ name: "The Community at The Web Room" }],
+};
+
+export async function generateStaticParams() {
+  try {
+    const res = await fetch(`${process.env.CONVEX_SITE_URL}/posts-slugs`);
+    if (!res.ok) return [];
+    const slugs: string[] = await res.json();
+    return slugs.map((slug) => ({ slug }));
+  } catch {
+    return [];
+  }
+}
+
 export async function generateMetadata({ params }: PostSlugRouteProps): Promise<Metadata> {
+  await connection();
   const { slug } = await params;
-  const post = await fetchQuery(api.posts.getPostBySlug, { slug });
 
-  const description =
-    post?.subtitle?.trim() ||
-    post?.body?.slice(0, 155).trim() ||
-    `Read ${post?.title} on our blog.`;
+  try {
+    const res = await fetch(
+      `${process.env.CONVEX_SITE_URL}/post-meta?slug=${slug}`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return fallbackMetadata;
 
-  return {
-    title: post?.title,
-    description,
-    authors: [{ name: post?.authorName }],
-  };
+    const post = await res.json();
+    const description =
+      post.subtitle?.trim() ||
+      post.body?.slice(0, 155).trim() ||
+      `Read ${post.title} on our blog.`;
+
+    return {
+      ...fallbackMetadata,
+      title: post.title,
+      description,
+      authors: [{ name: post.authorName }],
+      openGraph: {
+        title: post.title,
+        description,
+        type: "article",
+        authors: [post.authorName],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: post.title,
+        description,
+      },
+    };
+  } catch {
+    return fallbackMetadata;
+  }
 }
 
 export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
+  await connection();
   const { slug } = await params;
   const post = await fetchQuery(api.posts.getPostBySlug, { slug });
 

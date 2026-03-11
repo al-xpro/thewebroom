@@ -54,7 +54,7 @@ async function getUniqueSlug(
 function getAppUrl() {
   return (
     process.env.SITE_URL ??
-    "http://localhost:3000"
+    "https://thewebroom.vercel.app"
   ).replace(/\/$/, "");
 }
 
@@ -495,5 +495,12 @@ export const searchPosts = query({
     }
 
     return results;
+  },
+});
+
+export const getAllPostSlugs = query({
+  handler: async (ctx) => {
+    const posts = await ctx.db.query("posts").collect();
+    return posts.map((p) => ({ slug: p.slug }));
   },
 });

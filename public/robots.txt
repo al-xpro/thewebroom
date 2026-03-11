@@ -1,0 +1,89 @@
+User-agent: *
+Allow: /
+Allow: /posts/
+Disallow: /auth/
+Disallow: /admin/
+Disallow: /onboarding/
+Disallow: /profile
+Disallow: /my-posts
+Disallow: /create
+Disallow: /edit/
+Disallow: /api/
+Disallow: /not-found
+Disallow: /post-auth
+Crawl-delay: 1
+Sitemap: https://thewebroom.vercel.app/sitemap.xml
+
+User-agent: Googlebot
+Crawl-delay: 0
+
+User-agent: Bingbot
+Crawl-delay: 1
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: scrapy
+Disallow: /
+
+User-agent: curl
+Disallow: /
+
+User-agent: wget
+Disallow: /
+
+User-agent: python-requests
+Disallow: /
+
+# ───────────────────────────────────────────────────────────
+# Notes / Context
+# ───────────────────────────────────────────────────────────
+# 
+# The Web Room blog structure:
+# 
+# PUBLIC (Indexable):
+#   - /                          → Homepage
+#   - /posts                     → Blog listing (PPR)
+#   - /posts/[slug]              → Individual blog posts (PPR)
+#   - /privacy-policy            → Privacy policy
+#   - /terms-and-conditions      → Terms & conditions
+# 
+# PRIVATE (Not indexable):
+#   - /auth/*                    → Auth flows (login, signup, etc.)
+#   - /admin/*                   → Admin dashboard
+#   - /profile                   → User profile settings
+#   - /my-posts                  → User's own posts
+#   - /create                    → Post creation editor
+#   - /edit/[slug]               → Post editing
+#   - /api/*                     → API routes (should return 403/robots header)
+#   - /onboarding/*              → First-time user setup
+# 
+# Why block certain bots:
+#   - AhrefsBot: Heavy crawler, can consume bandwidth
+#   - SemrushBot: SEO tool crawler, not essential for indexing
+#   - Aggressive crawlers: Prevent resource exhaustion
+# 
+# Configuration for optimal crawling:
+#   - Crawl-delay: 1 second (respectful, prevent server load)
+#   - Sitemap.xml: Submitted in Google Search Console
+#   - Dynamic routes: blog posts indexed via sitemap
+#   - Next.js PPR: Static content served instantly, dynamic comments stream
+# 
+# Testing your robots.txt:
+#   1. Google Search Console: robots.txt tester
+#   2. Bing Webmaster Tools: Crawl test
+#   3. Local: curl -I http://localhost:3000/robots.txt
+#   4. Online: https://www.seobility.net/en/robotstxt-test/
+#
+# Updates needed when:
+#   - Adding new public pages (add to Allow)
+#   - Adding admin features (add to /admin Disallow)
+#   - Blocking specific bots (add to User-agent section)
+#   - Changing api structure (update /api rules)
+# ───────────────────────────────────────────────────────────
