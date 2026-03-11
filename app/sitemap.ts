@@ -1,14 +1,6 @@
 import { MetadataRoute } from "next";
 
-/**
- * Dynamic sitemap.xml generation for The Web Room
- * This file generates a sitemap with all public blog posts
- * 
- * Accessed at: https://thewebroom.com/sitemap.xml
- * Priority for indexing by search engines
- * 
- * Reference: https://www.sitemaps.org/protocol.html
- */
+export const dynamic = "force-dynamic";
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://thewebroom.vercel.app";
 

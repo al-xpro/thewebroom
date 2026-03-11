@@ -570,19 +570,6 @@ vercel
 # Set environment variables in Vercel dashboard
 # Domain setup in Vercel settings
 ```
-
-**Vercel Configuration** (`vercel.json`):
-```json
-{
-  "buildCommand": "next build",
-  "outputDirectory": ".next",
-  "framework": "nextjs",
-  "env": [
-    "NEXT_PUBLIC_CONVEX_URL",
-    "NEXT_PUBLIC_APP_URL",
-    "SITE_URL"
-  ]
-}
 ```
 
 ### Production Checklist
@@ -804,4 +791,3 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 **Last Updated**: March 11, 2026  
 **Version**: 1.0.0  
 **Maintainer**: Alex Prostamo
-
