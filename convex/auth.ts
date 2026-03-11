@@ -10,46 +10,19 @@ import { verifyPassword } from "better-auth/crypto";
 const GITHUB_DELETE_REAUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const GITHUB_DELETE_REAUTH_GRANT_TTL_MS = 5 * 60 * 1000;
 const DISPLAY_NAME_PATTERN = /^[a-zA-Z0-9\s-]+$/;
-const ADMIN_USER_IDS = [
-  process.env.ADMIN_USER_ID,
-  process.env.ADMIN_ID,
-  process.env.NEXT_PUBLIC_ADMIN_ID,
-  process.env.NEXT_PUBLIC_ADMIN_USER_ID,
-]
-  .flatMap((value) => (value ? value.split(",") : []))
-  .map((value) => value.trim())
-  .filter((value) => value.length > 0);
+const ADMIN_USER_ID = process.env.ADMIN_USER_ID;
 
-const ADMIN_EMAILS = [
-  process.env.ADMIN_EMAILS,
-  process.env.ADMIN_EMAIL,
-  process.env.NEXT_PUBLIC_ADMIN_EMAILS,
-  process.env.NEXT_PUBLIC_ADMIN_EMAIL,
-]
-  .flatMap((value) => (value ? value.split(",") : []))
-  .map((email) => email.trim().toLowerCase())
-  .filter((email) => email.length > 0);
-
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 function getAuthSiteUrl() {
   return (
-    process.env.SITE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.CONVEX_SITE_URL ? `https://${process.env.CONVEX_SITE_URL}` : undefined) ??
-    "http://localhost:3000"
+    process.env.SITE_URL
   );
 }
 
 function getSocialProviderCredentials() {
-  const githubClientId =
-    process.env.GITHUB_CLIENT_ID ??
-    process.env.AUTH_GITHUB_CLIENT_ID ??
-    process.env.BETTER_AUTH_GITHUB_CLIENT_ID;
-  const githubClientSecret =
-    process.env.GITHUB_CLIENT_SECRET ??
-    process.env.AUTH_GITHUB_CLIENT_SECRET ??
-    process.env.BETTER_AUTH_GITHUB_CLIENT_SECRET;
-
+  const githubClientId = process.env.GITHUB_CLIENT_ID;
+      const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+      
   return { githubClientId, githubClientSecret };
 }
 
@@ -73,11 +46,11 @@ function normalizeEmail(email: string) {
 
 function isAdminEmail(email: string | null | undefined) {
   if (!email) return false;
-  return ADMIN_EMAILS.includes(normalizeEmail(email));
+  return ADMIN_EMAIL?.includes(normalizeEmail(email));
 }
 
 export function isAdminUserRecord(user: { _id: string; email?: string | null }) {
-  if (ADMIN_USER_IDS.includes(user._id.toString())) return true;
+  if (ADMIN_USER_ID?.includes(user._id.toString())) return true;
   return isAdminEmail(user.email);
 }
 
@@ -309,7 +282,7 @@ export const banUserByAdmin = mutation({
       }
     }
 
-    if (targetUserId && ADMIN_USER_IDS.includes(targetUserId)) {
+    if (targetUserId && ADMIN_USER_ID?.includes(targetUserId)) {
       throw new ConvexError("Cannot ban an admin account");
     }
     if (targetUser && typeof targetUser.email === "string" && isAdminEmail(targetUser.email)) {

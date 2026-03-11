@@ -11,10 +11,7 @@ const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 const OTP_DAILY_REQUEST_LIMIT = 3;
 const OTP_DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-const appUrl = (process.env.SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
-  /\/$/,
-  ""
-);
+const appUrl = process.env.SITE_URL ?? process.env.SITE_URL;
 
 type BetterAuthUser = {
   _id: string;
