@@ -9,6 +9,7 @@ import { Suspense } from "react";
 import { ArrowRight } from "lucide-react";
 import Newsletter from "@/components/web/Newsletter";
 import BlogFilters from "@/components/web/BlogFilters";
+import PaginatedPosts from "@/components/web/PaginatedPosts";
 
 export const metadata: Metadata = {
   title: "The Web Room",
@@ -80,31 +81,7 @@ async function FilteredPosts({ activeTopics }: { activeTopics: string[] }) {
     );
   }
 
-  return (
-    <div className="grid gap-6 py-10">
-      {filtered.map((post) => (
-        <Link key={post._id} href={`/posts/${post.slug}`} className="group block">
-          <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 sm:gap-0">
-            <div className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0 -translate-x-10 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:translate-x-0">
-              <ArrowRight className="h-5 w-5 text-black dark:text-white" />
-            </div>
-            <div className="flex w-full flex-row min-w-0 items-start justify-between transition-transform duration-300 ease-out md:group-hover:translate-x-10">
-              <div className="flex flex-col flex-1 min-w-0">
-                <h1 className="text-xl font-bold line-clamp-1 break-all">{post.title}</h1>
-                <p className="text-paragraph line-clamp-1 break-all">{post.subtitle}</p>
-              </div>
-            </div>
-            <div className="flex flex-row sm:flex-col sm:min-w-[120px] sm:max-w-[140px] w-full sm:w-1/3 items-center justify-start sm:justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
-                {post.topic}
-              </span>
-              <p className="text-sm text-paragraph whitespace-nowrap">{post.minRead} min read</p>
-            </div>
-          </div>
-        </Link>
-      ))}
-    </div>
-  );
+  return <PaginatedPosts posts={filtered} />;
 }
 
 function FiltersSkeleton() {
@@ -122,14 +99,19 @@ function FiltersSkeleton() {
 
 function SkeletonLoadingUi() {
   return (
-    <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-3">
-      {[...Array(3)].map((_, i) => (
-        <div className="flex flex-col space-y-3" key={i}>
-          <Skeleton className="h-48 w-full rounded-xl" />
-          <div className="space-y-2 flex flex-col">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
+    <div className="grid gap-6 py-10 grid-rows-10">
+      {[...Array(10)].map((_, i) => (
+        <div
+          key={i}
+          className="relative flex w-full flex-col sm:flex-row min-w-0 items-center justify-center border-b border-dashed h-[119px] sm:h-[85px] gap-6 sm:gap-10"
+        >
+          <div className="flex flex-col sm:flex-1 items-start justify-center w-full min-w-0 gap-2">
+            <Skeleton className="h-6 w-1/2 rounded-lg" />
+            <Skeleton className="h-4 w-3/4 rounded-lg" />
+          </div>
+          <div className="flex sm:flex-col items-center justify-start sm:justify-center w-full sm:w-26 gap-2">
+            <Skeleton className="h-3 w-26 rounded-lg" />
+            <Skeleton className="h-2 w-18 rounded-lg" />
           </div>
         </div>
       ))}

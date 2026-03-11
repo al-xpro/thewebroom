@@ -5,7 +5,7 @@ import { PostContent } from "@/components/web/PostContent";
 import Footer from "@/components/web/Footer";
 import { api } from "@/convex/_generated/api";
 import { fetchQuery, preloadQuery } from "convex/nextjs";
-import { ArrowLeft, BookType, Calendar, ClockFading, Divide, User } from "lucide-react";
+import { ArrowLeft, BookType, Calendar, ClockFading, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,14 +22,15 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
   const { slug } = await params;
   const post = await fetchQuery(api.posts.getPostBySlug, { slug });
 
-  if (!post) {
-    return notFound();
-  }
+  const description =
+    post?.subtitle?.trim() ||
+    post?.body?.slice(0, 155).trim() ||
+    `Read ${post?.title} on our blog.`;
 
   return {
-    title: post.title,
-    description: post.subtitle ?? post.body?.slice(0, 150),
-    authors: [{ name: post.authorName }],
+    title: post?.title,
+    description,
+    authors: [{ name: post?.authorName }],
   };
 }
 

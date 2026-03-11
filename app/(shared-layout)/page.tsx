@@ -41,14 +41,16 @@ export default function Home() {
 
           <Suspense
             fallback={
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-6 grid-rows-3">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex flex-col space-y-3 rounded-xl border bg-card/40 p-4">
-                    <Skeleton className="h-40 w-full rounded-lg" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-2/3" />
+                  <div key={i} className="relative flex w-full flex-col sm:flex-row min-w-0 items-center justify-center border-b border-dashed h-[119px] sm:h-[85px] gap-6 sm:gap-10">
+                    <div className="flex flex-col sm:flex-1 items-start justify-center w-full min-w-0 gap-2">
+                      <Skeleton className="h-6 w-1/2 rounded-lg" />
+                      <Skeleton className="h-4 w-3/4 rounded-lg" />
+                    </div>
+                    <div className="flex sm:flex-col items-center justify-start sm:justify-center w-full sm:w-26 gap-2">
+                      <Skeleton className="h-3 w-26 rounded-lg" />
+                      <Skeleton className="h-2 w-18 rounded-lg" />
                     </div>
                   </div>
                 ))}
@@ -82,7 +84,7 @@ export async function LoadHomePostList() {
   "use cache";
   cacheLife("seconds");
   cacheTag("blog");
-
+    
   const data = await fetchQuery(api.posts.getPublishedPosts);
   const limitedPosts = data?.slice(0, 3) || [];
 
