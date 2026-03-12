@@ -5,10 +5,10 @@ import { AuroraText } from "@/components/ui/aurora-text";
 import Footer from "@/components/web/Footer";
 import { api } from "@/convex/_generated/api";
 import { fetchQuery } from "convex/nextjs";
-import { cacheLife, cacheTag } from "next/cache";
 import { SignatureIcon } from "@/public/SignatureIcon";
 import Newsletter from "@/components/web/Newsletter";
 import { ArrowRight } from "lucide-react";
+import { connection } from "next/server";
 
 export default function Home() {
   return (
@@ -81,10 +81,10 @@ export default function Home() {
 }
 
 export async function LoadHomePostList() {
-  "use cache";
+/*   "use cache";
   cacheLife("seconds");
-  cacheTag("blog");
-    
+  cacheTag("blog"); */
+  await connection();
   const data = await fetchQuery(api.posts.getPublishedPosts);
   const limitedPosts = data?.slice(0, 3) || [];
 
