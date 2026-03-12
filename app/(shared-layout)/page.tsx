@@ -8,7 +8,7 @@ import { fetchQuery } from "convex/nextjs";
 import { SignatureIcon } from "@/public/SignatureIcon";
 import Newsletter from "@/components/web/Newsletter";
 import { ArrowRight } from "lucide-react";
-import { connection } from "next/server";
+import { cacheLife, cacheTag } from "next/cache";
 
 export default function Home() {
   return (
@@ -81,10 +81,9 @@ export default function Home() {
 }
 
 export async function LoadHomePostList() {
-/*   "use cache";
+  "use cache";
   cacheLife("seconds");
-  cacheTag("blog"); */
-  await connection();
+  cacheTag("blog");
   const data = await fetchQuery(api.posts.getPublishedPosts);
   const limitedPosts = data?.slice(0, 3) || [];
 
