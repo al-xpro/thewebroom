@@ -6,7 +6,7 @@ export default function CompleteProfilePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center">
           <Loader2 className="size-6 animate-spin text-paragraph" />
         </div>
       }

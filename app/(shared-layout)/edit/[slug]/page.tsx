@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchQuery } from "convex/nextjs";
@@ -13,15 +13,31 @@ interface EditPostRouteProps {
 
 async function EditPostContent({ params }: { params: Promise<{ slug: string }> }) {
   await connection();
+
+  
   const [{ slug }, token] = await Promise.all([params, getToken().catch(() => null)]);
-  if (!token) {
-    redirect("/auth/login");
-  }
 
   const post = await fetchQuery(api.posts.getPostBySlug, { slug });
+  if (!post) notFound();
 
-  if (!post) {
-    redirect(`/my-posts`);
+  if (!token) {
+    notFound();
+  }
+
+  // Fetch the current user with the token so we can check ownership
+  const currentUser = await fetchQuery(api.auth.getCurrentUser, {}, { token });
+
+  if (!currentUser) notFound();
+
+  // Check admin status
+  const isAdmin = await fetchQuery(api.auth.getIsAdmin, {}, { token });
+
+  // Only the post author or an admin may edit — everyone else gets 404.
+  // Returning 404 (instead of 403) avoids leaking that the post exists
+  // and that the viewer is not the owner.
+  const isAuthor = post.authorId === currentUser._id;
+  if (!isAuthor && !isAdmin) {
+    notFound();
   }
 
   return <EditPostClient post={post} />;

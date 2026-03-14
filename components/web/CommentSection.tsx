@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
 
+const COMMENT_MAX = 300;
+
 export function CommentSection(props: {
   preloadedComments: Preloaded<typeof api.comment.getCommentsByPostId>;
   postId: Id<"posts">;
@@ -43,27 +45,23 @@ export function CommentSection(props: {
   const [editingId, setEditingId] = useState<Id<"comments"> | null>(null);
   const [editText, setEditText] = useState("");
 
-  // Same pattern as the comment form: errors only shown on submit,
-  // cleared immediately when the user starts typing.
   const [visibleErrors, setVisibleErrors] = useState<{ body?: string }>({});
-  // Separate error state for the edit textarea
   const [editVisibleError, setEditVisibleError] = useState<string | undefined>();
 
   const currentUser = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
-
   const isAdminUser =
     useQuery(api.comment.getIsAdmin, isAuthenticated ? undefined : "skip") ?? false;
+
   const createComment = useMutation(api.comment.createComment);
   const updateComment = useMutation(api.comment.updateComment);
   const deleteComment = useMutation(api.comment.deleteComment);
 
   const form = useForm<z.infer<typeof commentSchema>>({
     resolver: zodResolver(commentSchema),
-    defaultValues: {
-      body: "",
-      postId: props.postId,
-    },
+    defaultValues: { body: "", postId: props.postId },
   });
+
+  const bodyValue = form.watch("body") ?? "";
 
   async function onSubmit(values: z.infer<typeof commentSchema>) {
     startSubmit(async () => {
@@ -74,7 +72,6 @@ export function CommentSection(props: {
         showSuccessToast("Comment posted");
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Failed to create comment";
-        // All errors show inline under textarea for context-specific UX
         setVisibleErrors({ body: msg });
       }
     });
@@ -85,10 +82,6 @@ export function CommentSection(props: {
   }
 
   async function handleEditComment(commentId: Id<"comments">) {
-    // Use flatten() to safely extract field-level error messages.
-    // Zod's raw .issues array contains all errors across all fields with
-    // path arrays — flatten() maps them to { fieldErrors, formErrors }
-    // making it safe to pull the body message without path traversal.
     const result = commentSchema.safeParse({ body: editText, postId: props.postId });
     if (!result.success) {
       const msg =
@@ -125,6 +118,13 @@ export function CommentSection(props: {
 
   if (data === undefined) {
     return <p>loading...</p>;
+  }
+
+  // Character counter colour: red when over limit, amber when close (>80%), normal otherwise
+  function counterColor(current: number, max: number) {
+    if (current > max) return "text-[#CB2A2E] dark:text-[#FF6166]";
+    if (current > max * 0.8) return "text-amber-500";
+    return "text-paragraph";
   }
 
   return (
@@ -168,21 +168,29 @@ export function CommentSection(props: {
                       id="comment-body"
                       name="comment-body"
                       placeholder="Share your thoughts"
+                      maxLength={COMMENT_MAX}
                       onChange={(e) => {
                         field.onChange(e);
-                        // Clear the error as soon as the user types
-                        if (visibleErrors.body) {
-                          setVisibleErrors({});
-                        }
+                        if (visibleErrors.body) setVisibleErrors({});
                       }}
                     />
 
-                    <div className="flex items-center justify-end p-2">
+                    {/* Character counter + submit */}
+                    <div className="flex items-center justify-between px-3 py-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
+                      <span
+                        className={`text-xs tabular-nums transition-colors ${counterColor(bodyValue.length, COMMENT_MAX)}`}
+                      >
+                        {bodyValue.length} / {COMMENT_MAX}
+                      </span>
                       <Button
                         type="submit"
                         size="icon"
                         aria-label="publish"
-                        disabled={isSubmitting || !field.value?.trim()}
+                        disabled={
+                          isSubmitting ||
+                          !field.value?.trim() ||
+                          field.value.length > COMMENT_MAX
+                        }
                       >
                         {isSubmitting ? (
                           <Loader2 className="size-4 animate-spin" />
@@ -193,7 +201,9 @@ export function CommentSection(props: {
                     </div>
                   </div>
 
-                  {visibleErrors.body && <FieldError errors={[{ message: visibleErrors.body }]} />}
+                  {visibleErrors.body && (
+                    <FieldError errors={[{ message: visibleErrors.body }]} />
+                  )}
                 </Field>
               )}
             />
@@ -232,23 +242,32 @@ export function CommentSection(props: {
                         <Textarea
                           value={editText}
                           name="edit-comment"
+                          maxLength={COMMENT_MAX}
                           onChange={(e) => {
                             setEditText(e.target.value);
-                            // Clear error as soon as user types
                             if (editVisibleError) setEditVisibleError(undefined);
                           }}
                           placeholder="Edit your comment"
                           rows={3}
-                          // break-all ensures long unbroken strings wrap inside the textarea
                           className="break-all"
                         />
+                        {/* Character counter for edit */}
+                        <div className="px-3 py-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
+                          <span
+                            className={`text-xs tabular-nums ${counterColor(editText.length, COMMENT_MAX)}`}
+                          >
+                            {editText.length} / {COMMENT_MAX}
+                          </span>
+                        </div>
                       </div>
-                      {editVisibleError && <FieldError errors={[{ message: editVisibleError }]} />}
+                      {editVisibleError && (
+                        <FieldError errors={[{ message: editVisibleError }]} />
+                      )}
                       <div className="flex items-center justify-start gap-2">
                         <Button
                           size="sm"
                           onClick={() => handleEditComment(comment._id)}
-                          disabled={isPending}
+                          disabled={isPending || editText.length > COMMENT_MAX}
                           type="button"
                           variant="secondary"
                         >
@@ -283,7 +302,6 @@ export function CommentSection(props: {
                       <div className="flex items-center justify-between mb-2 gap-5">
                         <div className="flex items-center gap-2">
                           <p className="font-semibold text-sm">{comment.authorName}</p>
-                          {/* Badge only on comments written by the post's author */}
                           {comment.authorId === props.postAuthorId && (
                             <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                               Author
@@ -326,7 +344,6 @@ export function CommentSection(props: {
                                 <Trash2 className="size-4" />
                               </Button>
                             </AlertDialogTrigger>
-
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete comment?</AlertDialogTitle>
@@ -335,10 +352,8 @@ export function CommentSection(props: {
                                   comment.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
-
                               <AlertDialogFooter>
                                 <AlertDialogCancel variant="secondary">Cancel</AlertDialogCancel>
-
                                 <AlertDialogAction
                                   onClick={() => handleDeleteComment(comment._id)}
                                   variant="destructive"

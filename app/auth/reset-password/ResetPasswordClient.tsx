@@ -9,7 +9,7 @@ import { buttonVariants, Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle2, CheckCircle } from "lucide-react";
 import z from "zod";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,10 +54,7 @@ export default function ResetPasswordClient() {
 
   const form = useForm<z.infer<typeof resetPasswordSchema>>({
     resolver: zodResolver(resetPasswordSchema),
-    defaultValues: {
-      newPassword: "",
-      confirmPassword: "",
-    },
+    defaultValues: { newPassword: "", confirmPassword: "" },
   });
 
   useEffect(() => {
@@ -66,12 +63,17 @@ export default function ResetPasswordClient() {
   }, [resetToken, router]);
 
   useEffect(() => {
+    // if the password was already reset successfully, the session will
+    // be deleted server-side and validateResetSession will return { valid: false }.
+    // Don't treat that as an error — the success state already shows.
+    if (isSuccess) return;
     if (!resetSessionValidation || resetSessionValidation.valid || redirectedForInvalidSession)
       return;
+
     setRedirectedForInvalidSession(true);
-    showErrorToast("Reset session expired. Request a new OTP link.");
+    showErrorToast("Reset session expired. Please request a new OTP.");
     router.replace("/auth/forgot-password");
-  }, [redirectedForInvalidSession, resetSessionValidation, router]);
+  }, [isSuccess, redirectedForInvalidSession, resetSessionValidation, router]);
 
   const clearError = (field: ResetPasswordFields) => {
     setVisibleErrors((prev) => {
@@ -98,17 +100,11 @@ export default function ResetPasswordClient() {
   async function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
     setIsSubmitting(true);
     try {
-      await resetPassword({
-        resetToken,
-        newPassword: values.newPassword,
-      });
-
+      await resetPassword({ resetToken, newPassword: values.newPassword });
+      // Set success BEFORE the query re-fires to prevent the expired toast
       setIsSuccess(true);
       showSuccessToast("Password updated successfully.");
-
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 1500);
+      setTimeout(() => router.push("/auth/login"), 1500);
     } catch (error) {
       showErrorToast(error instanceof Error ? error.message : "Failed to reset password");
     } finally {
@@ -124,7 +120,9 @@ export default function ResetPasswordClient() {
     );
   }
 
-  if (resetSessionValidation && !resetSessionValidation.valid) {
+  // Only show spinner while we're waiting for the initial session check
+  // (undefined = still loading). Once valid=false + not success → redirect handled above.
+  if (resetSessionValidation === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="size-6 animate-spin text-paragraph" />
@@ -134,33 +132,22 @@ export default function ResetPasswordClient() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/50 px-4">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader className="space-y-4">
-            <CheckCircle2 className="h-12 w-12 mx-auto text-green-600" />
-            <CardTitle>Password Reset Successfully</CardTitle>
-            <CardDescription>
-              Your password has been changed. Redirecting you to login.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/auth/login" className={buttonVariants({ className: "w-full" })}>
-              Go to Login
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="flex flex-col items-center gap-5 text-center max-w-md">
+          <CheckCircle className="w-16 h-16 text-primary" />
+          <h1 className="text-2xl font-bold text-primary-foreground">Password Reset Success</h1>
+          <p className="text-paragraph text-balance">
+            Your password has been successfully reset. You can now log in with your new password.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="relative flex flex-col w-full h-full items-center justify-center gap-8">
-      <Link href="/auth/forgot-password" className="flex items-center justify-center gap-3">
-        <Button
-          variant="outline"
-          size="sm"
-          className="relative flex px-2 py-1 items-center left-0 top-0 z-20 cursor-pointer"
-        >
+      <Link href="/auth/forgot-password">
+        <Button variant="outline" size="sm" className="flex px-2 py-1 items-center cursor-pointer">
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
@@ -171,11 +158,8 @@ export default function ResetPasswordClient() {
       >
         <FieldGroup>
           <div className="flex flex-col items-center gap-1 text-center">
-            <h1 className="text-2xl font-bold">Login to your account</h1>
-            <p className="text-paragraph text-sm text-paragraph">
-              Enter your email below to login&nbsp;
-              <span className="whitespace-nowrap">to your account.</span>
-            </p>
+            <h1 className="text-2xl font-bold">Reset your password</h1>
+            <p className="text-paragraph text-sm">Enter a new password for your account.</p>
           </div>
           <Controller
             name="newPassword"
@@ -186,12 +170,10 @@ export default function ResetPasswordClient() {
                 <Input
                   type="password"
                   id="new-password"
-                  aria-label="password"
                   placeholder="********"
                   aria-invalid={!!visibleErrors.newPassword}
                   autoComplete="new-password"
                   {...field}
-                  name="new-password"
                   onChange={(e) => {
                     field.onChange(e);
                     clearError("newPassword");
@@ -213,12 +195,10 @@ export default function ResetPasswordClient() {
                 <Input
                   type="password"
                   id="confirm-password"
-                  aria-label="confirm password"
                   placeholder="********"
                   autoComplete="new-password"
                   aria-invalid={!!visibleErrors.confirmPassword}
                   {...field}
-                  name="confirm-password"
                   onChange={(e) => {
                     field.onChange(e);
                     clearError("confirmPassword");
@@ -232,18 +212,12 @@ export default function ResetPasswordClient() {
           />
           <Field>
             <Button
-              disabled={isSubmitting || resetSessionValidation === undefined}
+              disabled={isSubmitting || !resetSessionValidation?.valid}
               size="lg"
               className="w-full"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Resetting...
-                </>
-              ) : (
-                "Reset Password"
-              )}
+              {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+              <span>Reset Password</span>
             </Button>
           </Field>
         </FieldGroup>

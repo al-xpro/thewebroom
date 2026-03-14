@@ -11,7 +11,7 @@ const COLOR_BUTTON_BG = "#FFEDE8";
 const COLOR_BUTTON_TEXT = "#FF3400";
 const COLOR_BUTTON_BORDER = "#FF3400";
 
-const LOGO_IMG = `<img ${BLOG_URL}/logo.png" width="70" height="70" style="display:inline-block; alt="The Web Room" />`;
+const LOGO_IMG = `<img src="${BLOG_URL}/logo.png" width="70" height="70" style="display:inline-block; alt="The Web Room" />`;
 
 type EmailContent = {
   subject: string;
@@ -108,43 +108,38 @@ function wrap(previewText: string, content: string): string {
 </html>`;
 }
 
-// ── Welcome ───────────────────────────────────────────────────────────────────
+// ── Email Verification ───────────────────────────────────────────────────────
 
-export function buildWelcomeEmail(params: { email: string; name?: string }): EmailContent {
-  const greetingName = params.name ?? "there";
-  const subject = "Welcome to The Web Room";
+export function buildEmailVerificationEmail(params: {
+  email: string;
+  verificationLink: string;
+}): EmailContent {
+  const subject = "Verify your email — The Web Room";
 
   const content = `
-    ${h1("Welcome to The Web Room")}
-    ${p(`Hi ${esc(greetingName)},`)}
-    ${p("Your account is live. The Web Room is a space for developers and builders to share ideas, tutorials, and discussions — and we're glad to have you here.")}
-    ${listBox([
-      "- Write: publish your own blog posts and tutorials",
-      "- Comment: join conversations in the comments",
-      "- Follow: stay up to date with community content",
-    ])}
-    <div style="text-align:center;">${btn(`${BLOG_URL}/create`, "Write your first post")}</div>
-    ${p(`Or browse what others are building on ${lnk(`${BLOG_URL}/posts`, "The Web Room")}.`)}
-    ${p("If you didn't create this account, you can safely ignore this email — no further action is needed.")}
-    ${p("Happy building,<br/>The Web Room team")}`;
+    ${h1("Verify Your Email")}
+    ${p("Hi there,")}
+    ${p("Thank you for creating an account on The Web Room. To complete your account setup, please verify your email address by clicking the button below.")}
+    <div style="text-align:center;">${btn(params.verificationLink, "Verify Email")}</div>
+    ${p("This link expires in 15 minutes. If you didn't create this account, you can safely ignore this email.")}
+    ${p("Best,<br/>The Web Room team")}`;
 
   return {
     subject,
     html: wrap(subject, content),
     body: [
-      `Hi ${greetingName},`,
+      "Hi there,",
       "",
-      "Welcome to The Web Room! Your account has been created successfully.",
+      "Thank you for creating an account on The Web Room.",
+      "Please verify your email address to complete account setup.",
       "",
-      "- Publish new blog posts",
-      "- Join discussions in the comments",
-      "- Stay up to date with the latest content",
+      `Verification link: ${params.verificationLink}`,
       "",
-      `Write your first post: ${BLOG_URL}/create`,
+      "This link expires in 15 minutes.",
       "",
       "If you didn't create this account, you can safely ignore this email.",
       "",
-      "Happy building,",
+      "Best,",
       "The Web Room team",
     ].join("\n"),
   };

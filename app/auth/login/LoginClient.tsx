@@ -30,6 +30,7 @@ export default function LoginClient() {
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<LoginFields, string>>>({});
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const justVerified = searchParams.get("verified") === "1";
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
   const assertEmailNotBanned = useMutation(api.auth.assertEmailNotBanned);
 
@@ -75,7 +76,8 @@ export default function LoginClient() {
           return;
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to validate account status";
+        const message =
+          error instanceof Error ? error.message : "Unable to validate account status";
         setBlockedMessage(message);
         showErrorToast(message);
         return;
@@ -84,12 +86,12 @@ export default function LoginClient() {
       await authClient.signIn.email({
         email: data.email,
         password: data.password,
-        callbackURL: "/post-auth",
+        callbackURL: "/onboarding/post-auth",
         fetchOptions: {
           onSuccess: async () => {
             showSuccessToast("Logged in successfully");
             await new Promise((resolve) => setTimeout(resolve, 300));
-            window.location.href = "/post-auth";
+            window.location.href = "/onboarding/post-auth";
           },
           onError: (error) => {
             showErrorToast(error.error.message);
@@ -109,8 +111,7 @@ export default function LoginClient() {
       return;
     }
 
-    const isProviderConfigured =
-      provider === "github" && authProviderStatus?.githubConfigured;
+    const isProviderConfigured = provider === "github" && authProviderStatus?.githubConfigured;
 
     if (!isProviderConfigured) {
       showErrorToast(
@@ -123,7 +124,7 @@ export default function LoginClient() {
       await authClient.signIn.social({
         provider,
         requestSignUp: false,
-        callbackURL: "/post-auth",
+        callbackURL: "/onboarding/post-auth",
         newUserCallbackURL: "/onboarding/complete-profile?force=1",
         fetchOptions: {
           onError: (error) => {
@@ -147,7 +148,10 @@ export default function LoginClient() {
           Home
         </Button>
       </Link>
-      <form className="flex flex-col w-full max-w-md gap-6" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
+      <form
+        className="flex flex-col w-full max-w-md gap-6"
+        onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+      >
         <FieldGroup>
           <div className="flex flex-col items-center gap-1 text-center">
             <h1 className="text-2xl font-bold">Login to your account</h1>
@@ -163,6 +167,11 @@ export default function LoginClient() {
               </p>
             )}
           </div>
+          {justVerified && (
+            <p className="text-center text-sm text-primary">
+              Email verified! Please log in to continue.
+            </p>
+          )}
           <Controller
             name="email"
             control={form.control}
@@ -212,7 +221,9 @@ export default function LoginClient() {
                     clearError("password");
                   }}
                 />
-                {visibleErrors.password && <FieldError errors={[{ message: visibleErrors.password }]} />}
+                {visibleErrors.password && (
+                  <FieldError errors={[{ message: visibleErrors.password }]} />
+                )}
               </Field>
             )}
           />

@@ -10,7 +10,7 @@ Disallow: /create
 Disallow: /edit/
 Disallow: /api/
 Disallow: /not-found
-Disallow: /post-auth
+Disallow: /onboarding/post-auth
 Crawl-delay: 1
 Sitemap: https://thewebroom.vercel.app/sitemap.xml
 

@@ -39,10 +39,10 @@ const baseSchema = z.object({
 
   content: z
     .string()
-    .min(1000, "Content must be at least 1000 characters")
-    .max(100000, "Content must be less than 100000 characters"),
+    .min(5000, "Content must be at least 5000 characters")
+    .max(30000, "Content must be less than 30000 characters"),
 
-  contentHtml: z.string(),
+  contentHtml: z.string().min(5000, "Content must be at least 5000 characters").max(30000, "Content must be less than 30000 characters"),
 });
 
 // Create: image is required — a new post must have a featured image.

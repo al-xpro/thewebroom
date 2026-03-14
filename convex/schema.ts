@@ -12,11 +12,7 @@ export default defineSchema({
     authorName: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
     status: v.optional(
-      v.union(
-        v.literal("published"),
-        v.literal("hidden"),
-        v.literal("flagged")
-      )
+      v.union(v.literal("published"), v.literal("hidden"), v.literal("flagged"))
     ),
     contentHtml: v.optional(v.string()),
     topic: v.union(
@@ -46,10 +42,8 @@ export default defineSchema({
 
   rateLimits: defineTable({
     userId: v.string(),
-    // Posts: max 2 per 24 hours
     postWindowStart: v.optional(v.number()),
     postCount: v.optional(v.number()),
-    // Comments: max 3 per 6 hours
     commentWindowStart: v.optional(v.number()),
     commentCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
@@ -68,10 +62,12 @@ export default defineSchema({
     reason: v.string(),
   }).index("by_email", ["email"]),
 
+  // FIX: removed plain-text `otp` field — only `otpHash` stored.
+  // If you have existing records with `otp`, run the migration in
+  // convex/migrations.ts before deploying this schema change.
   passwordResetOtps: defineTable({
     email: v.string(),
-    otpHash: v.optional(v.string()),
-    otp: v.optional(v.string()),
+    otpHash: v.string(), 
     expiresAt: v.number(),
     attempts: v.number(),
     sentAt: v.optional(v.number()),
@@ -126,4 +122,23 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_userId", ["userId"])
     .index("by_active", ["active"]),
+
+  bannedIps: defineTable({
+    ipAddress: v.string(),
+    reason: v.optional(v.string()),
+    active: v.boolean(),
+    bannedAt: v.number(),
+    bannedByUserId: v.string(),
+  }).index("by_ipAddress", ["ipAddress"]),
+
+  emailVerificationTokens: defineTable({
+    userId: v.string(),
+    tokenHash: v.string(),
+    email: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_userId", ["userId"])
+    .index("by_email", ["email"]),
 });

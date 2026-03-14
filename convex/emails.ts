@@ -7,19 +7,19 @@ import {
   buildPostDeletedWarningEmail,
   buildPostHiddenWarningEmail,
   buildPostPublishedNoticeEmail,
-  buildWelcomeEmail,
+  buildEmailVerificationEmail,
 } from "./emailTemplates";
 import { sendEmail } from "./emailSender";
 
-export const deliverWelcomeEmail = internalAction({
+export const deliverEmailVerificationEmail = internalAction({
   args: {
     email: v.string(),
-    name: v.optional(v.string()),
+    verificationLink: v.string(),
   },
   handler: async (_ctx, args) => {
-    const { subject, body, html } = buildWelcomeEmail({
+    const { subject, body, html } = buildEmailVerificationEmail({
       email: args.email,
-      name: args.name ?? undefined,
+      verificationLink: args.verificationLink,
     });
 
     const result = await sendEmail({
@@ -29,7 +29,7 @@ export const deliverWelcomeEmail = internalAction({
       text: body,
     });
 
-    console.log("[Email][Welcome][Delivery]", {
+    console.log("[Email][EmailVerification][Delivery]", {
       to: args.email,
       provider: result.provider,
       delivered: result.delivered,
@@ -191,15 +191,15 @@ export const deliverPostPublishedModerationEmail = internalAction({
   },
 });
 
-export const sendWelcomeEmail = mutation({
+export const sendEmailVerificationEmail = mutation({
   args: {
     email: v.string(),
-    name: v.optional(v.string()),
+    verificationLink: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.scheduler.runAfter(0, internal.emails.deliverWelcomeEmail, {
+    await ctx.scheduler.runAfter(0, internal.emails.deliverEmailVerificationEmail, {
       email: args.email,
-      name: args.name,
+      verificationLink: args.verificationLink,
     });
     return { success: true, queued: true };
   },

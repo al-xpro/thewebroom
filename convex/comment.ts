@@ -2,6 +2,8 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 
+const COMMENT_MAX_LENGTH = 300;
+
 export const getIsAdmin = query({
   args: {},
   handler: async (ctx) => {
@@ -12,32 +14,25 @@ export const getIsAdmin = query({
       return false;
     }
     if (!user) return false;
-
     return isAdminUserRecord(user);
   },
 });
 
 export const getCommentsByPostId = query({
-  args: {
-    postId: v.id("posts"),
-  },
+  args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    const data = await ctx.db
+    return await ctx.db
       .query("comments")
       .filter((q) => q.eq(q.field("postId"), args.postId))
       .order("desc")
       .collect();
-
-    return data;
   },
 });
 
 export const getVisibleCommentsByPostId = query({
-  args: {
-    postId: v.id("posts"),
-  },
+  args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    const data = await ctx.db
+    return await ctx.db
       .query("comments")
       .filter((q) =>
         q.and(
@@ -47,8 +42,6 @@ export const getVisibleCommentsByPostId = query({
       )
       .order("desc")
       .collect();
-
-    return data;
   },
 });
 
@@ -59,13 +52,20 @@ export const createComment = mutation({
   },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
-    if (!user) {
-      throw new ConvexError("Not authenticated");
-    }
+    if (!user) throw new ConvexError("Not authenticated");
 
     await assertUserNotBanned(ctx, { _id: user._id, email: user.email });
 
-    // Check rate limit for comment creation
+    // Server-side length validation — enforced regardless of client schema
+    const body = args.body.trim();
+    if (body.length === 0) throw new ConvexError("Comment cannot be empty");
+    if (body.length > COMMENT_MAX_LENGTH) {
+      throw new ConvexError(
+        `Comment cannot exceed ${COMMENT_MAX_LENGTH} characters`
+      );
+    }
+
+    // Rate limit
     const rateLimit = await ctx.db
       .query("rateLimits")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -73,13 +73,12 @@ export const createComment = mutation({
 
     const now = Date.now();
     const COMMENT_RATE_LIMIT = 3;
-    const COMMENT_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 hours
+    const COMMENT_WINDOW_MS = 6 * 60 * 60 * 1000;
 
     if (rateLimit) {
       const windowStart = rateLimit.commentWindowStart || now;
       const timeSinceWindowStart = now - windowStart;
 
-      // Reset window if 6 hours have passed
       if (timeSinceWindowStart <= COMMENT_WINDOW_MS) {
         const currentCount = rateLimit.commentCount || 0;
         if (currentCount >= COMMENT_RATE_LIMIT) {
@@ -91,35 +90,26 @@ export const createComment = mutation({
       }
     }
 
-    // Create the comment
     const commentId = await ctx.db.insert("comments", {
       postId: args.postId,
-      body: args.body,
+      body,
       authorId: user._id,
       authorName: user.name || "",
       status: "visible",
     });
 
-    // Update or create rate limit
+    // Update rate limit
     if (rateLimit) {
       const windowStart = rateLimit.commentWindowStart || now;
       const timeSinceWindowStart = now - windowStart;
-
       if (timeSinceWindowStart > COMMENT_WINDOW_MS) {
-        // Reset window
-        await ctx.db.patch(rateLimit._id, {
-          commentWindowStart: now,
-          commentCount: 1,
-        });
+        await ctx.db.patch(rateLimit._id, { commentWindowStart: now, commentCount: 1 });
       } else {
-        // Increment counter
-        const currentCount = rateLimit.commentCount || 0;
         await ctx.db.patch(rateLimit._id, {
-          commentCount: currentCount + 1,
+          commentCount: (rateLimit.commentCount || 0) + 1,
         });
       }
     } else {
-      // Create new rate limit entry
       await ctx.db.insert("rateLimits", {
         userId: user._id,
         commentWindowStart: now,
@@ -138,21 +128,26 @@ export const updateComment = mutation({
   },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
-    if (!user) {
-      throw new ConvexError("Not authenticated");
-    }
+    if (!user) throw new ConvexError("Not authenticated");
 
     const comment = await ctx.db.get(args.commentId);
-    if (!comment) {
-      throw new ConvexError("Comment not found");
-    }
+    if (!comment) throw new ConvexError("Comment not found");
 
     const isOwner = comment.authorId.toString() === user._id.toString();
     if (!isOwner && !isAdminUserRecord(user)) {
       throw new ConvexError("Not authorized to edit this comment");
     }
 
-    await ctx.db.patch(args.commentId, { body: args.body });
+    // Server-side length validation on update too
+    const body = args.body.trim();
+    if (body.length === 0) throw new ConvexError("Comment cannot be empty");
+    if (body.length > COMMENT_MAX_LENGTH) {
+      throw new ConvexError(
+        `Comment cannot exceed ${COMMENT_MAX_LENGTH} characters`
+      );
+    }
+
+    await ctx.db.patch(args.commentId, { body });
     return args.commentId;
   },
 });
@@ -161,14 +156,10 @@ export const deleteComment = mutation({
   args: { commentId: v.id("comments") },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
-    if (!user) {
-      throw new ConvexError("Not authenticated");
-    }
+    if (!user) throw new ConvexError("Not authenticated");
 
     const comment = await ctx.db.get(args.commentId);
-    if (!comment) {
-      throw new ConvexError("Comment not found");
-    }
+    if (!comment) throw new ConvexError("Comment not found");
 
     const isOwner = comment.authorId.toString() === user._id.toString();
     if (!isOwner && !isAdminUserRecord(user)) {

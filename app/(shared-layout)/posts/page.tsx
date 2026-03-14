@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import Newsletter from "@/components/web/Newsletter";
 import BlogFilters from "@/components/web/BlogFilters";
 import PaginatedPosts from "@/components/web/PaginatedPosts";
+import { connection } from "next/server";
 
 export const metadata: Metadata = {
   title: "The Web Room",
@@ -17,13 +18,9 @@ export const metadata: Metadata = {
 };
 
 interface BlogPageProps {
-  searchParams: Promise<{ topics?: string }>;
+  searchParams: Promise<{ topics?: string; page?: string }>;
 }
 
-// Synchronous shell — renders the static parts of the page immediately
-// without touching any dynamic request-time data (no searchParams here).
-// The dynamic parts (filters + post list) live inside Suspense so PPR
-// can stream them in after the static shell is already on screen.
 export default function BlogPage({ searchParams }: BlogPageProps) {
   return (
     <div className="flex flex-col pt-20 max-w-3xl mx-auto px-4">
@@ -46,22 +43,33 @@ export default function BlogPage({ searchParams }: BlogPageProps) {
   );
 }
 
-// Async component — safely awaits searchParams inside Suspense.
-// Renders the filter buttons with the correct active state from the URL.
 async function DynamicContent({ searchParams }: { searchParams: Promise<{ topics?: string }> }) {
+  await connection();
   const { topics } = await searchParams;
   const activeTopics = topics ? topics.split(",").filter(Boolean) : [];
   return <BlogFilters activeTopics={activeTopics} />;
 }
 
-async function LoadBlogList({ searchParams }: { searchParams: Promise<{ topics?: string }> }) {
-  const { topics } = await searchParams;
+async function LoadBlogList({
+  searchParams,
+}: {
+  searchParams: Promise<{ topics?: string; page?: string }>;
+}) {
+  await connection();
+  const { topics, page } = await searchParams;
   const activeTopics = topics ? topics.split(",").filter(Boolean) : [];
-
-  return <FilteredPosts activeTopics={activeTopics} />;
+  // Parse page server-side and pass as prop — keeps PaginatedPosts off useSearchParams for reads
+  const currentPage = Math.max(1, Number(page ?? 1));
+  return <FilteredPosts activeTopics={activeTopics} currentPage={currentPage} />;
 }
 
-async function FilteredPosts({ activeTopics }: { activeTopics: string[] }) {
+async function FilteredPosts({
+  activeTopics,
+  currentPage,
+}: {
+  activeTopics: string[];
+  currentPage: number;
+}) {
   "use cache";
   cacheLife("seconds");
   cacheTag("blog");
@@ -79,7 +87,7 @@ async function FilteredPosts({ activeTopics }: { activeTopics: string[] }) {
     );
   }
 
-  return <PaginatedPosts posts={filtered} />;
+  return <PaginatedPosts posts={filtered} currentPage={currentPage} />;
 }
 
 function FiltersSkeleton() {

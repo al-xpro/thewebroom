@@ -228,8 +228,14 @@ span[data-badge] {
   display: inline;
   word-break: break-all;
   overflow-wrap: anywhere;
-  white-space: normal;
+  white-space: nowrap;
   line-height: inherit;
   border-radius: 7px;
   padding: 0.1rem 0.3rem;
+}
+
+.prose .ProseMirror li > p, 
+.post-content li > p {
+  margin-top: 0;
+  margin-bottom: 0;
 }

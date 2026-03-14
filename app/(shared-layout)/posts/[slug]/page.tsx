@@ -12,6 +12,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
 import { connection } from "next/server";
+import { injectShikiIntoHtml } from "@/lib/highlight-post";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -41,17 +42,14 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
   const { slug } = await params;
 
   try {
-    const res = await fetch(
-      `${process.env.CONVEX_SITE_URL}/post-meta?slug=${slug}`,
-      { next: { revalidate: 3600 } }
-    );
+    const res = await fetch(`${process.env.CONVEX_SITE_URL}/post-meta?slug=${slug}`, {
+      next: { revalidate: 3600 },
+    });
     if (!res.ok) return fallbackMetadata;
 
     const post = await res.json();
     const description =
-      post.subtitle?.trim() ||
-      post.body?.slice(0, 155).trim() ||
-      `Read ${post.title} on our blog.`;
+      post.subtitle?.trim() || post.body?.slice(0, 155).trim() || `Read ${post.title} on our blog.`;
 
     return {
       ...fallbackMetadata,
@@ -87,6 +85,9 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
   const preloadedCommentsData = await preloadQuery(api.comment.getCommentsByPostId, {
     postId: post._id,
   });
+
+  const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
+  const highlightedHtml = await injectShikiIntoHtml(contentHtml);
 
   return (
     <div className="flex flex-col w-full max-w-3xl min-h-screen pt-20 px-4 mx-auto">
@@ -148,7 +149,7 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
           />
         </div>
 
-        <PostContent html={post.contentHtml || `<p>${post.body}</p>`} />
+        <PostContent html={highlightedHtml} />
 
         <Separator className="my-8" />
 

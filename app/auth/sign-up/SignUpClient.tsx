@@ -26,15 +26,11 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
 type SignUpFields = keyof z.infer<typeof signUpSchema>;
 
-/**
- * Get client IP address via IP geolocation API
- * Falls back to 'unknown' if unable to determine
- */
 async function getClientIpAddress(): Promise<string> {
   try {
-    const response = await fetch("https://api.ipify.org?format=json", { 
+    const response = await fetch("https://api.ipify.org?format=json", {
       method: "GET",
-      headers: { "Accept": "application/json" }
+      headers: { Accept: "application/json" },
     });
     if (response.ok) {
       const data = await response.json();
@@ -55,6 +51,8 @@ export default function SignUpClient() {
   const searchParams = useSearchParams();
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
   const assertEmailNotBanned = useMutation(api.auth.assertEmailNotBanned);
+  // Uses the new server-side token generation — only needs email
+  const sendVerificationEmail = useMutation(api.auth.sendVerificationEmail);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
@@ -95,14 +93,14 @@ export default function SignUpClient() {
         // Check if email is banned
         const banCheck = await assertEmailNotBanned({ email: data.email });
         if (!banCheck.allowed) {
-          const message =
-            banCheck.message || "This email is permanently banned and cannot create new accounts.";
-          setBlockedMessage(message);
+          setBlockedMessage(
+            banCheck.message || "This email is permanently banned and cannot create new accounts."
+          );
           setVisibleErrors({});
           return;
         }
 
-        // Check IP-based rate limit (1 account per IP per 24 hours)
+        // Check IP-based rate limit
         const ipAddress = await getClientIpAddress();
         const rateLimitCheck = await fetch("/api/auth/check-rate-limit", {
           method: "POST",
@@ -112,15 +110,16 @@ export default function SignUpClient() {
 
         if (!rateLimitCheck.ok) {
           const errorData = await rateLimitCheck.json();
-          const message = errorData.message || "Too many accounts created from this IP. Please try again later.";
-          setBlockedMessage(message);
+          setBlockedMessage(
+            errorData.message || "Too many accounts created from this IP. Please try again later."
+          );
           setVisibleErrors({});
           return;
         }
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unable to validate account status";
-        setBlockedMessage(message);
+        setBlockedMessage(
+          error instanceof Error ? error.message : "Unable to validate account status"
+        );
         setVisibleErrors({});
         return;
       }
@@ -131,8 +130,22 @@ export default function SignUpClient() {
         password: data.password,
         fetchOptions: {
           onSuccess: async () => {
-            showSuccessToast("Account created. Complete your profile next.");
-            router.push("/onboarding/complete-profile?force=1");
+            showSuccessToast("Account created! Check your email to verify.");
+
+            // Token is generated and stored server-side — just pass the email
+            try {
+              await sendVerificationEmail({ email: data.email });
+            } catch (err) {
+              console.error("[SignUp][SendVerificationEmail]", err);
+              // Don't block navigation — user can resend from the waiting room
+            }
+
+            // Pass email as URL param so the waiting room can display it
+            // without requiring an active session (requireEmailVerification: true
+            // means no session exists until the email is verified)
+            router.push(
+              `/auth/verify-email?email=${encodeURIComponent(data.email)}`
+            );
           },
           onError: (error) => {
             setBlockedMessage(error.error.message);
@@ -165,13 +178,12 @@ export default function SignUpClient() {
     startTransition(async () => {
       await authClient.signIn.social({
         provider,
-        callbackURL: "/post-auth",
+        callbackURL: "/onboarding/post-auth",
         newUserCallbackURL: "/onboarding/complete-profile?force=1",
         requestSignUp: true,
         fetchOptions: {
           onError: (error) => {
-            const message = error.error.message || `Failed to sign up with ${provider}`;
-            showErrorToast(message);
+            showErrorToast(error.error.message || `Failed to sign up with ${provider}`);
           },
         },
       });

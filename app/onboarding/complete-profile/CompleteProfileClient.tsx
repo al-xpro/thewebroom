@@ -54,12 +54,19 @@ export default function CompleteProfileClient() {
 
     if (user === undefined) return;
 
-    if (isOnboardingComplete(user) && !force) {
+    // Check if email is verified
+    if (user && !user.emailVerified) {
+      showErrorToast("Please verify your email to continue");
+      router.replace("/auth/login");
+      return;
+    }
+
+    if (user && isOnboardingComplete(user) && !force) {
       router.replace("/");
       return;
     }
 
-    if (!force && isOnboardingComplete(user) && user?.displayUsername) {
+    if (!force && user && isOnboardingComplete(user) && user?.displayUsername) {
       form.setValue("name", user.displayUsername, { shouldValidate: true });
     }
   }, [form, force, isAuthenticated, isLoading, router, user]);
@@ -100,14 +107,14 @@ export default function CompleteProfileClient() {
 
   if (isLoading || !isAuthenticated || user === undefined) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex w-full h-full items-center justify-center">
         <Loader2 className="size-6 animate-spin text-paragraph" />
       </div>
     );
   }
 
   return (
-    <div className="w-full flex items-center justify-center px-4">
+    <div className="relative w-full h-full flex items-center justify-center px-4">
       <form className="w-full max-w-md" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
         <FieldGroup>
           <div className="text-center space-y-1">

@@ -6,6 +6,7 @@ import { SiNextdotjs, SiReact } from "react-icons/si";
 import { BiLogoTypescript, BiLogoJavascript } from "react-icons/bi";
 import { motion, AnimatePresence } from "framer-motion";
 import { highlighterPromise } from "@/lib/extension/shiki";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 // ─── Copy button ──────────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ function TerminalBlock({ data }: { data: TerminalData }) {
   const lines = text ? text.split("\n") : [];
 
   return (
-    <div className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <div className="rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -143,11 +144,15 @@ interface FileData {
   fileIcon: string;
   highlightedLines: number[];
   code: string;
+  ssrLight: string | null;
+  ssrDark: string | null;
 }
 
+// ─── File Code Block ──────────────────────────────────────────────────────────
+
 function FileCodeBlock({ data }: { data: FileData }) {
-  const [lightHtml, setLightHtml] = useState<string | null>(null);
-  const [darkHtml, setDarkHtml] = useState<string | null>(null);
+  const [lightHtml, setLightHtml] = useState<string | null>(data.ssrLight ?? null);
+  const [darkHtml, setDarkHtml] = useState<string | null>(data.ssrDark ?? null);
 
   const getFileIcon = (lang: string) => {
     switch (lang) {
@@ -167,13 +172,13 @@ function FileCodeBlock({ data }: { data: FileData }) {
   const languages = ["ts", "tsx", "js", "jsx"];
 
   useEffect(() => {
+    if (lightHtml && darkHtml) return;
     if (!data.code) return;
     let active = true;
     (async () => {
       try {
         const hl = await getHighlighter();
         const opts = { defaultColor: false } as const;
-
         const light = hl.codeToHtml(data.code, {
           lang: languages.includes(data.fileIcon) ? data.fileIcon : "text",
           themes: { light: "vercel-light", dark: "vercel-dark" },
@@ -184,7 +189,6 @@ function FileCodeBlock({ data }: { data: FileData }) {
           themes: { light: "vercel-light", dark: "vercel-dark" },
           ...opts,
         });
-
         if (active) {
           setLightHtml(light);
           setDarkHtml(dark);
@@ -201,8 +205,13 @@ function FileCodeBlock({ data }: { data: FileData }) {
   const lines = data.code.split("\n");
   const commonFont = "font-mono text-[13px] leading-[20px]";
 
+  // Plain-text fallback rendered while Shiki loads — avoids invisible flash
+  const plainFallback = (
+    <pre className="m-0 bg-transparent text-foreground whitespace-pre">{data.code}</pre>
+  );
+
   return (
-    <div className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <div className="rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black">
         <div className="flex items-center gap-2 min-w-0">
@@ -235,8 +244,8 @@ function FileCodeBlock({ data }: { data: FileData }) {
           })}
         </div>
 
-        {/* Grid stack: highlight bg (layer 0) + shiki (layer 1) */}
-        <div className={`relative min-w-max  grid grid-cols-1 grid-rows-1 flex-1 ${commonFont}`}>
+        {/* Grid stack */}
+        <div className={`relative min-w-max grid grid-cols-1 grid-rows-1 flex-1 ${commonFont}`}>
           {/* Layer 0 — highlight strip */}
           <div className="col-start-1 row-start-1 pt-5 pb-5 pointer-events-none select-none flex flex-col z-0">
             {lines.map((_: string, i: number) => {
@@ -254,33 +263,24 @@ function FileCodeBlock({ data }: { data: FileData }) {
           <div
             className={`col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-4 sm:pl-2 whitespace-pre overflow-visible min-w-max z-10 dark:hidden
               [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:m-0!
-              [&>pre]:font-mono! [&>pre]:text-[13px]! [&>pre]:leading-[20px]! [&>pre]:whitespace-pre! [&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!
-              [&>pre>code]:font-mono! [&>pre>code]:text-[13px]! [&>pre>code]:leading-[20px]!
-              [&>pre>code]:whitespace-pre! [&>pre>code]:block! ${commonFont}`}
+              [&>pre]:font-mono! [&>pre]:text-[13px]! [&>pre]:leading-[20px]! [&>pre]:whitespace-pre!
+              [&>pre>code]:font-mono! [&>pre>code]:text-[13px]! [&>pre>code]:leading-[20px]! [&>pre>code]:whitespace-pre! [&>pre>code]:block!
+              ${commonFont}`}
           >
-            {lightHtml ? (
-              <div dangerouslySetInnerHTML={{ __html: lightHtml }} />
-            ) : (
-              <pre className="m-0 bg-transparent text-foreground">{data.code}</pre>
-            )}
+            {/* FIX: only render lightHtml here, with plain fallback while loading */}
+            {lightHtml ? <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(lightHtml) }} /> : plainFallback}
           </div>
 
           {/* Layer 1 — Shiki dark (hidden in light mode) */}
           <div
             className={`col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-4 sm:pl-2 whitespace-pre overflow-visible min-w-max z-10 hidden dark:block
               [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:m-0!
-              [&>pre]:font-mono! [&>pre]:text-[13px]! [&>pre]:leading-[20px]! [&>pre]:whitespace-pre! [&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!
-              [&>pre>code]:font-mono! [&>pre>code]:text-[13px]! [&>pre>code]:leading-[20px]!
-              [&>pre>code]:whitespace-pre! [&>pre>code]:block! ${commonFont}`}
+              [&>pre]:font-mono! [&>pre]:text-[13px]! [&>pre]:leading-[20px]! [&>pre]:whitespace-pre!
+              [&>pre>code]:font-mono! [&>pre>code]:text-[13px]! [&>pre>code]:leading-[20px]! [&>pre>code]:whitespace-pre! [&>pre>code]:block!
+              ${commonFont}`}
           >
-            {darkHtml ? (
-              <div
-                dangerouslySetInnerHTML={{ __html: darkHtml }}
-                className="[&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!"
-              />
-            ) : (
-              <pre className="m-0 bg-transparent text-foreground ">{data.code}</pre>
-            )}
+            {/* FIX: only render darkHtml here, with plain fallback while loading */}
+            {darkHtml ? <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(darkHtml) }} /> : plainFallback}
           </div>
         </div>
       </div>
@@ -298,14 +298,21 @@ function HtmlChunk({ html }: { html: string }) {
         [&_b]:font-bold [&_b]:text-paragraph
         [&_em]:italic [&_i]:italic
 
-        [&_p]:my-2 [&_p]:leading-relaxed
+        [&_.ProseMirror_p]:leading-6.5
+        [&_.ProseMirror_li]:leading-6.5
+        [&_.ProseMirror_blockquote]:leading-6.5
+        [&_[data-type='file-code-block']]:my-12
+        [&_[data-type='file-code-block']:has(+figcaption)]:mb-0
+        [&_table]:my-12
+        [&_table:has(+figcaption)]:mb-0
 
-        [&_ul]:pl-4 [&_ul]:list-disc  [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-2
+        [&_ul]:pl-4 [&_ul]:list-disc  [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-2 post-content
         [&_ol]:pl-4 [&_ol]:list-decimal [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-2
 
-        [&_h1]:text-3xl    [&_h1]:font-black    [&_h1]:text-black dark:[&_h1]:text-white [&_h1]:leading-tight [&_h1]:my-4
-        [&_h2]:text-2xl    [&_h2]:font-bold     [&_h2]:text-black dark:[&_h2]:text-white [&_h2]:my-3
-        [&_h3]:text-xl     [&_h3]:font-semibold [&_h3]:text-black dark:[&_h3]:text-white [&_h3]:my-3
+
+        [&_h1]:text-3xl    [&_h1]:font-black    [&_h1]:text-black dark:[&_h1]:text-white [&_h1]:leading-tight [&_h1]:mb-6 [&_h1]:mt-24
+        [&_h2]:text-2xl    [&_h2]:font-bold     [&_h2]:text-black dark:[&_h2]:text-white [&_h2]:mb-3 [&_h2]:mt-14
+        [&_p]:my-6 []
 
         [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm
         [&_pre_code]:bg-transparent [&_pre_code]:p-0
@@ -321,18 +328,16 @@ function HtmlChunk({ html }: { html: string }) {
         [&_.badge]:rounded [&_.badge]:text-xs [&_.badge]:font-medium
         [&_.badge]:bg-primary/10 [&_.badge]:text-primary
 
-        [&_.caption]:block [&_.caption]:my-4 [&_.caption]:text-sm [&_.caption]:italic
-        [&_.caption]:text-paragraph [&_.caption]:text-center
-
-        [&_table]:table-fixed [&_table]:my-16 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative 
+        [&_table]:table-fixed [&_table]:my-12 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative 
         [&_table]:border-separate [&_table]:border-spacing-0 [&_table]:[scrollbar-width:none] [&_table]:[-ms-overflow-style:none] [&_table]:[&::-webkit-scrollbar]:hidden
         [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden  [&_table]:justify-center-safe [&_colgroup]:hidden [&_col]:hidden
         [&_table]:mask-[linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
         [&_table]:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
-        [&_td]:min-w-[150px] [&_td]:max-w-[150px]
-        [&_th]:min-w-[150px] [&_th]:max-w-[150px]
+        [&_td]:min-w-[150px]
+        [&_th]:min-w-[150px]
 
-        [&_td]:h-16 [&_th]:h-16
+        [&_td]:h-20 [&_th]:h-20
+
 
         [&_th]:border-t [&_th]:border-l [&_th]:border-[#EAEAEA] dark:[&_th]:border-[#1E1E1E]
         [&_td]:border-t [&_td]:border-l [&_td]:border-[#EAEAEA] dark:[&_td]:border-[#1E1E1E]
@@ -344,10 +349,10 @@ function HtmlChunk({ html }: { html: string }) {
         [&_tr:last-child_th:first-child]:rounded-bl-xl  [&_tr:last-child_td:first-child]:rounded-bl-xl
         [&_tr:last-child_th:last-child]:rounded-br-xl   [&_tr:last-child_td:last-child]:rounded-br-xl
 
-        [&_th]:bg-[#FAFAFA] dark:[&_th]:bg-black [&_th]:font-bold [&_th]:align-middle [&_th]:text-center
-        [&_td]:bg-white dark:[&_td]:bg-[#0A0A0A] [&_td]:align-middle [&_td]:text-center
+        [&_th]:bg-[#FAFAFA] dark:[&_th]:bg-black [&_th]:font-bold [&_th]:align-middle [&_th]:pl-4 [&_th]:text-left
+        [&_td]:bg-white dark:[&_td]:bg-[#0A0A0A] [&_td]:align-middle [&_td]:pl-4 [&_td]:text-left
       "
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />
   );
 }
@@ -356,8 +361,8 @@ function HtmlChunk({ html }: { html: string }) {
 
 type PostNode =
   | { kind: "html"; html: string }
-  | { kind: "terminal"; data: TerminalData }
-  | { kind: "file"; data: FileData };
+  | { kind: "terminal"; data: TerminalData; caption?: string }
+  | { kind: "file"; data: FileData; caption?: string };
 
 function parsePostHtml(html: string): PostNode[] {
   if (typeof window === "undefined") return [{ kind: "html", html }];
@@ -366,6 +371,8 @@ function parsePostHtml(html: string): PostNode[] {
   const doc = parser.parseFromString(html, "text/html");
   const nodes: PostNode[] = [];
   let htmlBuffer = "";
+  // FIX: track nodes to skip instead of calling .remove()
+  const skipNodes = new Set<Node>();
 
   const flush = () => {
     if (htmlBuffer.trim()) {
@@ -375,7 +382,9 @@ function parsePostHtml(html: string): PostNode[] {
   };
 
   Array.from(doc.body.childNodes).forEach((child) => {
-    // Text nodes — accumulate as HTML
+    // FIX: skip nodes claimed as captions
+    if (skipNodes.has(child)) return;
+
     if (child.nodeType !== Node.ELEMENT_NODE) {
       htmlBuffer += (child as Text).textContent ?? "";
       return;
@@ -387,34 +396,51 @@ function parsePostHtml(html: string): PostNode[] {
     if (el.getAttribute("data-type") === "terminal-block") {
       flush();
       const mgr = (el.getAttribute("data-package-manager") ?? "npm") as Manager;
-      // The active tab's live text is inside the element's textContent.
-      // The other tabs are stored in data attributes (set by renderHTML).
       const live = el.textContent ?? "";
-
-      // Build each slot: if this is the active manager use live text,
-      // otherwise pull from the data attribute (which may be "" if never filled).
       const npm = mgr === "npm" ? live : (el.getAttribute("data-npm-content") ?? "");
       const pnpm = mgr === "pnpm" ? live : (el.getAttribute("data-pnpm-content") ?? "");
       const yarn = mgr === "yarn" ? live : (el.getAttribute("data-yarn-content") ?? "");
 
-      nodes.push({ kind: "terminal", data: { activeManager: mgr, npm, pnpm, yarn } });
+      let caption: string | undefined;
+      const next = el.nextElementSibling;
+      if (next?.tagName === "FIGCAPTION") {
+        caption = next.outerHTML;
+        skipNodes.add(next); // FIX: mark for skip instead of .remove()
+      }
+
+      nodes.push({ kind: "terminal", data: { activeManager: mgr, npm, pnpm, yarn }, caption });
       return;
     }
 
     // ── File code block ───────────────────────────────────────────────────────
-    // renderHTML produces: <pre data-type="file-code-block" data-*="..."><code>…</code></pre>
-    if (el.tagName === "PRE" && el.getAttribute("data-type") === "file-code-block") {
+    if (
+      (el.tagName === "PRE" && el.getAttribute("data-type") === "file-code-block") ||
+      (el.tagName === "FIGURE" && el.querySelector('[data-type="file-code-block"]'))
+    ) {
       flush();
-      const codeEl = el.querySelector("code");
+      const pre = el.tagName === "FIGURE" ? el.querySelector('[data-type="file-code-block"]') : el;
+      const codeEl = pre?.querySelector("code");
 
       let highlightedLines: number[] = [];
       try {
         const raw = el.getAttribute("data-highlighted-lines") ?? "[]";
         const parsed = JSON.parse(raw);
-        // Guard against double-encoded arrays stored as strings
         highlightedLines = Array.isArray(parsed) ? parsed : JSON.parse(parsed);
       } catch {
         /* empty array fallback */
+      }
+
+      let caption: string | undefined;
+      if (el.tagName === "FIGURE") {
+        const fig = el.querySelector("figcaption");
+        if (fig) caption = fig.outerHTML;
+        // No skip needed — figcaption is inside the FIGURE, not a sibling
+      } else {
+        const next = el.nextElementSibling;
+        if (next?.tagName === "FIGCAPTION") {
+          caption = next.outerHTML;
+          skipNodes.add(next); // FIX: mark for skip instead of .remove()
+        }
       }
 
       nodes.push({
@@ -424,7 +450,15 @@ function parsePostHtml(html: string): PostNode[] {
           fileIcon: el.getAttribute("data-file-icon") ?? "tsx",
           highlightedLines,
           code: codeEl?.textContent ?? "",
+          // NEW — will be non-null when server injected them
+          ssrLight: el.getAttribute("data-shiki-light")
+            ? decodeURIComponent(el.getAttribute("data-shiki-light")!)
+            : null,
+          ssrDark: el.getAttribute("data-shiki-dark")
+            ? decodeURIComponent(el.getAttribute("data-shiki-dark")!)
+            : null,
         },
+        caption,
       });
       return;
     }
@@ -454,14 +488,14 @@ export function PostContent({ html, className = "" }: PostContentProps) {
     setMounted(true);
   }, [html]);
 
-  const base = `text-lg leading-relaxed text-paragraph break-words w-full ${className}`;
+  const base = `leading-relaxed text-paragraph break-words w-full ${className}`;
 
   if (!mounted) {
     return (
       <div
         className={base}
         style={{ visibility: "hidden" }}
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
       />
     );
   }
@@ -470,8 +504,30 @@ export function PostContent({ html, className = "" }: PostContentProps) {
     <article ref={articleRef} className={base}>
       {nodes.map((node, i) => {
         if (node.kind === "html") return <HtmlChunk key={i} html={node.html} />;
-        if (node.kind === "terminal") return <TerminalBlock key={i} data={node.data} />;
-        if (node.kind === "file") return <FileCodeBlock key={i} data={node.data} />;
+        if (node.kind === "terminal")
+          return (
+            <div key={i} className="my-12">
+              <TerminalBlock data={node.data} />
+              {node.caption && (
+                <div
+                  className="my-4 text-sm italic text-paragraph text-center"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(node.caption) }}
+                />
+              )}
+            </div>
+          );
+        if (node.kind === "file")
+          return (
+            <div key={i} className="my-12">
+              <FileCodeBlock data={node.data} />
+              {node.caption && (
+                <div
+                  className="my-4 text-sm italic text-paragraph text-center"
+                  dangerouslySetInnerHTML={{ __html: node.caption }}
+                />
+              )}
+            </div>
+          );
         return null;
       })}
     </article>

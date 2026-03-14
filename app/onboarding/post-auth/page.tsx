@@ -53,7 +53,7 @@ export default function PostAuthPage() {
   }, [isAuthenticated, isLoading, router, user]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="flex w-full h-full items-center justify-center">
       <Loader2 className="size-6 animate-spin text-paragraph" />
     </div>
   );

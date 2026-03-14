@@ -20,7 +20,7 @@ export default function Home() {
             <AuroraText>The Web Room</AuroraText>
           </h1>
           <p className="text-lg text-paragraph leading-relaxed">
-            "Welcome to our blog! Here, our community share everything related to web development,
+            "Welcome to our blog! Here, our community share everything related to Next.js web development,
             including tutorials, tips, and insights. Join hundreds of developers and stay up-to-date
             with the latest trends and best practices."
           </p>
@@ -99,7 +99,7 @@ export async function LoadHomePostList() {
       <div className="grid gap-6 grid-rows-3">
         {limitedPosts.map((post) => (
           <Link key={post._id} href={`/posts/${post.slug}`} className="group block">
-            <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 sm:gap-0">
+            <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 md:gap-12">
               <div
                 className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0
                 -translate-x-10 transition-all duration-200 ease-out

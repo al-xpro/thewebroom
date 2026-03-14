@@ -14,7 +14,6 @@ const POST_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 const COMMENT_RATE_LIMIT = 3;
 const COMMENT_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-const ACCOUNT_CREATION_RATE_LIMIT = 1;
 const ACCOUNT_CREATION_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**

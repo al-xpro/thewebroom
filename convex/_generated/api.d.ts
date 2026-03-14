@@ -14,6 +14,8 @@ import type * as emailSender from "../emailSender.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as emails from "../emails.js";
 import type * as http from "../http.js";
+import type * as ipBans from "../ipBans.js";
+import type * as migrations from "../migrations.js";
 import type * as passwordReset from "../passwordReset.js";
 import type * as posts from "../posts.js";
 import type * as presence from "../presence.js";
@@ -32,6 +34,8 @@ declare const fullApi: ApiFromModules<{
   emailTemplates: typeof emailTemplates;
   emails: typeof emails;
   http: typeof http;
+  ipBans: typeof ipBans;
+  migrations: typeof migrations;
   passwordReset: typeof passwordReset;
   posts: typeof posts;
   presence: typeof presence;

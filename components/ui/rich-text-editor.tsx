@@ -13,7 +13,6 @@ import {
   ListOrdered,
   Heading1,
   Heading2,
-  Heading3,
   Link2,
   AlignLeft,
   AlignCenter,
@@ -227,6 +226,19 @@ export function RichTextEditor({
     setIsLinkOpen(false);
   };
 
+  const bodyValue = editor.getHTML();
+
+  const MAX_CHARS = 30000;
+
+  const MIN_CHARS = 5000;
+
+  function counterColor(current: number, max: number) {
+    if (current > max) return "text-[#CB2A2E] dark:text-[#FF6166]";
+    if (current < MIN_CHARS) return "text-[#CB2A2E] dark:text-[#FF6166]";
+    if (current > max * 0.8) return "text-amber-500";
+    return "text-paragraph";
+  }
+
   return (
     <div
       ref={editorRef}
@@ -279,16 +291,6 @@ export function RichTextEditor({
           title="Heading 2"
         >
           <Heading2 className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          disabled={isToolbarDisabled}
-          variant={editor.isActive("heading", { level: 3 }) ? "default" : "outline"}
-          size="sm"
-          title="Heading 3"
-        >
-          <Heading3 className="h-4 w-4" />
         </Button>
         <Button
           type="button"
@@ -570,7 +572,13 @@ export function RichTextEditor({
           focus:outline-none
 
           [&_.ProseMirror]:outline-none
-          [&_.ProseMirror>*+*]:mt-3
+          [&_.ProseMirror_p]:leading-6.5
+          [&_.ProseMirror_blockquote]:leading-6.5
+          [&_.ProseMirror_.react-renderer]:my-12
+          [&_.ProseMirror_.react-renderer:has(+figcaption)]:mb-0
+          [&_.ProseMirror_table]:my-12
+          [&_.ProseMirror_table:has(+figcaption)]:mb-0
+          [&_.ProseMirror_span[data-badge]]:whitespace-nowrap
 
           [&_.ProseMirror_ul]:pl-4
           [&_.ProseMirror_ul]:list-disc
@@ -588,23 +596,20 @@ export function RichTextEditor({
           [&_.ProseMirror_h1]:text-black
           dark:[&_.ProseMirror_h1]:text-white
           [&_.ProseMirror_h1]:leading-tight
-          [&_.ProseMirror_h1]:my-4
+          [&_.ProseMirror_h1]:mb-6
+          [&_.ProseMirror_h1]:mt-24
 
           [&_.ProseMirror_h2]:text-2xl
           [&_.ProseMirror_h2]:font-bold
           [&_.ProseMirror_h2]:text-black
           dark:[&_.ProseMirror_h2]:text-white
-          [&_.ProseMirror_h2]:my-3
+          [&_.ProseMirror_h2]:mb-3
+          [&_.ProseMirror_h2]:mt-14
 
-          [&_.ProseMirror_h3]:text-xl
-          [&_.ProseMirror_h3]:font-semibold
-          [&_.ProseMirror_h3]:text-black
-          dark:[&_.ProseMirror_h3]:text-white
-          [&_.ProseMirror_h3]:my-3
+          [&_.ProseMirror_p]:my-6
 
           [&_.ProseMirror_code]:bg-muted
           [&_.ProseMirror_code]:px-1
-          [&_.ProseMirror_code]:py-0.5
           [&_.ProseMirror_code]:rounded
           [&_.ProseMirror_code]:text-sm
           [&_.ProseMirror_pre_code]:bg-transparent
@@ -614,7 +619,10 @@ export function RichTextEditor({
           [&_.ProseMirror_div[data-callout]]:px-4
           [&_.ProseMirror_div[data-callout]]:py-3
           [&_.ProseMirror_div[data-callout]]:my-4
-          [&_.ProseMirror_div[data-callout]]:bg-[#EDEDED]
+          [&_.ProseMirror_div[data-callout]]:bg-white
+          [&_.ProseMirror_div[data-callout]]:border
+          [&_.ProseMirror_div[data-callout]]:border-[#EAEAEA]
+          dark:[&_.ProseMirror_div[data-callout]]:border-[#1E1E1E]
           dark:[&_.ProseMirror_div[data-callout]]:bg-[#0A0A0A]
           [&_.ProseMirror_div[data-callout]]:text-sm
 
@@ -627,20 +635,17 @@ export function RichTextEditor({
           [&_.ProseMirror_a:hover]:underline
           hover:[&_.ProseMirror_a]:cursor-pointer
 
-          [&_table]:table-fixed [&_table]:my-16 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative
+          [&_table]:table-fixed [&_table]:my-12 [&_table]:rounded-xl [&_table]:px-4 [&_table]:relative
           [&_table]:border-separate [&_table]:border-spacing-0
           [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden [&_table]:justify-center-safe [&_colgroup]:hidden [&_col]:hidden
           [&_table]:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
           [&_table]:[mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
           [&_table]:[scrollbar-width:none] [&_table]:[-ms-overflow-style:none] [&_table]:[&::-webkit-scrollbar]:hidden
-          [&_td]:min-w-[150px] [&_td]:max-w-[150px]
-          [&_th]:min-w-[150px] [&_th]:max-w-[150px]
-          [&_td]:h-16 [&_th]:h-16
+          [&_td]:min-w-[150px]
+          [&_th]:min-w-[150px]
 
           [&_.ProseMirror_td]:min-w-[150px]
-          [&_.ProseMirror_td]:max-w-[150px]
           [&_.ProseMirror_th]:min-w-[150px]
-          [&_.ProseMirror_th]:max-w-[150px]
 
           [&_.ProseMirror_th]:border-t
           [&_.ProseMirror_th]:border-l
@@ -670,17 +675,27 @@ export function RichTextEditor({
           [&_.ProseMirror_th]:bg-[#FAFAFA]
           dark:[&_.ProseMirror_th]:bg-black
           [&_.ProseMirror_th]:font-bold
-          [&_.ProseMirror_th]:py-4
           [&_.ProseMirror_th]:align-middle
-          [&_.ProseMirror_th]:text-center
+          [&_.ProseMirror_th]:text-left
+          [&_.ProseMirror_th]:pl-4
+
 
           [&_.ProseMirror_td]:bg-white
           dark:[&_.ProseMirror_td]:bg-[#0A0A0A]
-          [&_.ProseMirror_td]:py-4
           [&_.ProseMirror_td]:align-middle
-          [&_.ProseMirror_td]:text-center
+          [&_.ProseMirror_td]:text-left
+          [&_.ProseMirror_td]:pl-4
         "
       />
+
+      {/* Character Counter */}
+      <div className="px-4 py-3 border-t border-[#EAEAEA] dark:border-[#1E1E1E] bg-white/50 dark:bg-black/50 flex justify-between items-center text-xs">
+        <span
+          className={`text-xs tabular-nums transition-colors ${counterColor(bodyValue.length, MAX_CHARS)}`}
+        >
+          {bodyValue.length} / {MAX_CHARS}
+        </span>{" "}
+      </div>
 
       <AlertDialog open={isLinkOpen} onOpenChange={setIsLinkOpen}>
         <AlertDialogContent>

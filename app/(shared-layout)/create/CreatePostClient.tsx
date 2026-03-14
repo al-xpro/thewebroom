@@ -389,7 +389,7 @@ export function CreatePostClient() {
                             </p>
 
                             <p className="shrink-0 text-black dark:text-white text-sm">
-                              {(field.value.size / 1024 / 1024).toFixed(1)}MB
+                              {(field.value.size / 1024 / 1024).toFixed(2)}MB
                             </p>
                           </div>
                         )}

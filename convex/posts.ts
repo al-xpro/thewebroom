@@ -52,10 +52,7 @@ async function getUniqueSlug(
 }
 
 function getAppUrl() {
-  return (
-    process.env.SITE_URL ??
-    "https://thewebroom.vercel.app"
-  ).replace(/\/$/, "");
+  return (process.env.SITE_URL ?? "https://thewebroom.vercel.app").replace(/\/$/, "");
 }
 
 async function getPostAuthorEmail(ctx: MutationCtx, authorId: string) {
@@ -207,26 +204,18 @@ export const getPosts = query({
 export const getPublishedPosts = query({
   args: {},
   handler: async (ctx) => {
-    const posts = await ctx.db
-      .query("posts")
-      .filter((q) =>
-        q.or(
-          q.eq(q.field("status"), "published"),
-          q.eq(q.field("status"), undefined as unknown as string)
-        )
-      )
-      .order("desc")
-      .collect();
+    const posts = await ctx.db.query("posts").order("desc").collect();
+
+    // Filter to published-only in JS — no unsafe TypeScript cast needed.
+    // A post is "published" if status is explicitly "published" OR
+    // if the status field was never set (legacy posts before status existed).
+    const publishedPosts = posts.filter((p) => p.status === "published" || p.status === undefined);
 
     return await Promise.all(
-      posts.map(async (post) => {
+      publishedPosts.map(async (post) => {
         const resolvedImageUrl =
           post.imageStorageId !== undefined ? await ctx.storage.getUrl(post.imageStorageId) : null;
-
-        return {
-          ...post,
-          imageUrl: resolvedImageUrl,
-        };
+        return { ...post, imageUrl: resolvedImageUrl };
       })
     );
   },

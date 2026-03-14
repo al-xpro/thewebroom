@@ -11,10 +11,25 @@ export default function RequireCompleteProfile() {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
+  // Always fetch the user query - don't skip if not authenticated
+  // We need this data to determine routing for authenticated pages
+  const user = useQuery(api.auth.getCurrentUser);
 
   useEffect(() => {
     if (isLoading) return;
+    
+    // Get the pathname and determine route type early
+    const isVerifyEmailRoute = pathname === "/auth/verify-email";
+    const isAuthRoute = pathname.startsWith("/auth");
+    const isPostAuthRoute = pathname.startsWith("/onboarding/post-auth");
+    const isOnboardingRoute = pathname.startsWith("/onboarding/complete-profile");
+
+    // Allow verify-email page regardless of auth status - exit early before any auth checks
+    if (isVerifyEmailRoute) {
+      return;
+    }
+
+    // From here on, we can assume the user should be authenticated
     if (!isAuthenticated) return;
     if (user === undefined) return;
     if (user === null) {
@@ -35,9 +50,6 @@ export default function RequireCompleteProfile() {
     }
 
     const onboardingComplete = isOnboardingComplete(user);
-    const isAuthRoute = pathname.startsWith("/auth");
-    const isPostAuthRoute = pathname.startsWith("/post-auth");
-    const isOnboardingRoute = pathname.startsWith("/onboarding/complete-profile");
 
     if (isPostAuthRoute) {
       return;

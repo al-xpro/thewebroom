@@ -14,15 +14,13 @@ const ADMIN_USER_ID = process.env.ADMIN_USER_ID;
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 function getAuthSiteUrl() {
-  return (
-    process.env.SITE_URL
-  );
+  return process.env.SITE_URL;
 }
 
 function getSocialProviderCredentials() {
   const githubClientId = process.env.GITHUB_CLIENT_ID;
-      const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
-      
+  const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+
   return { githubClientId, githubClientSecret };
 }
 
@@ -121,7 +119,7 @@ export const createAuth = (
     logger: { disabled: optionsOnly },
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
-    emailAndPassword: { enabled: true, requireEmailVerification: false },
+    emailAndPassword: { enabled: true, requireEmailVerification: true },
     socialProviders,
     plugins: [convex()],
   });
@@ -384,14 +382,8 @@ export const completeProfileOnboarding = mutation({
       });
     }
 
-    try {
-      await ctx.scheduler.runAfter(0, internal.emails.deliverWelcomeEmail, {
-        email: user.email,
-        name,
-      });
-    } catch (error) {
-      console.error("[Email][Welcome][QueueError]", error);
-    }
+    // Welcome email is no longer sent here - users verify email first via /auth/verify-email
+    // After profile completion, they can start creating posts
 
     return { success: true, name };
   },
@@ -612,6 +604,110 @@ export const checkDeletePassword = query({
       password: args.password.trim(),
     });
     return { matches };
+  },
+});
+
+export const sendVerificationEmail = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args): Promise<{ success: boolean; sent: boolean; error?: string }> => {
+    const userEmail = normalizeEmail(args.email);
+ 
+    const userRecord = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "email", operator: "eq", value: userEmail }],
+    })) as { _id: string; email: string; emailVerified?: boolean } | null;
+ 
+    if (!userRecord) return { success: true, sent: false };
+ 
+    if (userRecord.emailVerified) {
+      throw new ConvexError("Email already verified");
+    }
+ 
+    const now = Date.now();
+    const TTL_MS = 15 * 60 * 1000;
+ 
+    // Clean up existing unused tokens for this user
+    const existing = await ctx.db
+      .query("emailVerificationTokens")
+      .withIndex("by_userId", (q) => q.eq("userId", userRecord._id))
+      .collect();
+    for (const t of existing) await ctx.db.delete(t._id);
+ 
+    // Generate cryptographically secure token — never store the raw value
+    const rawToken = generateSecureToken(32); // crypto.getRandomValues based
+    const tokenHash = await sha256Hex(rawToken);
+ 
+    await ctx.db.insert("emailVerificationTokens", {
+      userId: userRecord._id,
+      tokenHash,           // only the hash is persisted
+      email: userEmail,
+      expiresAt: now + TTL_MS,
+    });
+ 
+    const verificationLink = `${
+      process.env.SITE_URL ?? "http://localhost:3000"
+    }/auth/verify-email?token=${rawToken}`; // raw token travels in the link
+ 
+    try {
+      await ctx.scheduler.runAfter(0, internal.emails.deliverEmailVerificationEmail, {
+        email: userEmail,
+        verificationLink,
+      });
+      return { success: true, sent: true };
+    } catch (error) {
+      console.error("[Email Verification] Send error:", error);
+      return { success: true, sent: false, error: String(error) };
+    }
+  },
+});
+ 
+export const verifyEmail = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    // Hash the incoming token and look up by hash — never store raw tokens
+    const tokenHash = await sha256Hex(args.token.trim());
+ 
+    const tokenRecord = await ctx.db
+      .query("emailVerificationTokens")
+      .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
+      .first();
+ 
+    if (!tokenRecord) {
+      throw new ConvexError("Invalid verification link");
+    }
+ 
+    if (tokenRecord.expiresAt < Date.now()) {
+      await ctx.db.delete(tokenRecord._id);
+      throw new ConvexError("Verification link has expired. Please request a new one.");
+    }
+ 
+    if (tokenRecord.usedAt) {
+      throw new ConvexError("This verification link has already been used.");
+    }
+ 
+    const user = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "_id", operator: "eq", value: tokenRecord.userId }],
+    })) as { _id: string; emailVerified?: boolean } | null;
+ 
+    if (!user) throw new ConvexError("User not found");
+ 
+    if (user.emailVerified) {
+      await ctx.db.patch(tokenRecord._id, { usedAt: Date.now() });
+      return { success: true, already: true };
+    }
+ 
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: "user",
+        where: [{ field: "_id", operator: "eq", value: tokenRecord.userId }],
+        update: { emailVerified: true, updatedAt: Date.now() },
+      },
+    });
+ 
+    await ctx.db.patch(tokenRecord._id, { usedAt: Date.now() });
+ 
+    return { success: true, verified: true };
   },
 });
 

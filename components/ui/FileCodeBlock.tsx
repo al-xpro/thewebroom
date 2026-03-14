@@ -104,7 +104,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
 
   return (
     <NodeViewWrapper
-      className="my-16 rounded-lg max-w-xl mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]"
+      className="rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]"
       data-tiptap-custom="file-code-block-wrapper"
       data-language={node.attrs.language}
       data-filename={node.attrs.filename}

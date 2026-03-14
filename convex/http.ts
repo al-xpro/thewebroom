@@ -1,8 +1,18 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { api } from "./_generated/api";
+import { authComponent, createAuth } from "./auth";
+import { isIpBannedHttp } from "./ipBans";
 
 const http = httpRouter();
+
+authComponent.registerRoutes(http, createAuth);
+
+http.route({
+  path: "/is-ip-banned",
+  method: "GET",
+  handler: isIpBannedHttp,
+});
 
 http.route({
   path: "/post-meta",
@@ -35,7 +45,7 @@ http.route({
     const posts = await ctx.runQuery(api.posts.getAllPostSlugs);
     const slugs = posts
       .map((p: { slug: string | undefined }) => p.slug)
-      .filter((slug): slug is string => slug !== undefined);
+      .filter((slug: any): slug is string => slug !== undefined);
     return new Response(JSON.stringify(slugs), {
       headers: { "Content-Type": "application/json" },
     });

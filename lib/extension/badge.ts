@@ -1,4 +1,3 @@
-// lib/extension/badge.ts
 import { Mark, mergeAttributes } from "@tiptap/core";
 
 declare module "@tiptap/core" {
@@ -41,7 +40,7 @@ export const Badge = Mark.create({
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
         "data-badge": "",
         class:
-          "text-[length:inherit] px-1 text-black dark:text-white font-mono tracking-tight bg-[#EAEAEA] dark:bg-[#0A0A0A] border border-[#EAEAEA] dark:border-[#1E1E1E]",
+          "inline-block align-baseline whitespace-nowrap mx-0.5 text-[length:inherit] px-1 py-0.5 rounded-md font-mono tracking-tight text-black dark:text-white bg-[#EAEAEA] dark:bg-[#0A0A0A] border border-[#EAEAEA] dark:border-[#1E1E1E]",
       }),
       0,
     ];
