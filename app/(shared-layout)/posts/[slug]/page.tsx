@@ -39,15 +39,16 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PostSlugRouteProps): Promise<Metadata> {
-  await connection(); // required before any uncached data access
   const { slug } = await params;
 
   try {
-    const post = await getCachedPost(slug); // hits cache after first build
+    const post = await getCachedPost(slug);
     if (!post) return fallbackMetadata;
 
     const description =
-      post.subtitle?.trim() || post.body?.slice(0, 155).trim() || `Read ${post.title} on our blog.`;
+      post.subtitle?.trim() ||
+      post.body?.slice(0, 155).trim() ||
+      `Read ${post.title} on our blog.`;
 
     return {
       title: post.title,
