@@ -13,6 +13,7 @@ import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
 import { connection } from "next/server";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
+import { getCachedPost } from "@/lib/get-post";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -38,21 +39,17 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PostSlugRouteProps): Promise<Metadata> {
-  await connection();
+  await connection(); // required before any uncached data access
   const { slug } = await params;
 
   try {
-    const res = await fetch(`${process.env.CONVEX_SITE_URL}/post-meta?slug=${slug}`, {
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return fallbackMetadata;
+    const post = await getCachedPost(slug); // hits cache after first build
+    if (!post) return fallbackMetadata;
 
-    const post = await res.json();
     const description =
       post.subtitle?.trim() || post.body?.slice(0, 155).trim() || `Read ${post.title} on our blog.`;
 
     return {
-      ...fallbackMetadata,
       title: post.title,
       description,
       authors: [{ name: post.authorName }],
@@ -76,7 +73,8 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
 export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
   await connection();
   const { slug } = await params;
-  const post = await fetchQuery(api.posts.getPostBySlug, { slug });
+
+  const post = await getCachedPost(slug);
 
   if (!post) {
     return notFound();

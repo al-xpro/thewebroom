@@ -268,7 +268,11 @@ function FileCodeBlock({ data }: { data: FileData }) {
               ${commonFont}`}
           >
             {/* FIX: only render lightHtml here, with plain fallback while loading */}
-            {lightHtml ? <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(lightHtml) }} /> : plainFallback}
+            {lightHtml ? (
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(lightHtml) }} />
+            ) : (
+              plainFallback
+            )}
           </div>
 
           {/* Layer 1 — Shiki dark (hidden in light mode) */}
@@ -280,7 +284,11 @@ function FileCodeBlock({ data }: { data: FileData }) {
               ${commonFont}`}
           >
             {/* FIX: only render darkHtml here, with plain fallback while loading */}
-            {darkHtml ? <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(darkHtml) }} /> : plainFallback}
+            {darkHtml ? (
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(darkHtml) }} />
+            ) : (
+              plainFallback
+            )}
           </div>
         </div>
       </div>

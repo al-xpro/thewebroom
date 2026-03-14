@@ -1,14 +1,18 @@
 import type { NextConfig } from "next";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL ?? "";
-// WebSocket and HTTP connections to Convex (.convex.cloud = HTTP/WS, .convex.site = HTTP actions)
+// Derive WebSocket and HTTP actions URLs from the base Convex URL
 const convexOrigins = CONVEX_URL
   ? [
       CONVEX_URL,
       CONVEX_URL.replace("https://", "wss://"),
       CONVEX_URL.replace(".convex.cloud", ".convex.site"),
+      // Also allow the broader *.convex.cloud and *.convex.site for WebSocket upgrades
+      "https://*.convex.cloud",
+      "wss://*.convex.cloud",
+      "https://*.convex.site",
     ].join(" ")
-  : "";
+  : "https://*.convex.cloud wss://*.convex.cloud https://*.convex.site";
 
 const securityHeaders = [
   // Force HTTPS for 1 year, include subdomains
@@ -43,12 +47,19 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
+      // unsafe-inline: Next.js inline styles + TipTap
+      // unsafe-eval: Shiki syntax highlighting (uses new Function())
+      // https://vercel.live: Vercel Live feedback widget (dev/preview only)
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live`,
+      // Explicit script-src-elem prevents browser fallback ambiguity
+      `script-src-elem 'self' 'unsafe-inline' https://vercel.live`,
       `style-src 'self' 'unsafe-inline'`,
+      // *.convex.cloud covers Convex storage image URLs (e.g. sincere-jaguar-722.eu-west-1.convex.cloud)
       `img-src 'self' https: data: blob:`,
       `font-src 'self' https:`,
-      // Convex WebSocket + HTTP actions + avatar service
       `connect-src 'self' ${convexOrigins} https://avatar.vercel.sh https://api.ipify.org`,
+      // vercel.live needs frame access for the feedback widget
+      `frame-src https://vercel.live`,
       `frame-ancestors 'none'`,
       `base-uri 'self'`,
       `form-action 'self'`,
@@ -74,11 +85,6 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        hostname: "images.unsplash.com",
-        protocol: "https",
-        port: "",
-      },
-      {
         hostname: "grateful-mosquito-699.convex.cloud",
         protocol: "https",
         port: "",
@@ -87,6 +93,10 @@ const nextConfig: NextConfig = {
         hostname: "dusty-narwhal-48.convex.cloud",
         protocol: "https",
         port: "",
+      },
+      {
+        protocol: "https",
+        hostname: "*.convex.cloud",
       },
     ],
   },
