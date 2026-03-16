@@ -60,6 +60,25 @@ interface RichTextEditorProps {
   id?: string;
 }
 
+function getTextWithTablePlaceholder(editor: ReturnType<typeof useEditor>): string {
+  if (!editor) return "";
+
+  let result = "";
+
+  editor.state.doc.forEach((node) => {
+    if (node.type.name === "table") {
+      result += " "; // entire table = 1 character
+    } else if (node.type.name === "fileCodeBlock" || node.type.name === "terminalBlock") {
+      result += " "; // empty code blocks = 1 character
+    } else {
+      const text = node.textContent;
+      if (text.trim()) result += text + " ";
+    }
+  });
+
+  return result.trim();
+}
+
 export function RichTextEditor({
   value,
   onChange,
@@ -135,7 +154,7 @@ export function RichTextEditor({
     onSelectionUpdate: () => forceUpdate((n) => n + 1),
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      const text = editor.getText();
+      const text = getTextWithTablePlaceholder(editor);
       onChange?.(text, html);
     },
     // Required for SSR — prevents TipTap from rendering on the server
@@ -187,17 +206,17 @@ export function RichTextEditor({
 
   const handleRowChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value);
-    if (isNaN(val)) setTableRows(1);
+    if (isNaN(val)) setTableRows(2);
     else if (val > 20) setTableRows(20);
-    else if (val < 1) setTableRows(1);
+    else if (val < 2) setTableRows(2);
     else setTableRows(val);
   };
 
   const handleColChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value);
-    if (isNaN(val)) setTableCols(1);
+    if (isNaN(val)) setTableCols(2);
     else if (val > 10) setTableCols(10);
-    else if (val < 1) setTableCols(1);
+    else if (val < 2) setTableCols(2);
     else setTableCols(val);
   };
 
@@ -226,7 +245,7 @@ export function RichTextEditor({
     setIsLinkOpen(false);
   };
 
-  const bodyValue = editor.getHTML();
+  const bodyValue = getTextWithTablePlaceholder(editor);
 
   const MAX_CHARS = 30000;
 
@@ -485,7 +504,7 @@ export function RichTextEditor({
                     <input
                       type="number"
                       id="rows"
-                      min="1"
+                      min="2"
                       max="20"
                       value={tableRows}
                       onChange={handleRowChange}
@@ -564,10 +583,14 @@ export function RichTextEditor({
         aria-multiline="true"
         aria-labelledby="content-label"
         aria-label="content editor"
-        onMouseDown={() => editor.chain().focus().run()}
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest("input, button, select, textarea")) return;
+          editor.commands.focus();
+        }}
         className="
           relative prose prose-neutral dark:prose-invert max-w-none
-          px-4 py-6 h-[500px] overflow-y-auto cursor-text text-paragraph
+          px-4 py-2 h-[500px] overflow-y-auto cursor-text text-paragraph
           bg-white dark:bg-black
           focus:outline-none
 
@@ -694,7 +717,7 @@ export function RichTextEditor({
           className={`text-xs tabular-nums transition-colors ${counterColor(bodyValue.length, MAX_CHARS)}`}
         >
           {bodyValue.length} / {MAX_CHARS}
-        </span>{" "}
+        </span>
       </div>
 
       <AlertDialog open={isLinkOpen} onOpenChange={setIsLinkOpen}>

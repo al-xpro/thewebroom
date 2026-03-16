@@ -381,17 +381,15 @@ export function EditPostClient({ post }: EditPostClientProps) {
                       aria-describedby="content-label"
                       name="content"
                       value={field.value}
-                      hasError={!!visibleErrors.contentHtml}
-                      onChange={(text, html) => {
+                      hasError={!!visibleErrors.content}
+                      onChange={(text) => {
                         form.setValue("content", text);
-                        form.setValue("contentHtml", html);
-                        clearError("contentHtml");
                         clearError("content");
                       }}
                       placeholder="Write your content here... Use the toolbar for formatting"
                     />
-                    {visibleErrors.contentHtml && (
-                      <FieldError errors={[{ message: visibleErrors.contentHtml }]} />
+                    {visibleErrors.content && (
+                      <FieldError errors={[{ message: visibleErrors.content }]} />
                     )}
                   </Field>
                 )}
