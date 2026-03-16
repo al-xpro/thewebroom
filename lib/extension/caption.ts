@@ -23,7 +23,7 @@ export const Caption = Node.create({
     return [
       "figcaption",
       mergeAttributes(HTMLAttributes, {
-        class: "text-xs text-paragraph mt-4 mb-12",
+        class: "text-[13px] text-paragraph mt-4 mb-12 leading-6",
       }),
       0,
     ];

@@ -7,6 +7,8 @@ import { BiLogoTypescript, BiLogoJavascript } from "react-icons/bi";
 import { motion, AnimatePresence } from "framer-motion";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { LogoTypescript } from "../ui/LogoTypescript";
+import { LogoJavascript } from "../ui/LogoJavascript";
 
 // ─── Copy button ──────────────────────────────────────────────────────────────
 
@@ -157,11 +159,11 @@ function FileCodeBlock({ data }: { data: FileData }) {
   const getFileIcon = (lang: string) => {
     switch (lang) {
       case "ts":
-        return <BiLogoTypescript className="size-4 scale-130" />;
+        return <LogoTypescript className="size-4" />;
       case "tsx":
         return <SiNextdotjs className="size-4 scale-110" />;
       case "js":
-        return <BiLogoJavascript className="size-4 scale-130" />;
+        return <LogoJavascript className="size-4" />;
       case "jsx":
         return <SiReact className="size-4 scale-130" />;
       default:
@@ -492,7 +494,9 @@ export function PostContent({ html, className = "" }: PostContentProps) {
   const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    setNodes(parsePostHtml(html));
+    setMounted(false);
+    const parsed = parsePostHtml(html);
+    setNodes(parsed);
     setMounted(true);
   }, [html]);
 

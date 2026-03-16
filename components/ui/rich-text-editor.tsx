@@ -1,6 +1,6 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
@@ -153,6 +153,7 @@ export function RichTextEditor({
     content: value ?? "",
     onSelectionUpdate: () => forceUpdate((n) => n + 1),
     onUpdate: ({ editor }) => {
+      forceUpdate((n) => n + 1);
       const html = editor.getHTML();
       const text = getTextWithTablePlaceholder(editor);
       onChange?.(text, html);
@@ -160,6 +161,15 @@ export function RichTextEditor({
     // Required for SSR — prevents TipTap from rendering on the server
     // which causes hydration mismatches in both Chrome and Safari.
     immediatelyRender: false,
+  });
+
+  const editorState = useEditorState({
+    editor,
+    selector: (ctx) => ({
+      isBold: ctx.editor?.isActive("bold") ?? false,
+      isItalic: ctx.editor?.isActive("italic") ?? false,
+      isBadge: ctx.editor?.isActive("badge") ?? false,
+    }),
   });
 
   useEffect(() => {
@@ -349,7 +359,7 @@ export function RichTextEditor({
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={isToolbarDisabled}
-          variant={editor.isActive("bold") ? "default" : "outline"}
+          variant={editorState?.isBold ? "default" : "outline"}
           size="sm"
           title="Bold (⌘B)"
         >
@@ -359,7 +369,7 @@ export function RichTextEditor({
           type="button"
           onClick={() => editor.chain().focus().toggleItalic().run()}
           disabled={isToolbarDisabled}
-          variant={editor.isActive("italic") ? "default" : "outline"}
+          variant={editorState?.isItalic ? "default" : "outline"}
           size="sm"
           title="Italic (⌘I)"
         >
@@ -379,7 +389,7 @@ export function RichTextEditor({
           type="button"
           onClick={() => editor.chain().focus().toggleBadge().run()}
           disabled={isToolbarDisabled}
-          variant={editor.isActive("badge") ? "default" : "outline"}
+          variant={editorState?.isBadge ? "default" : "outline"}
           size="sm"
           title="Tag"
         >

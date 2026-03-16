@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { motion } from "framer-motion";
 import { BiLogoTypescript, BiLogoJavascript } from "react-icons/bi";
+import { LogoTypescript } from "./LogoTypescript";
+import { LogoJavascript } from "./LogoJavascript";
 
 export default function FileCodeBlockComponent({ node, updateAttributes }: any) {
   const [html, setHtml] = useState("");
@@ -84,11 +86,11 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
   const getFileIcon = (lang: string) => {
     switch (lang) {
       case "ts":
-        return <BiLogoTypescript className="size-4 scale-130" />;
+        return <LogoTypescript className="size-4" />;
       case "tsx":
         return <SiNextdotjs className="size-4 scale-110" />;
       case "js":
-        return <BiLogoJavascript className="size-4 scale-130" />;
+        return <LogoJavascript className="size-4" />;
       case "jsx":
         return <SiReact className="size-4 scale-130" />;
       default:

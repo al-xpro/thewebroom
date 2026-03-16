@@ -25,6 +25,7 @@ import Footer from "@/components/web/Footer";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import Image from "next/image";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
+import { updatePostAction } from "@/app/actions";
 
 interface EditPostClientProps {
   post: Doc<"posts">;
@@ -51,9 +52,6 @@ export function EditPostClient({ post }: EditPostClientProps) {
     });
   };
 
-  const updatePost = useMutation(api.posts.updatePost);
-  const generateUploadUrl = useMutation(api.posts.generateImageUploadUrl);
-
   const form = useForm<z.infer<typeof editPostSchema>>({
     resolver: zodResolver(editPostSchema),
     defaultValues: {
@@ -74,37 +72,11 @@ export function EditPostClient({ post }: EditPostClientProps) {
   async function onSubmit(values: z.infer<typeof editPostSchema>) {
     setIsPending(true);
     try {
-      let imageStorageId = post.imageStorageId;
-
-      if (values.image) {
-        const imageUrl = await generateUploadUrl({});
-        const uploadResult = await fetch(imageUrl, {
-          method: "POST",
-          headers: { "Content-Type": values.image.type },
-          body: values.image,
-        });
-        if (!uploadResult.ok) {
-          throw new Error(`Failed to upload image: ${uploadResult.statusText}`);
-        }
-        const result = await uploadResult.json();
-        imageStorageId = result.storageId;
-      }
-
-      await updatePost({
-        postId: post._id,
-        title: values.title,
-        body: values.content,
-        subtitle: values.subtitle,
-        minRead: values.minRead,
-        contentHtml: values.contentHtml,
-        imageStorageId,
-        topic: values.topic,
-      });
-
+      if (!post.slug) throw new Error("Post slug is missing");
+      await updatePostAction(post._id, post.slug, values, post.imageStorageId);
       showSuccessToast("Post updated successfully!");
       router.push("/my-posts");
     } catch (error) {
-      console.error("[editPost] Error:", error);
       showErrorToast(error instanceof Error ? error.message : "Failed to update post");
     } finally {
       setIsPending(false);
@@ -382,9 +354,14 @@ export function EditPostClient({ post }: EditPostClientProps) {
                       name="content"
                       value={field.value}
                       hasError={!!visibleErrors.content}
-                      onChange={(text) => {
-                        form.setValue("content", text);
+                      onChange={(text, html) => {
+                        form.setValue("content", text, { shouldValidate: false });
+                        form.setValue("contentHtml", html, {
+                          shouldValidate: false,
+                          shouldDirty: true,
+                        });
                         clearError("content");
+                        clearError("contentHtml");
                       }}
                       placeholder="Write your content here... Use the toolbar for formatting"
                     />

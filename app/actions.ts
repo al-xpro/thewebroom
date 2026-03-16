@@ -1,7 +1,7 @@
 "use server";
 
 import z from "zod";
-import { postSchema } from "./schemas/blog";
+import { editPostSchema, postSchema } from "./schemas/blog";
 import { fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { getToken } from "@/lib/auth-server";
@@ -67,4 +67,46 @@ export async function deletePostAction(postId: string) {
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to delete post");
   }
+}
+
+export async function updatePostAction(
+  postId: string,
+  slug: string,
+  values: z.infer<typeof editPostSchema>,
+  existingImageStorageId: Id<"_storage"> | undefined
+) {
+  const token = await getToken();
+  if (!token) throw new Error("Not authenticated");
+
+  let imageStorageId: Id<"_storage"> | undefined = existingImageStorageId;
+
+  if (values.image) {
+    const imageUrl = await fetchMutation(api.posts.generateImageUploadUrl, {}, { token });
+    const uploadResult = await fetch(imageUrl, {
+      method: "POST",
+      headers: { "Content-Type": values.image.type },
+      body: values.image,
+    });
+    if (!uploadResult.ok) throw new Error("Failed to upload image");
+    const result = await uploadResult.json();
+    imageStorageId = result.storageId as Id<"_storage">;
+  }
+
+  await fetchMutation(
+    api.posts.updatePost,
+    {
+      postId: postId as Id<"posts">,
+      title: values.title,
+      body: values.content,
+      subtitle: values.subtitle,
+      minRead: values.minRead,
+      contentHtml: values.contentHtml,
+      imageStorageId,
+      topic: values.topic,
+    },
+    { token }
+  );
+
+  updateTag("blog");
+  updateTag(`post-${slug}`);
 }
