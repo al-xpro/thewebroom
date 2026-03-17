@@ -16,6 +16,7 @@ import { getCachedPost } from "@/lib/get-post";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Suspense } from "react";
 import { Id } from "@/convex/_generated/dataModel";
+import { connection } from "next/server";
 
 interface PostSlugRouteProps {
   params: Promise<{ slug: string }>;
@@ -75,6 +76,7 @@ async function CommentsLoader({
   postId: Id<"posts">;
   postAuthorId: string;
 }) {
+    await connection();
   const preloadedComments = await preloadQuery(api.comment.getCommentsByPostId, { postId });
   return (
     <CommentSection
