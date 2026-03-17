@@ -4,7 +4,7 @@ import { CommentSection } from "@/components/web/CommentSection";
 import { PostContent } from "@/components/web/PostContent";
 import Footer from "@/components/web/Footer";
 import { api } from "@/convex/_generated/api";
-import { fetchQuery, preloadQuery } from "convex/nextjs";
+import { preloadQuery } from "convex/nextjs";
 import { ArrowLeft, BookType, Calendar, ClockFading, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";

@@ -66,10 +66,18 @@ function getTextWithTablePlaceholder(editor: ReturnType<typeof useEditor>): stri
   let result = "";
 
   editor.state.doc.forEach((node) => {
+    // Walk into tables — collect text from every cell
     if (node.type.name === "table") {
-      result += " "; // entire table = 1 character
+      node.forEach((row) => {
+        row.forEach((cell) => {
+          const text = cell.textContent.trim();
+          if (text) result += text + " ";
+        });
+      });
+      // Walk into code/terminal blocks — collect their text content
     } else if (node.type.name === "fileCodeBlock" || node.type.name === "terminalBlock") {
-      result += " "; // empty code blocks = 1 character
+      const text = node.textContent.trim();
+      if (text) result += text + " ";
     } else {
       const text = node.textContent;
       if (text.trim()) result += text + " ";

@@ -5,7 +5,8 @@ import { Id } from "@/convex/_generated/dataModel";
 
 export async function getCachedPost(slug: string) {
   "use cache";
-  cacheLife("hours");
+  cacheLife("seconds");
+  cacheTag("blog");
   cacheTag(`post-${slug}`);
   return fetchQuery(api.posts.getPostBySlug, { slug });
 }

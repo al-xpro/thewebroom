@@ -6,7 +6,6 @@ import { SiNextdotjs, SiReact } from "react-icons/si";
 import { useState, useEffect } from "react";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { motion } from "framer-motion";
-import { BiLogoTypescript, BiLogoJavascript } from "react-icons/bi";
 import { LogoTypescript } from "./LogoTypescript";
 import { LogoJavascript } from "./LogoJavascript";
 
