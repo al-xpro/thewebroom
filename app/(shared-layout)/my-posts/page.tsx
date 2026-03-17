@@ -8,13 +8,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Loader2,
   Trash2,
-  Plus,
   BookText,
   Pencil,
   Calendar,
   ClockFading,
   BookType,
-  Circle,
   Info,
 } from "lucide-react";
 import Link from "next/link";

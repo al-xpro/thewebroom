@@ -44,7 +44,6 @@ export function checkBotSignals(request: NextRequest): BotCheckResult {
   const ua = request.headers.get("user-agent") ?? "";
 
   // ── Vercel BotID (Pro/Enterprise with Attack Challenge Mode) ─────────────
-  // Enable at: Vercel Dashboard → your project → Security → Bot Protection
   const botScoreStr = request.headers.get("x-vercel-botid-score");
   if (botScoreStr) {
     const score = parseFloat(botScoreStr);

@@ -1,4 +1,3 @@
-// app/profile/page.tsx
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import ProfileClient from "./ProfileClient";

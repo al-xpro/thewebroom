@@ -51,7 +51,6 @@ export default function SignUpClient() {
   const searchParams = useSearchParams();
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
   const assertEmailNotBanned = useMutation(api.auth.assertEmailNotBanned);
-  // Uses the new server-side token generation — only needs email
   const sendVerificationEmail = useMutation(api.auth.sendVerificationEmail);
 
   const form = useForm<z.infer<typeof signUpSchema>>({

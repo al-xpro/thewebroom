@@ -130,8 +130,6 @@ export async function LoadHomePostList() {
     );
   } catch (error) {
     // fetchQuery can fail at build time if Convex is unreachable.
-    // Return an empty state — the cache will fill correctly on first
-    // real request once the deployment is live.
     console.error("[LoadHomePostList] fetchQuery failed:", error);
     return (
       <p className="text-sm text-paragraph py-4">No posts yet. Check back soon.</p>

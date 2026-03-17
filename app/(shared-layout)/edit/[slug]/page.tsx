@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchQuery } from "convex/nextjs";

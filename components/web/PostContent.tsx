@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, Check, Terminal } from "lucide-react";
 import { SiNextdotjs, SiReact } from "react-icons/si";
-import { BiLogoTypescript, BiLogoJavascript } from "react-icons/bi";
 import { motion, AnimatePresence } from "framer-motion";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -381,7 +380,7 @@ function parsePostHtml(html: string): PostNode[] {
   const doc = parser.parseFromString(html, "text/html");
   const nodes: PostNode[] = [];
   let htmlBuffer = "";
-  // FIX: track nodes to skip instead of calling .remove()
+  // track nodes to skip instead of calling .remove()
   const skipNodes = new Set<Node>();
 
   const flush = () => {
@@ -392,7 +391,7 @@ function parsePostHtml(html: string): PostNode[] {
   };
 
   Array.from(doc.body.childNodes).forEach((child) => {
-    // FIX: skip nodes claimed as captions
+    // skip nodes claimed as captions
     if (skipNodes.has(child)) return;
 
     if (child.nodeType !== Node.ELEMENT_NODE) {
@@ -415,7 +414,7 @@ function parsePostHtml(html: string): PostNode[] {
       const next = el.nextElementSibling;
       if (next?.tagName === "FIGCAPTION") {
         caption = next.outerHTML;
-        skipNodes.add(next); // FIX: mark for skip instead of .remove()
+        skipNodes.add(next); // mark for skip instead of .remove()
       }
 
       nodes.push({ kind: "terminal", data: { activeManager: mgr, npm, pnpm, yarn }, caption });
@@ -449,7 +448,7 @@ function parsePostHtml(html: string): PostNode[] {
         const next = el.nextElementSibling;
         if (next?.tagName === "FIGCAPTION") {
           caption = next.outerHTML;
-          skipNodes.add(next); // FIX: mark for skip instead of .remove()
+          skipNodes.add(next); // mark for skip instead of .remove()
         }
       }
 
@@ -460,7 +459,7 @@ function parsePostHtml(html: string): PostNode[] {
           fileIcon: el.getAttribute("data-file-icon") ?? "tsx",
           highlightedLines,
           code: codeEl?.textContent ?? "",
-          // NEW — will be non-null when server injected them
+          // will be non-null when server injected them
           ssrLight: el.getAttribute("data-shiki-light")
             ? decodeURIComponent(el.getAttribute("data-shiki-light")!)
             : null,

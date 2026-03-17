@@ -180,7 +180,7 @@ export const requestPasswordReset = mutation({
     const user = await findUserByEmail(ctx, email);
     if (!user) return silentSuccess;
 
-    // ── FIX: require verified email before sending OTP ────────────────────
+    // ──────── require verified email before sending OTP ────────────────────
     // Prevents OTP spam to unverified/abandoned addresses and closes the
     // compound risk described in the security audit: an attacker can no
     // longer create an unverified account with a victim's email and then

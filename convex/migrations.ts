@@ -6,10 +6,6 @@ async function sha256Hex(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Run before deploying schema change that removes the plain-text `otp` field.
- * npx convex run migrations:migrateOtpToHashOnly
- */
 export const migrateOtpToHashOnly = internalMutation({
   args: {},
   handler: async (ctx) => {

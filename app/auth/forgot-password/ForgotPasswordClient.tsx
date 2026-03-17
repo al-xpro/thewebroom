@@ -15,7 +15,7 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const emailStepSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.email("Please enter a valid email address"),
 });
 
 type EmailStepFields = keyof z.infer<typeof emailStepSchema>;
