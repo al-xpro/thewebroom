@@ -4,22 +4,20 @@ import { CommentSection } from "@/components/web/CommentSection";
 import { PostContent } from "@/components/web/PostContent";
 import Footer from "@/components/web/Footer";
 import { api } from "@/convex/_generated/api";
-import { preloadQuery } from "convex/nextjs";
+import { fetchQuery, preloadQuery } from "convex/nextjs";
 import { ArrowLeft, BookType, Calendar, ClockFading, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
-import { injectShikiIntoHtml } from "@/lib/highlight-post";
-import { getCachedPost } from "@/lib/get-post";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Suspense } from "react";
-import { Id } from "@/convex/_generated/dataModel";
 import { connection } from "next/server";
+import { injectShikiIntoHtml } from "@/lib/highlight-post";
 
 interface PostSlugRouteProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{
+    slug: string;
+  }>;
 }
 
 const fallbackMetadata: Metadata = {
@@ -40,102 +38,53 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PostSlugRouteProps): Promise<Metadata> {
+  await connection();
   const { slug } = await params;
-  try {
-    const post = await getCachedPost(slug);
-    if (!post) return fallbackMetadata;
 
-    const description = (
-      post.subtitle?.trim() ||
-      post.body?.trim() ||
-      `Read ${post.title} on our blog.`
-    )
-      .replace(/<[^>]*>?/gm, "")
-      .replace(/["']/g, "")
-      .replace(/\s+/g, " ")
-      .slice(0, 155)
-      .trim();
+  try {
+    const res = await fetch(`${process.env.CONVEX_SITE_URL}/post-meta?slug=${slug}`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return fallbackMetadata;
+
+    const post = await res.json();
+    const description =
+      post.subtitle?.trim() || post.body?.slice(0, 155).trim() || `Read ${post.title} on our blog.`;
 
     return {
+      ...fallbackMetadata,
       title: post.title,
       description,
       authors: [{ name: post.authorName }],
-      openGraph: { title: post.title, description, type: "article", authors: [post.authorName] },
-      twitter: { card: "summary_large_image", title: post.title, description },
+      openGraph: {
+        title: post.title,
+        description,
+        type: "article",
+        authors: [post.authorName],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: post.title,
+        description,
+      },
     };
   } catch {
     return fallbackMetadata;
   }
 }
 
-// ── Isolated component — preloadQuery lives here, inside Suspense ─────────────
-async function CommentsLoader({
-  postId,
-  postAuthorId,
-}: {
-  postId: Id<"posts">;
-  postAuthorId: string;
-}) {
-    await connection();
-  const preloadedComments = await preloadQuery(api.comment.getCommentsByPostId, { postId });
-  return (
-    <CommentSection
-      preloadedComments={preloadedComments}
-      postId={postId}
-      postAuthorId={postAuthorId}
-    />
-  );
-}
+export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
+  await connection();
+  const { slug } = await params;
+  const post = await fetchQuery(api.posts.getPostBySlug, { slug });
 
-function CommentsSkeleton() {
-  return (
-    <div className="w-full space-y-4">
-      <Skeleton className="h-8 w-40" />
-      <Skeleton className="h-24 w-full rounded-xl" />
-      <Skeleton className="h-16 w-full rounded-xl" />
-    </div>
-  );
-}
+  if (!post) {
+    return notFound();
+  }
 
-// ── Thin synchronous shell — no awaiting, no data fetching ───────────────────
-export default function PostSlugRoute({ params }: PostSlugRouteProps) {
-  return (
-    <Suspense fallback={<PostSkeleton />}>
-      <PostBody params={params} />
-    </Suspense>
-  );
-}
-
-// ── Skeleton for the outer Suspense ───────────────────────────────────────────
-function PostSkeleton() {
-  return (
-    <div className="flex flex-col w-full max-w-3xl min-h-screen pt-20 px-4 mx-auto">
-      <div className="flex flex-col w-full items-start justify-center gap-8">
-        <Skeleton className="h-8 w-24" />
-        <div className="flex flex-col w-full gap-4">
-          <Skeleton className="h-11 w-3/4 sm:w-1/2" />
-          <Skeleton className="h-6 w-2/3 sm:w-1/3" />
-          <Separator className="my-4" />
-          <div className="relative h-[260px] w-full overflow-hidden rounded-xl sm:h-[340px] lg:h-[380px]">
-            <Skeleton className="w-full h-full rounded-xl" />
-          </div>
-          <div className="mt-10 space-y-2">
-            <Skeleton className="w-full h-4" />
-            <Skeleton className="w-full h-4" />
-            <Skeleton className="w-2/3 h-4" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-// ── All data fetching lives here, safely inside Suspense ─────────────────────
-async function PostBody({ params }: PostSlugRouteProps) {
-  const { slug } = await params; // ← params accessed inside Suspense now
-  const post = await getCachedPost(slug);
-  if (!post) return notFound();
+  const preloadedCommentsData = await preloadQuery(api.comment.getCommentsByPostId, {
+    postId: post._id,
+  });
 
   const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
   const highlightedHtml = await injectShikiIntoHtml(contentHtml);
@@ -144,7 +93,11 @@ async function PostBody({ params }: PostSlugRouteProps) {
     <div className="flex flex-col w-full max-w-3xl min-h-screen pt-20 px-4 mx-auto">
       <div className="flex flex-col w-full items-start justify-center gap-8">
         <Link href="/posts" className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" className="relative flex items-center justify-start z-20">
+          <Button
+            variant="outline"
+            size="sm"
+            className="relative flex items-center justify-start z-20"
+          >
             <ArrowLeft className="h-4 w-4" />
             All posts
           </Button>
@@ -154,8 +107,11 @@ async function PostBody({ params }: PostSlugRouteProps) {
           <h1 className="text-balance text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl">
             {post.title}
           </h1>
+
           <p className="text-lg text-paragraph leading-relaxed">{post.subtitle}</p>
+
           <Separator className="my-4" />
+
           <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
             <div className="flex flex-col items-center gap-2 text-black dark:text-white">
               <User className="size-4 sm:size-5" />
@@ -175,6 +131,7 @@ async function PostBody({ params }: PostSlugRouteProps) {
               <ClockFading className="size-4 sm:size-5" />
               <p>{post.minRead} min read</p>
             </div>
+
             <CopyPostButton />
           </div>
         </header>
@@ -196,9 +153,11 @@ async function PostBody({ params }: PostSlugRouteProps) {
 
         <Separator className="my-8" />
 
-        <Suspense fallback={<CommentsSkeleton />}>
-          <CommentsLoader postId={post._id} postAuthorId={post.authorId} />
-        </Suspense>
+        <CommentSection
+          preloadedComments={preloadedCommentsData}
+          postId={post._id}
+          postAuthorId={post.authorId}
+        />
 
         <div className="w-full">
           <Footer />
