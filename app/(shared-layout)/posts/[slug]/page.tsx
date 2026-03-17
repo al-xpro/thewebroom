@@ -5,7 +5,7 @@ import { CommentSection } from "@/components/web/CommentSection";
 import { PostContent } from "@/components/web/PostContent";
 import Footer from "@/components/web/Footer";
 import { api } from "@/convex/_generated/api";
-import { fetchQuery, preloadQuery } from "convex/nextjs";
+import { preloadQuery } from "convex/nextjs";
 import { ArrowLeft, BookType, Calendar, ClockFading, User } from "lucide-react";
 import { Metadata } from "next";
 import Image from "next/image";
@@ -16,6 +16,9 @@ import { connection } from "next/server";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cacheLife, cacheTag } from "next/cache";
+import { fetchQuery } from "convex/nextjs";
+import { Id } from "@/convex/_generated/dataModel";
+import { getCachedPost } from "@/lib/get-post";
 
 interface PostSlugRouteProps {
   params: Promise<{ slug: string }>;
@@ -26,29 +29,6 @@ const fallbackMetadata: Metadata = {
   description: "Read our latest articles and insights.",
   authors: [{ name: "The Community at The Web Room" }],
 };
-
-// ─── Cached data fetcher ──────────────────────────────────────────────────────
-// Wrapping fetchQuery in "use cache" is required because ConvexHttpClient
-// calls Math.random() internally. Next.js 16 with cacheComponents: true
-// forbids non-deterministic values in server components before any dynamic
-// data source is accessed. Cache components are exempt from this restriction.
-async function getCachedPost(slug: string) {
-  "use cache";
-  cacheTag(`post:${slug}`, "blog");
-  cacheLife("seconds");
-  return fetchQuery(api.posts.getPostBySlug, { slug });
-}
-
-async function getCachedHighlightedPost(slug: string) {
-  "use cache";
-  cacheTag(`post-html:${slug}`, "blog");
-  cacheLife("minutes");
-  const post = await fetchQuery(api.posts.getPostBySlug, { slug });
-  if (!post) return null;
-  const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
-  const highlightedHtml = await injectShikiIntoHtml(contentHtml);
-  return { post, highlightedHtml };
-}
 
 export async function generateStaticParams() {
   try {
@@ -61,11 +41,15 @@ export async function generateStaticParams() {
   }
 }
 
+// generateMetadata must NOT call connection() — doing so marks the route as
+// dynamic and causes Next.js 16 to stream metadata into the body instead of
+// emitting it in the static <head>. getCachedPost is a "use cache" function,
+// so Math.random() inside ConvexHttpClient is inside a cache boundary and
+// does not trigger the determinism check.
 export async function generateMetadata({ params }: PostSlugRouteProps): Promise<Metadata> {
   const { slug } = await params;
 
   try {
-    // Using the cached helper avoids the Math.random() restriction
     const post = await getCachedPost(slug);
     if (!post) return fallbackMetadata;
 
@@ -97,7 +81,8 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
   }
 }
 
-// Static shell — sync, no data fetching, renders immediately from prebuilt HTML
+// Sync shell — no async, no connection(), renders at build time as static HTML.
+// This ensures <head> metadata is always in the static prerender.
 export default function PostSlugRoute({ params }: PostSlugRouteProps) {
   return (
     <div className="flex flex-col w-full max-w-3xl min-h-screen pt-20 px-4 mx-auto">
@@ -113,7 +98,7 @@ export default function PostSlugRoute({ params }: PostSlugRouteProps) {
           </Button>
         </Link>
 
-        {/* connection() and all dynamic data inside Suspense */}
+        {/* connection() lives entirely inside this Suspense boundary */}
         <Suspense fallback={<PostSkeleton />}>
           <PostBody params={params} />
         </Suspense>
@@ -122,16 +107,14 @@ export default function PostSlugRoute({ params }: PostSlugRouteProps) {
   );
 }
 
-// Dynamic content — streams in after static shell
-// connection() here is valid because this component is Suspense-wrapped above
+// Async dynamic component — connection() is valid here because it is
+// inside a <Suspense> boundary in the parent.
 async function PostBody({ params }: PostSlugRouteProps) {
   await connection();
   const { slug } = await params;
 
-  const cached = await getCachedHighlightedPost(slug);
-  if (!cached) return notFound();
-
-  const { post, highlightedHtml } = cached;
+  const [post, highlightedHtml] = await getPostWithHtml(slug);
+  if (!post) return notFound();
 
   const preloadedCommentsData = await preloadQuery(api.comment.getCommentsByPostId, {
     postId: post._id,
@@ -196,6 +179,21 @@ async function PostBody({ params }: PostSlugRouteProps) {
       </div>
     </>
   );
+}
+
+// Cached helper for the page body — includes Shiki highlighting.
+// Separate from getCachedPost so highlighting is also cached.
+async function getPostWithHtml(slug: string) {
+  "use cache";
+  cacheTag(`post:${slug}`, "blog");
+  cacheLife("seconds");
+
+  const post = await fetchQuery(api.posts.getPostBySlug, { slug });
+  if (!post) return [null, ""] as const;
+
+  const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
+  const highlightedHtml = await injectShikiIntoHtml(contentHtml);
+  return [post, highlightedHtml] as const;
 }
 
 function PostSkeleton() {
