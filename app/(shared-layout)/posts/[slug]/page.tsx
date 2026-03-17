@@ -12,7 +12,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
-import { getCachedComments, getCachedPost } from "@/lib/get-post";
+import { getCachedPost } from "@/lib/get-post";
+import { Id } from "@/convex/_generated/dataModel";
+import { Suspense } from "react";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -35,6 +37,23 @@ export async function generateStaticParams() {
   } catch {
     return [];
   }
+}
+
+async function CommentsLoader({
+  postId,
+  postAuthorId,
+}: {
+  postId: Id<"posts">;
+  postAuthorId: string;
+}) {
+  const preloadedComments = await preloadQuery(api.comment.getCommentsByPostId, { postId });
+  return (
+    <CommentSection
+      preloadedComments={preloadedComments}
+      postId={postId}
+      postAuthorId={postAuthorId}
+    />
+  );
 }
 
 export async function generateMetadata({ params }: PostSlugRouteProps): Promise<Metadata> {
@@ -84,8 +103,6 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
   if (!post) {
     return notFound();
   }
-
-  const initialComments = await getCachedComments(post._id);
 
   const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
   const highlightedHtml = await injectShikiIntoHtml(contentHtml);
@@ -154,11 +171,9 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
 
         <Separator className="my-8" />
 
-        <CommentSection
-          initialComments={initialComments}
-          postId={post._id}
-          postAuthorId={post.authorId}
-        />
+        <Suspense fallback={<div className="w-full h-40" />}>
+          <CommentsLoader postId={post._id} postAuthorId={post.authorId} />
+        </Suspense>
 
         <div className="w-full">
           <Footer />
