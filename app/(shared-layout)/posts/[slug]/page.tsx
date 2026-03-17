@@ -12,8 +12,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
-import { getCachedPost } from "@/lib/get-post";
-import { connection } from "next/server";
+import { getCachedComments, getCachedPost } from "@/lib/get-post";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -47,7 +46,14 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
 
     const rawDescription =
       post.subtitle?.trim() || post.body?.trim() || `Read ${post.title} on our blog.`;
-    const description = rawDescription.replace(/\s+/g, " ").slice(0, 155).trim();
+
+    // Safely strip HTML tags, quotes, and extra whitespace that corrupt the <meta> tag
+    const description = rawDescription
+      .replace(/<[^>]*>?/gm, "") // Strip any HTML tags
+      .replace(/["']/g, "") // Remove double and single quotes
+      .replace(/\s+/g, " ") // Flatten newlines into single spaces
+      .slice(0, 155)
+      .trim();
 
     return {
       title: post.title,
@@ -79,10 +85,7 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
     return notFound();
   }
 
-  await connection(); 
-  const preloadedCommentsData = await preloadQuery(api.comment.getCommentsByPostId, {
-    postId: post._id,
-  });
+  const initialComments = await getCachedComments(post._id);
 
   const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
   const highlightedHtml = await injectShikiIntoHtml(contentHtml);
@@ -152,7 +155,7 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
         <Separator className="my-8" />
 
         <CommentSection
-          preloadedComments={preloadedCommentsData}
+          initialComments={initialComments}
           postId={post._id}
           postAuthorId={post.authorId}
         />

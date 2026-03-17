@@ -8,14 +8,13 @@ import { commentSchema } from "@/app/schemas/comment";
 import { Field, FieldError } from "../ui/field";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
-import { Id } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import z from "zod";
 import { useTransition, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Separator } from "../ui/separator";
-import { Preloaded, usePreloadedQuery } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { showErrorToast, showSuccessToast } from "../ui/toast";
 import {
@@ -34,16 +33,22 @@ import { formatDistanceToNow } from "date-fns";
 const COMMENT_MAX = 300;
 
 export function CommentSection(props: {
-  preloadedComments: Preloaded<typeof api.comment.getCommentsByPostId>;
+  initialComments: Doc<"comments">[];
   postId: Id<"posts">;
   postAuthorId: string;
 }) {
-  const data = usePreloadedQuery(props.preloadedComments);
   const { isAuthenticated, isLoading } = useConvexAuth();
+  // Subscribe to live updates
+  const liveComments = useQuery(api.comment.getCommentsByPostId, { postId: props.postId });
+
+  // Use live data if it exists, otherwise fall back to the cached server data
+  // This ensures the comments appear instantly (SEO) but stay live (UX)
+  const data = liveComments ?? props.initialComments;
   const [isPending, startTransition] = useTransition();
   const [isSubmitting, startSubmit] = useTransition();
   const [editingId, setEditingId] = useState<Id<"comments"> | null>(null);
   const [editText, setEditText] = useState("");
+  
 
   const [visibleErrors, setVisibleErrors] = useState<{ body?: string }>({});
   const [editVisibleError, setEditVisibleError] = useState<string | undefined>();
