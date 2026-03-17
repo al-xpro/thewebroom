@@ -11,9 +11,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
-import { connection } from "next/server";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
 import { getCachedPost } from "@/lib/get-post";
+import { connection } from "next/server";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
     const rawDescription =
       post.subtitle?.trim() || post.body?.trim() || `Read ${post.title} on our blog.`;
     const description = rawDescription.replace(/\s+/g, " ").slice(0, 155).trim();
-    
+
     return {
       title: post.title,
       description,
@@ -79,6 +79,7 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
     return notFound();
   }
 
+  await connection(); 
   const preloadedCommentsData = await preloadQuery(api.comment.getCommentsByPostId, {
     postId: post._id,
   });
