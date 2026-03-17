@@ -5,28 +5,9 @@ import { Id } from "@/convex/_generated/dataModel";
 
 export async function getCachedPost(slug: string) {
   "use cache";
-  cacheLife("days");
-  cacheTag("blog");
+  cacheLife("seconds");
   cacheTag(`post-${slug}`);
-  
-  const res = await fetch(
-    `${process.env.CONVEX_SITE_URL}/post-by-slug?slug=${encodeURIComponent(slug)}`
-  );
-  if (!res.ok) return null;
-  return res.json() as Promise<{
-    title: string;
-    subtitle: string;
-    body: string;
-    authorName: string;
-    _id: string;
-    _creationTime: number;
-    topic: string;
-    minRead: number;
-    imageUrl: string | null;
-    contentHtml: string | null;
-    authorId: string;
-    slug: string;
-  }>;
+  return fetchQuery(api.posts.getPostBySlug, { slug });
 }
 
 export async function getCachedComments(postId: string) {
