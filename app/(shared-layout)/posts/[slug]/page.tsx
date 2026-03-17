@@ -45,11 +45,10 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
     const post = await getCachedPost(slug);
     if (!post) return fallbackMetadata;
 
-    const description =
-      post.subtitle?.trim() ||
-      post.body?.slice(0, 155).trim() ||
-      `Read ${post.title} on our blog.`;
-
+    const rawDescription =
+      post.subtitle?.trim() || post.body?.trim() || `Read ${post.title} on our blog.`;
+    const description = rawDescription.replace(/\s+/g, " ").slice(0, 155).trim();
+    
     return {
       title: post.title,
       description,
@@ -72,7 +71,6 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
 }
 
 export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
-  await connection();
   const { slug } = await params;
 
   const post = await getCachedPost(slug);
