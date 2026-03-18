@@ -47,21 +47,18 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // unsafe-inline: Next.js inline styles + TipTap
-      // unsafe-eval: Shiki syntax highlighting (uses new Function())
-      // https://vercel.live: Vercel Live feedback widget (dev/preview only)
       `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live`,
-      // Explicit script-src-elem prevents browser fallback ambiguity
       `script-src-elem 'self' 'unsafe-inline' https://vercel.live`,
-      `style-src 'self' 'unsafe-inline'`,
+
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+
       `font-src 'self' https:`,
-      // *.convex.cloud covers Convex storage image URLs (e.g. sincere-jaguar-722.eu-west-1.convex.cloud)
+
       `img-src 'self' https: data: blob:`,
-      `font-src 'self' https:`,
+
       `connect-src 'self' ${convexOrigins} https://avatar.vercel.sh https://api.ipify.org`,
-      // vercel.live needs frame access for the feedback widget
+
       `frame-src https://vercel.live`,
       `frame-ancestors 'none'`,
       `base-uri 'self'`,

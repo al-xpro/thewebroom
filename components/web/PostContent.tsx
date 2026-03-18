@@ -337,10 +337,6 @@ function HtmlChunk({ html }: { html: string }) {
 
         [&_a]:text-primary [&_a:hover]:underline
 
-        [&_.badge]:inline-flex [&_.badge]:items-center [&_.badge]:px-2 [&_.badge]:py-0.5
-        [&_.badge]:rounded [&_.badge]:text-xs [&_.badge]:font-medium
-        [&_.badge]:bg-primary/10 [&_.badge]:text-primary
-
         [&_table]:table-fixed [&_table]:my-12 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative 
         [&_table]:border-separate [&_table]:border-spacing-0 [&_table]:[scrollbar-width:none] [&_table]:[-ms-overflow-style:none] [&_table]:[&::-webkit-scrollbar]:hidden
         [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden  [&_table]:justify-center-safe [&_colgroup]:hidden [&_col]:hidden

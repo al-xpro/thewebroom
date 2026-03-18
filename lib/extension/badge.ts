@@ -40,7 +40,7 @@ export const Badge = Mark.create({
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
         "data-badge": "",
         class:
-          "inline align-baseline mx-0.5 text-[length:inherit] px-1 rounded-md font-mono tracking-tight text-black dark:text-white bg-white dark:bg-[#0A0A0A] border border-[#EAEAEA] dark:border-[#1E1E1E] break-words",
+          "inline align-baseline mx-0.5 px-1 rounded-md font-mono tracking-tight text-black dark:text-white bg-white dark:bg-[#0A0A0A] border border-[#EAEAEA] dark:border-[#1E1E1E] break-words",
         style: "line-height: 1.5em;",
       }),
       0,
