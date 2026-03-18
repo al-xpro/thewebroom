@@ -29,6 +29,7 @@ export const Callout = Node.create({
         "data-callout": "",
         class:
           "rounded-md px-4 py-3 my-6 bg-[#F2F2F2] dark:bg-[#191919] text-paragraph text-sm",
+          style: "background-color: #F2F2F2;"
       }),
       0,
     ];

@@ -328,11 +328,13 @@ function HtmlChunk({ html }: { html: string }) {
         [&_span[data-badge]]:tracking-tight
         [&_span[data-badge]]:text-black
         dark:[&_span[data-badge]]:text-white
-        [&_span[data-badge]]:bg-white
-        dark:[&_span[data-badge]]:bg-[#0A0A0A]
         [&_span[data-badge]]:border
         [&_span[data-badge]]:border-[#EAEAEA]
+        [&_span[data-badge]]:bg-white
+        dark:[&_span[data-badge]]:bg-[#0A0A0A]
         dark:[&_span[data-badge]]:border-[#1E1E1E]
+        [&_div[data-callout]]:bg-[#F2F2F2]
+        dark:[&_div[data-callout]]:bg-[#191919]
 
 
 
