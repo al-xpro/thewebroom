@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@source "../lib/extension/badge.ts";
+@source "../lib/extension/callout.ts";
+
+
 @custom-variant dark (&:is(.dark *));
 
 ::selection {
