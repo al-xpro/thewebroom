@@ -223,17 +223,6 @@ html:not(.dark) .shiki span {
   color: #666666;
 }
 
-
-span[data-badge] {
-  display: inline-flex;
-  word-break: normal;
-  overflow-wrap: break-word;
-  white-space: normal;
-  line-height: inherit;
-  border-radius: 7px;
-  padding: 0.1rem 0.3rem;
-}
-
 .prose .ProseMirror li > p, 
 .post-content li > p {
   margin-top: 0;

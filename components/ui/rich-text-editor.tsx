@@ -619,7 +619,15 @@ export function RichTextEditor({
           [&_.ProseMirror_.react-renderer:has(+figcaption)]:mb-0
           [&_.ProseMirror_table]:my-12
           [&_.ProseMirror_table:has(+figcaption)]:mb-0
-          [&_.ProseMirror_span[data-badge]]:whitespace-normal
+          [&_.ProseMirror_span[data-badge]]:inline
+          [&_.ProseMirror_span[data-badge]]:align-baseline
+          [&_.ProseMirror_span[data-badge]]:break-words
+          [&_.ProseMirror_span[data-badge]]:px-1
+          [&_.ProseMirror_span[data-badge]]:rounded-md
+          [&_.ProseMirror_span[data-badge]]:mx-0.5
+          [&_.ProseMirror_span[data-badge]]:tracking-wide
+
+
 
           [&_.ProseMirror_ul]:pl-4
           [&_.ProseMirror_ul]:list-disc
