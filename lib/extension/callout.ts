@@ -27,9 +27,7 @@ export const Callout = Node.create({
       "div",
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
         "data-callout": "",
-        class:
-          "rounded-md px-4 py-3 my-6 bg-[#F2F2F2] dark:bg-[#191919] text-paragraph text-sm",
-          style: "background-color: #F2F2F2;"
+        class: "rounded-md px-4 py-3 my-6 bg-[#F2F2F2] dark:bg-[#191919] text-paragraph text-sm",
       }),
       0,
     ];

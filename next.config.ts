@@ -56,7 +56,7 @@ const securityHeaders = [
       `style-src 'self' 'unsafe-inline'`,
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-      `font-src 'self' https://fonts.gstatic.com https:`,
+      `font-src 'self' https:`,
       // *.convex.cloud covers Convex storage image URLs (e.g. sincere-jaguar-722.eu-west-1.convex.cloud)
       `img-src 'self' https: data: blob:`,
       `font-src 'self' https:`,

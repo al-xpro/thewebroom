@@ -619,13 +619,6 @@ export function RichTextEditor({
           [&_.ProseMirror_.react-renderer:has(+figcaption)]:mb-0
           [&_.ProseMirror_table]:my-12
           [&_.ProseMirror_table:has(+figcaption)]:mb-0
-          [&_.ProseMirror_span[data-badge]]:inline
-          [&_.ProseMirror_span[data-badge]]:align-baseline
-          [&_.ProseMirror_span[data-badge]]:break-words
-          [&_.ProseMirror_span[data-badge]]:px-1
-          [&_.ProseMirror_span[data-badge]]:rounded-md
-          [&_.ProseMirror_span[data-badge]]:mx-0.5
-          [&_.ProseMirror_span[data-badge]]:tracking-wide
 
 
 
@@ -663,15 +656,6 @@ export function RichTextEditor({
           [&_.ProseMirror_code]:text-sm
           [&_.ProseMirror_pre_code]:bg-transparent
           [&_.ProseMirror_pre_code]:p-0
-
-          [&_.ProseMirror_div[data-callout]]:rounded-md
-          [&_.ProseMirror_div[data-callout]]:px-4
-          [&_.ProseMirror_div[data-callout]]:py-3
-          [&_.ProseMirror_div[data-callout]]:my-4
-          [&_.ProseMirror_div[data-callout]]:bg-[#F2F2F2]
-          dark:[&_.ProseMirror_div[data-callout]]:bg-[#191919]
-          [&_.ProseMirror_div[data-callout]]:text-sm
-
 
           [&_.ProseMirror_hr]:my-8
           [&_.ProseMirror_hr]:border-t-2

@@ -317,25 +317,6 @@ function HtmlChunk({ html }: { html: string }) {
         [&_[data-type='file-code-block']:has(+figcaption)]:mb-0
         [&_table]:my-12
         [&_table:has(+figcaption)]:mb-0
-        [&_span[data-badge]]:inline
-        [&_span[data-badge]]:align-baseline
-        [&_span[data-badge]]:break-words
-        [&_span[data-badge]]:mx-0.5
-        [&_span[data-badge]]:px-1
-        [&_span[data-badge]]:-py-2
-        [&_span[data-badge]]:rounded-md
-        [&_span[data-badge]]:font-mono
-        [&_span[data-badge]]:tracking-tight
-        [&_span[data-badge]]:text-black
-        dark:[&_span[data-badge]]:text-white
-        [&_span[data-badge]]:border
-        [&_span[data-badge]]:border-[#EAEAEA]
-        [&_span[data-badge]]:bg-white
-        dark:[&_span[data-badge]]:bg-[#0A0A0A]
-        dark:[&_span[data-badge]]:border-[#1E1E1E]
-        [&_div[data-callout]]:bg-[#F2F2F2]
-        dark:[&_div[data-callout]]:bg-[#191919]
-
 
 
         [&_ul]:pl-4 [&_ul]:list-disc  [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-2 post-content
