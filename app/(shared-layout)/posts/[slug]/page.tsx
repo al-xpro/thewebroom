@@ -13,7 +13,6 @@ import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
 import { connection } from "next/server";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
-import { Suspense } from "react";
 
 interface PostSlugRouteProps {
   params: Promise<{
@@ -150,16 +149,15 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
           />
         </div>
 
-{/*         <PostContent html={highlightedHtml} />
- */}
+        <PostContent html={highlightedHtml} />
+
         <Separator className="my-8" />
-        <Suspense fallback={<div>Loading comments...</div>}>
+        
         <CommentSection
           preloadedComments={preloadedCommentsData}
           postId={post._id}
           postAuthorId={post.authorId}
         />
-        </Suspense>
 
         <div className="w-full">
           <Footer />
