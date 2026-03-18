@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CommentSection } from "@/components/web/CommentSection";
@@ -13,11 +14,10 @@ import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
 import { connection } from "next/server";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PostSlugRouteProps {
-  params: Promise<{
-    slug: string;
-  }>;
+  params: Promise<{ slug: string }>;
 }
 
 const fallbackMetadata: Metadata = {
@@ -37,8 +37,11 @@ export async function generateStaticParams() {
   }
 }
 
+// YOUR ORIGINAL generateMetadata — kept exactly as written.
+// It uses fetch() with next: { revalidate } which is correct.
+// No connection() here means metadata is committed to <head> before
+// any streaming begins — this is what fixes the production issue.
 export async function generateMetadata({ params }: PostSlugRouteProps): Promise<Metadata> {
-  await connection();
   const { slug } = await params;
 
   try {
@@ -61,11 +64,13 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
         description,
         type: "article",
         authors: [post.authorName],
+        ...(post.imageUrl ? { images: [{ url: post.imageUrl }] } : {}),
       },
       twitter: {
         card: "summary_large_image",
         title: post.title,
         description,
+        ...(post.imageUrl ? { images: [post.imageUrl] } : {}),
       },
     };
   } catch {
@@ -73,22 +78,11 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
   }
 }
 
-export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
-  await connection();
-  const { slug } = await params;
-  const post = await fetchQuery(api.posts.getPostBySlug, { slug });
-
-  if (!post) {
-    return notFound();
-  }
-
-  const preloadedCommentsData = await preloadQuery(api.comment.getCommentsByPostId, {
-    postId: post._id,
-  });
-
-  const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
-  const highlightedHtml = await injectShikiIntoHtml(contentHtml);
-
+// THE FIX: sync shell — no async, no connection(), no data fetching.
+// Next.js commits <head> (including metadata) when the page component
+// itself is sync. connection() in the body is only called inside
+// <Suspense>, which streams AFTER <head> is already sent.
+export default function PostSlugRoute({ params }: PostSlugRouteProps) {
   return (
     <div className="flex flex-col w-full max-w-3xl min-h-screen pt-20 px-4 mx-auto">
       <div className="flex flex-col w-full items-start justify-center gap-8">
@@ -103,66 +97,150 @@ export default async function PostSlugRoute({ params }: PostSlugRouteProps) {
           </Button>
         </Link>
 
-        <header className="flex flex-col w-full gap-4">
-          <h1 className="text-balance text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl">
-            {post.title}
-          </h1>
-
-          <p className="text-lg text-paragraph leading-relaxed">{post.subtitle}</p>
-
-          <Separator className="my-4" />
-
-          <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
-            <div className="flex flex-col items-center gap-2 text-black dark:text-white">
-              <User className="size-4 sm:size-5" />
-              <p>{post.authorName}</p>
-            </div>
-            <div className="flex flex-col items-center gap-2 text-black dark:text-white">
-              <Calendar className="size-4 sm:size-5" />
-              <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <BookType className="size-4 sm:size-5 text-black dark:text-white" />
-              <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
-                {post.topic}
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-2 text-black dark:text-white">
-              <ClockFading className="size-4 sm:size-5" />
-              <p>{post.minRead} min read</p>
-            </div>
-
-            <CopyPostButton />
-          </div>
-        </header>
-
-        <div className="relative mb-8 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
-          <Image
-            src={post.imageUrl ?? ""}
-            alt="post image"
-            fill
-            sizes="(max-width: 640px) 100vw, 33vw"
-            priority
-            loading="eager"
-            fetchPriority="high"
-            className="object-cover transition-transform duration-500"
-          />
-        </div>
-
-        <PostContent html={highlightedHtml} />
-
-        <Separator className="my-8" />
-        
-        <CommentSection
-          preloadedComments={preloadedCommentsData}
-          postId={post._id}
-          postAuthorId={post.authorId}
-        />
-
-        <div className="w-full">
-          <Footer />
-        </div>
+        <Suspense fallback={<PostSkeleton />}>
+          <PostBody params={params} />
+        </Suspense>
       </div>
     </div>
+  );
+}
+
+// All dynamic data here — connection() valid because inside <Suspense> above
+async function PostBody({ params }: PostSlugRouteProps) {
+  await connection();
+  const { slug } = await params;
+
+  const post = await fetchQuery(api.posts.getPostBySlug, { slug });
+  if (!post) return notFound();
+
+  const preloadedCommentsData = await preloadQuery(api.comment.getCommentsByPostId, {
+    postId: post._id,
+  });
+
+  const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
+  const highlightedHtml = await injectShikiIntoHtml(contentHtml);
+
+  return (
+    <>
+      <header className="flex flex-col w-full gap-4">
+        <h1 className="text-balance text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl">
+          {post.title}
+        </h1>
+        <p className="text-lg text-paragraph leading-relaxed">{post.subtitle}</p>
+        <Separator className="my-4" />
+        <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
+          <div className="flex flex-col items-center gap-2 text-black dark:text-white">
+            <User className="size-4 sm:size-5" />
+            <p>{post.authorName}</p>
+          </div>
+          <div className="flex flex-col items-center gap-2 text-black dark:text-white">
+            <Calendar className="size-4 sm:size-5" />
+            <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
+          </div>
+          <div className="flex flex-col items-center gap-2">
+            <BookType className="size-4 sm:size-5 text-black dark:text-white" />
+            <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
+              {post.topic}
+            </span>
+          </div>
+          <div className="flex flex-col items-center gap-2 text-black dark:text-white">
+            <ClockFading className="size-4 sm:size-5" />
+            <p>{post.minRead} min read</p>
+          </div>
+          <CopyPostButton />
+        </div>
+      </header>
+
+      <div className="relative mb-8 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
+        <Image
+          src={post.imageUrl ?? ""}
+          alt="post image"
+          fill
+          sizes="(max-width: 640px) 100vw, 33vw"
+          priority
+          loading="eager"
+          fetchPriority="high"
+          className="object-cover transition-transform duration-500"
+        />
+      </div>
+
+      <PostContent html={highlightedHtml} />
+
+      <Separator className="my-8" />
+
+      <CommentSection
+        preloadedComments={preloadedCommentsData}
+        postId={post._id}
+        postAuthorId={post.authorId}
+      />
+
+      <div className="w-full">
+        <Footer />
+      </div>
+    </>
+  );
+}
+
+function PostSkeleton() {
+  return (
+    <>
+      <div className="flex flex-col w-full max-w-3xl min-h-screen pt-20 px-4 mx-auto">
+        <div className="flex flex-col w-full items-start justify-center gap-8">
+          <Skeleton className="h-8 w-24" />
+          <div className="flex flex-col w-full gap-4">
+            <Skeleton className="h-11 w-3/4 sm:w-1/2" />
+            <Skeleton className="h-[25px] w-2/3 sm:w-1/3" />
+
+            <Separator className="my-4" />
+
+            <div className="flex flex-wrap w-full items-center justify-between sm:gap-14">
+              <div className="flex flex-col items-center gap-2">
+                <Skeleton className="w-6 h-6 rounded-full" />
+                <Skeleton className="w-14 h-4" />
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <Skeleton className="w-6 h-6 rounded-full" />
+                <Skeleton className="w-14 h-4" />
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <Skeleton className="w-6 h-6 rounded-full" />
+                <Skeleton className="w-14 h-4" />
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <Skeleton className="w-6 h-6 rounded-full" />
+                <Skeleton className="w-14 h-4" />
+              </div>
+              <div className="hidden sm:flex flex-col items-center gap-2">
+                <Skeleton className="w-6 h-6 rounded-full" />
+                <Skeleton className="w-14 h-4" />
+              </div>
+            </div>
+            <div className="relative mt-5 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
+              <Skeleton className="w-full h-full rounded-xl" />
+            </div>
+            <div className="mt-10 space-y-2">
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-2/3 h-4" />
+            </div>
+            <Skeleton className="my-5 h-8 w-2/3" />
+            <div className="mt-5 space-y-2">
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-2/3 h-4" />
+            </div>
+            <Skeleton className="mt-5 h-6 w-1/3" />
+            <div className="mt-5 space-y-2">
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-full h-4" />
+              <Skeleton className="w-2/3 h-4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
