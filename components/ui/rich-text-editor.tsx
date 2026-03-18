@@ -619,7 +619,7 @@ export function RichTextEditor({
           [&_.ProseMirror_.react-renderer:has(+figcaption)]:mb-0
           [&_.ProseMirror_table]:my-12
           [&_.ProseMirror_table:has(+figcaption)]:mb-0
-          [&_.ProseMirror_span[data-badge]]:whitespace-nowrap
+          [&_.ProseMirror_span[data-badge]]:whitespace-normal
 
           [&_.ProseMirror_ul]:pl-4
           [&_.ProseMirror_ul]:list-disc

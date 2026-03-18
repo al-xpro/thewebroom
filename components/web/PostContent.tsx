@@ -54,10 +54,10 @@ function CopyButton({ getText }: { getText: () => string }) {
 
 // ─── Terminal Block ───────────────────────────────────────────────────────────
 
-const MANAGERS = ["npm", "pnpm", "yarn"] as const;
+const MANAGERS = ["npm", "pnpm", "yarn", "bun"] as const;
 type Manager = (typeof MANAGERS)[number];
 
-const CMD_RE = /^(npm|pnpm|yarn|npx|cd|git|rm|mv|touch|mkdir|ls|echo|cat)\b/;
+const CMD_RE = /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh)\b/;
 
 function TerminalLine({ line }: { line: string }) {
   const match = line.match(CMD_RE);
@@ -79,6 +79,7 @@ interface TerminalData {
   npm: string;
   pnpm: string;
   yarn: string;
+  bun: string;
 }
 
 function TerminalBlock({ data }: { data: TerminalData }) {
@@ -87,6 +88,7 @@ function TerminalBlock({ data }: { data: TerminalData }) {
     npm: data.npm,
     pnpm: data.pnpm,
     yarn: data.yarn,
+    bun: data.bun,
   };
   const text = contents[active];
   const lines = text ? text.split("\n") : [];
@@ -225,7 +227,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
       </div>
 
       {/* Body */}
-      <div className="relative flex w-full overflow-x-auto bg-white dark:bg-[#0A0A0A]">
+      <div className="relative flex w-full overflow-x-auto bg-white dark:bg-[#0A0A0A] focus:outline-none! focus-visible:outline-none! focus:ring-0! focus-visible:ring-0!">
         {/* Line numbers */}
         <div className={`hidden sm:flex flex-col pt-5 pb-5 shrink-0 select-none ${commonFont}`}>
           {lines.map((_: string, i: number) => {
@@ -263,7 +265,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
           {/* Layer 1 — Shiki light (hidden in dark mode) */}
           <div
             className={`col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-4 sm:pl-2 whitespace-pre overflow-visible min-w-max z-10 dark:hidden
-              [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:m-0!
+              [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:m-0! [&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!
               [&>pre]:font-mono! [&>pre]:text-[13px]! [&>pre]:leading-[20px]! [&>pre]:whitespace-pre!
               [&>pre>code]:font-mono! [&>pre>code]:text-[13px]! [&>pre>code]:leading-[20px]! [&>pre>code]:whitespace-pre! [&>pre>code]:block!
               ${commonFont}`}
@@ -279,7 +281,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
           {/* Layer 1 — Shiki dark (hidden in light mode) */}
           <div
             className={`col-start-1 row-start-1 pt-5 pb-5 pr-4 pl-4 sm:pl-2 whitespace-pre overflow-visible min-w-max z-10 hidden dark:block
-              [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:m-0!
+              [&>pre]:bg-transparent! [&>pre]:p-0! [&>pre]:m-0! [&>pre]:focus:outline-none! [&>pre]:focus-visible:outline-none! [&>pre]:focus:ring-0! [&>pre]:focus-visible:ring-0!
               [&>pre]:font-mono! [&>pre]:text-[13px]! [&>pre]:leading-[20px]! [&>pre]:whitespace-pre!
               [&>pre>code]:font-mono! [&>pre>code]:text-[13px]! [&>pre>code]:leading-[20px]! [&>pre>code]:whitespace-pre! [&>pre>code]:block!
               ${commonFont}`}
@@ -409,6 +411,7 @@ function parsePostHtml(html: string): PostNode[] {
       const npm = mgr === "npm" ? live : (el.getAttribute("data-npm-content") ?? "");
       const pnpm = mgr === "pnpm" ? live : (el.getAttribute("data-pnpm-content") ?? "");
       const yarn = mgr === "yarn" ? live : (el.getAttribute("data-yarn-content") ?? "");
+      const bun = mgr === "bun" ? live : (el.getAttribute("data-bun-content") ?? "");
 
       let caption: string | undefined;
       const next = el.nextElementSibling;
@@ -417,7 +420,7 @@ function parsePostHtml(html: string): PostNode[] {
         skipNodes.add(next); // mark for skip instead of .remove()
       }
 
-      nodes.push({ kind: "terminal", data: { activeManager: mgr, npm, pnpm, yarn }, caption });
+      nodes.push({ kind: "terminal", data: { activeManager: mgr, npm, pnpm, yarn, bun }, caption });
       return;
     }
 

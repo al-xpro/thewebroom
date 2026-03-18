@@ -225,10 +225,10 @@ html:not(.dark) .shiki span {
 
 
 span[data-badge] {
-  display: inline;
-  word-break: break-all;
-  overflow-wrap: anywhere;
-  white-space: nowrap;
+  display: inline-flex;
+  word-break: normal;
+  overflow-wrap: break-word;
+  white-space: normal;
   line-height: inherit;
   border-radius: 7px;
   padding: 0.1rem 0.3rem;

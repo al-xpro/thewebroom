@@ -128,7 +128,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
 
               updateAttributes({ fileIcon: nextIcon });
             }}
-            className="flex items-center justify-center cursor-pointer text-paragraph"
+            className="flex items-center justify-center cursor-pointer text-paragraph outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           >
             {getFileIcon(node.attrs.fileIcon)}
           </button>
@@ -147,7 +147,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
             e.stopPropagation();
             handleCopy();
           }}
-          className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E]"
+          className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
         >
           {copied ? (
             <motion.div
@@ -185,7 +185,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
                 type="button"
                 onClick={() => toggleHighlight(i)}
                 className={`
-                  pl-4 pr-3 text-right select-none transition-colors duration-100 outline-none
+                  pl-4 pr-3 text-right select-none transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]
                   border-l-2 cursor-pointer
                   ${
                     isHighlighted

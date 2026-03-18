@@ -5,13 +5,9 @@ import { Terminal, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
 
-const managers = ["npm", "pnpm", "yarn"];
+const managers = ["npm", "pnpm", "yarn", "bun"];
 
-export default function TerminalCodeBlockComponent({
-  node,
-  editor,
-  getPos,
-}: any) {
+export default function TerminalCodeBlockComponent({ node, editor, getPos }: any) {
   const [copied, setCopied] = useState(false);
 
   const switchManager = (targetManager: string) => {
@@ -80,7 +76,9 @@ export default function TerminalCodeBlockComponent({
       );
 
     return text.split("\n").map((line: string, i: number) => {
-      const match = line.match(/^(npm|pnpm|yarn|npx|cd|git|rm|mv|touch|mkdir|ls|echo|cat)\b/);
+      const match = line.match(
+        /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh)\b/
+      );
 
       if (!match) {
         return (
@@ -106,11 +104,11 @@ export default function TerminalCodeBlockComponent({
   const commonFont = "font-mono text-[13px] leading-[20px]";
 
   return (
-    <NodeViewWrapper className="rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <NodeViewWrapper className="rounded-lg max-w-full mx-auto overflow-hidden overflow-x-auto border border-[#EAEAEA] dark:border-[#1E1E1E]">
       {/* HEADER */}
       <div
         contentEditable={false}
-        className="flex items-center justify-between px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none"
+        className="flex items-center justify-between overflow-x-auto gap-2 px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none"
       >
         <div className="flex items-center gap-2 sm:gap-3">
           <Terminal className="size-4 text-neutral-500" />
@@ -123,7 +121,7 @@ export default function TerminalCodeBlockComponent({
                   e.preventDefault();
                   switchManager(manager);
                 }}
-                className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer ${node.attrs.packageManager === manager ? "bg-black text-white dark:bg-white dark:text-black" : "dark:bg-[#181818] bg-[#E8E8E8]"}`}
+                className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${node.attrs.packageManager === manager ? "bg-black text-white dark:bg-white dark:text-black" : "dark:bg-[#181818] bg-[#E8E8E8]"}`}
               >
                 {manager}
               </button>
@@ -138,7 +136,7 @@ export default function TerminalCodeBlockComponent({
             e.stopPropagation();
             handleCopy();
           }}
-          className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E]"
+          className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
         >
           {copied ? (
             <motion.div
@@ -167,25 +165,27 @@ export default function TerminalCodeBlockComponent({
       {/* BODY - GRID STACK */}
       {/* The grid ensures both children overlap exactly. `min-h` prevents collapse. */}
       <div
-        className={`relative bg-white dark:bg-[#0A0A0A] w-full grid grid-cols-1 grid-rows-1 p-4 ${commonFont}`}
+        className={`relative bg-white dark:bg-[#0A0A0A] w-full overflow-x-auto p-4 ${commonFont}`}
       >
-        {/* Layer 1: Visuals (Bottom) */}
-        <div className="col-start-1 row-start-1 pointer-events-none whitespace-pre overflow-x-auto">
-          {renderStyled()}
-        </div>
+        <div className="relative grid grid-cols-1 grid-rows-1 min-w-max">
+          {/* Layer 1: Visuals (Bottom) */}
+          <div className="col-start-1 row-start-1 pointer-events-none whitespace-pre">
+            {renderStyled()}
+          </div>
 
-        {/* Layer 2: Editor (Top) */}
-        <NodeViewContent
-          as="div"
-          className={`
+          {/* Layer 2: Editor (Top) */}
+          <NodeViewContent
+            as="div"
+            className={`
             col-start-1 row-start-1 
-            whitespace-pre overflow-x-auto outline-none 
+            whitespace-pre outline-none 
             text-transparent caret-black dark:caret-white
             /* RESET TIPTAP MARGINS */
             [&_pre]:!m-0 [&_pre]:!p-0 [&_pre]:!font-inherit [&_pre]:!bg-transparent
             [&_div]:!m-0 [&_div]:!p-0
           `}
-        />
+          />
+        </div>
       </div>
     </NodeViewWrapper>
   );

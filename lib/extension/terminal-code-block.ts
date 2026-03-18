@@ -27,6 +27,10 @@ export const TerminalCodeBlock = Node.create({
         default: "",
         parseHTML: (el) => el.getAttribute("data-yarn-content") ?? "",
       },
+      bunContent: {
+        default: "",
+        parseHTML: (el) => el.getAttribute("data-bun-content") ?? "",
+      }
     };
   },
 
@@ -42,6 +46,7 @@ export const TerminalCodeBlock = Node.create({
     const npmContent  = mgr === "npm"  ? live : (node.attrs.npmContent  as string);
     const pnpmContent = mgr === "pnpm" ? live : (node.attrs.pnpmContent as string);
     const yarnContent = mgr === "yarn" ? live : (node.attrs.yarnContent as string);
+    const bunContent  = mgr === "bun"  ? live : (node.attrs.bunContent  as string);
 
     return [
       "div",
@@ -51,6 +56,7 @@ export const TerminalCodeBlock = Node.create({
         "data-npm-content":  npmContent,
         "data-pnpm-content": pnpmContent,
         "data-yarn-content": yarnContent,
+        "data-bun-content":  bunContent
       }),
       0,
     ];

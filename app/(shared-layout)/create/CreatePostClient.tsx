@@ -86,7 +86,7 @@ export function CreatePostClient() {
       
       const { slug } = await createBlogAction(values);
       showSuccessToast("Post published successfully!");
-      router.push(`/blog/${slug}`);
+      router.push(`/posts/${slug}`);
     } catch (error) {
       if (isRedirectError(error)) throw error;
       showErrorToast(error instanceof Error ? error.message : "Failed to publish post");
