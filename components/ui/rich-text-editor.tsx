@@ -668,11 +668,8 @@ export function RichTextEditor({
           [&_.ProseMirror_div[data-callout]]:px-4
           [&_.ProseMirror_div[data-callout]]:py-3
           [&_.ProseMirror_div[data-callout]]:my-4
-          [&_.ProseMirror_div[data-callout]]:bg-white
-          [&_.ProseMirror_div[data-callout]]:border
-          [&_.ProseMirror_div[data-callout]]:border-[#EAEAEA]
-          dark:[&_.ProseMirror_div[data-callout]]:border-[#1E1E1E]
-          dark:[&_.ProseMirror_div[data-callout]]:bg-[#0A0A0A]
+          [&_.ProseMirror_div[data-callout]]:bg-[#F2F2F2]
+          dark:[&_.ProseMirror_div[data-callout]]:bg-[#191919]
           [&_.ProseMirror_div[data-callout]]:text-sm
 
 
