@@ -22,6 +22,7 @@ const DATA_ATTRS = [
   "data-shiki-light",
   "data-shiki-dark",
   "data-callout",
+  "data-badge"
 ];
 
 // ─── Post content (rich HTML from TipTap editor) ──────────────────────────────

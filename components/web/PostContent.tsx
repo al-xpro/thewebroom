@@ -57,7 +57,8 @@ function CopyButton({ getText }: { getText: () => string }) {
 const MANAGERS = ["npm", "pnpm", "yarn", "bun"] as const;
 type Manager = (typeof MANAGERS)[number];
 
-const CMD_RE = /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh)\b/;
+const CMD_RE =
+  /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh)\b/;
 
 function TerminalLine({ line }: { line: string }) {
   const match = line.match(CMD_RE);
@@ -316,6 +317,24 @@ function HtmlChunk({ html }: { html: string }) {
         [&_[data-type='file-code-block']:has(+figcaption)]:mb-0
         [&_table]:my-12
         [&_table:has(+figcaption)]:mb-0
+        [&_span[data-badge]]:inline
+        [&_span[data-badge]]:align-baseline
+        [&_span[data-badge]]:break-words
+        [&_span[data-badge]]:mx-0.5
+        [&_span[data-badge]]:px-1
+        [&_span[data-badge]]:-py-2
+        [&_span[data-badge]]:rounded-md
+        [&_span[data-badge]]:font-mono
+        [&_span[data-badge]]:tracking-tight
+        [&_span[data-badge]]:text-black
+        dark:[&_span[data-badge]]:text-white
+        [&_span[data-badge]]:bg-[#EAEAEA]
+        dark:[&_span[data-badge]]:bg-[#0A0A0A]
+        [&_span[data-badge]]:border
+        [&_span[data-badge]]:border-[#EAEAEA]
+        dark:[&_span[data-badge]]:border-[#1E1E1E]
+
+
 
         [&_ul]:pl-4 [&_ul]:list-disc  [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-2 post-content
         [&_ol]:pl-4 [&_ol]:list-decimal [&_ol]:flex [&_ol]:flex-col [&_ol]:gap-2

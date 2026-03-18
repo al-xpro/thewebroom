@@ -142,20 +142,22 @@ async function PostBody({ params }: PostSlugRouteProps) {
         </div>
       </header>
 
-      <div className="relative mb-8 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
-        <Image
-          src={post.imageUrl ?? ""}
-          alt="post image"
-          fill
-          sizes="(max-width: 640px) 100vw, 33vw"
-          priority
-          loading="eager"
-          fetchPriority="high"
-          className="object-cover transition-transform duration-500"
-        />
-      </div>
+      <div className="flex flex-col w-full">
+        <div className="relative mb-8 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
+          <Image
+            src={post.imageUrl ?? ""}
+            alt="post image"
+            fill
+            sizes="(max-width: 640px) 100vw, 33vw"
+            priority
+            loading="eager"
+            fetchPriority="high"
+            className="object-cover transition-transform duration-500"
+          />
+        </div>
 
-      <PostContent html={highlightedHtml} />
+        <PostContent html={highlightedHtml} />
+      </div>
 
       <Separator className="my-8" />
 
