@@ -77,8 +77,16 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
 
     return text.split("\n").map((line: string, i: number) => {
       const match = line.match(
-        /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh)\b/
+        /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh|vercel)\b/
       );
+
+      if (line.startsWith("#")) {
+        return (
+          <div key={i} className="text-[#A0A0A0] dark:text-[#666666]">
+            {line || <br />}
+          </div>
+        );
+      }
 
       if (!match) {
         return (
@@ -104,68 +112,110 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
   const commonFont = "font-mono text-[13px] leading-[20px]";
 
   return (
-    <NodeViewWrapper className="rounded-lg max-w-full mx-auto overflow-hidden overflow-x-auto border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <NodeViewWrapper className="relative rounded-lg group max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
       {/* HEADER */}
-      <div
-        contentEditable={false}
-        className="flex items-center justify-between overflow-x-auto gap-2 px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none"
-      >
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Terminal className="size-4 text-neutral-500" />
-          <div className="flex gap-1 text-xs font-mono">
-            {managers.map((manager) => (
-              <button
-                key={manager}
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  switchManager(manager);
-                }}
-                className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${node.attrs.packageManager === manager ? "bg-black text-white dark:bg-white dark:text-black" : "dark:bg-[#181818] bg-[#E8E8E8]"}`}
-              >
-                {manager}
-              </button>
-            ))}
-          </div>
-        </div>
-        <button
-          type="button"
+      {node.attrs.showHeader !== false && (
+        <div
           contentEditable={false}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleCopy();
-          }}
-          className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          className="flex items-center justify-between overflow-x-auto gap-2 px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none"
         >
-          {copied ? (
-            <motion.div
-              key="check"
-              initial={{ scale: 0.1, opacity: 1 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.1, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <Check className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="copy"
-              initial={{ scale: 0.1, opacity: 1 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.1, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <Copy className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
-            </motion.div>
-          )}
-        </button>
-      </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Terminal className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+            <div className="flex gap-1 text-xs font-mono">
+              {managers.map((manager) => (
+                <button
+                  key={manager}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    switchManager(manager);
+                  }}
+                  className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${node.attrs.packageManager === manager ? "bg-black text-white dark:bg-white dark:text-black" : "dark:bg-[#181818] bg-[#E8E8E8]"}`}
+                >
+                  {manager}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            contentEditable={false}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCopy();
+            }}
+            className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
+            {copied ? (
+              <motion.div
+                key="check"
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.1, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Check className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="copy"
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.1, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Copy className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+              </motion.div>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* COPY BUTTON IF SHOW HEADER IS FALSE */}
+      {node.attrs.showHeader === false && (
+        <div
+          contentEditable={false}
+          className="absolute top-[10px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black"
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCopy();
+            }}
+            className="relative p-2 rounded-md border border-[#EAEAEA] dark:border-[#1E1E1E] hover:bg-[#EAEAEA] dark:hover:bg-[#2A2A2A] transition cursor-pointer"
+          >
+            {copied ? (
+              <motion.div
+                key="check"
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.1, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Check className="size-3.5 text-[#666666] dark:text-[#A0A0A0]" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="copy"
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.1, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Copy className="size-3.5 text-[#666666] dark:text-[#A0A0A0]" />
+              </motion.div>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* BODY - GRID STACK */}
       {/* The grid ensures both children overlap exactly. `min-h` prevents collapse. */}
       <div
-        className={`relative bg-white dark:bg-[#0A0A0A] w-full overflow-x-auto p-4 ${commonFont}`}
+        className={`relative bg-white dark:bg-[#0A0A0A] overflow-x-auto w-full p-4 ${commonFont}`}
       >
         <div className="relative grid grid-cols-1 grid-rows-1 min-w-max">
           {/* Layer 1: Visuals (Bottom) */}

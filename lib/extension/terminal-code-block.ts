@@ -11,6 +11,11 @@ export const TerminalCodeBlock = Node.create({
 
   addAttributes() {
     return {
+      showHeader: {
+        default: true,
+        parseHTML: (el) => el.getAttribute("data-show-header") !== "false",
+        renderHTML: (attrs) => ({ "data-show-header": String(attrs.showHeader) }),
+      },
       packageManager: {
         default: "npm",
         parseHTML: (el) => el.getAttribute("data-package-manager") ?? "npm",
@@ -30,7 +35,7 @@ export const TerminalCodeBlock = Node.create({
       bunContent: {
         default: "",
         parseHTML: (el) => el.getAttribute("data-bun-content") ?? "",
-      }
+      },
     };
   },
 
@@ -43,20 +48,21 @@ export const TerminalCodeBlock = Node.create({
     const mgr = node.attrs.packageManager as string;
     const live = node.textContent;
 
-    const npmContent  = mgr === "npm"  ? live : (node.attrs.npmContent  as string);
+    const npmContent = mgr === "npm" ? live : (node.attrs.npmContent as string);
     const pnpmContent = mgr === "pnpm" ? live : (node.attrs.pnpmContent as string);
     const yarnContent = mgr === "yarn" ? live : (node.attrs.yarnContent as string);
-    const bunContent  = mgr === "bun"  ? live : (node.attrs.bunContent  as string);
+    const bunContent = mgr === "bun" ? live : (node.attrs.bunContent as string);
 
     return [
       "div",
       mergeAttributes(HTMLAttributes, {
         "data-type": "terminal-block",
+        "data-show-header": String(mgr === "npm" ? node.attrs.showHeader : node.attrs.showHeader),
         "data-package-manager": mgr,
-        "data-npm-content":  npmContent,
+        "data-npm-content": npmContent,
         "data-pnpm-content": pnpmContent,
         "data-yarn-content": yarnContent,
-        "data-bun-content":  bunContent
+        "data-bun-content": bunContent,
       }),
       0,
     ];
@@ -80,4 +86,3 @@ export const TerminalCodeBlock = Node.create({
     };
   },
 });
-

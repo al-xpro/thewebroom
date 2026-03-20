@@ -19,10 +19,11 @@ export default function Home() {
           <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
             <AuroraText>The Web Room</AuroraText>
           </h1>
-          <p className="text-lg text-paragraph leading-relaxed">
-            "Welcome to our blog! Here, our community share everything related to Next.js web development,
-            including tutorials, tips, and insights. Join hundreds of developers and stay up-to-date
-            with the latest trends and best practices."
+          <p className="text-lg text-paragraph leading-relaxed text-justify">
+            "A home for developers building on the Vercel stack. We cover Next.js from routing to
+            deployment, UI engineering with React, TypeScript and Tailwind CSS, the Vercel AI
+            ecosystem, and the mindset shift that makes it all sustainable. Let's
+            get started together!"
           </p>
         </div>
 
@@ -43,7 +44,10 @@ export default function Home() {
             fallback={
               <div className="grid gap-6 grid-rows-3">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="relative flex w-full flex-col sm:flex-row min-w-0 items-center justify-center border-b border-dashed h-[119px] sm:h-[85px] gap-6 sm:gap-10">
+                  <div
+                    key={i}
+                    className="relative flex w-full flex-col sm:flex-row min-w-0 items-center justify-center border-b border-dashed h-[119px] sm:h-[85px] gap-6 sm:gap-10"
+                  >
                     <div className="flex flex-col sm:flex-1 items-start justify-center w-full min-w-0 gap-2">
                       <Skeleton className="h-6 w-1/2 rounded-lg" />
                       <Skeleton className="h-4 w-3/4 rounded-lg" />
@@ -63,16 +67,6 @@ export default function Home() {
       </section>
       <Newsletter />
 
-      <div className="flex flex-col w-full h-full items-start justify-center py-4 gap-5">
-        <h2 className="text-sm uppercase font-medium tracking-[0.18em] text-left text-primary">
-          Beyond the Blog
-        </h2>
-        <p className="text-left text-lg leading-normal text-paragraph">
-          Check out each and every one of us. We're a team of passionate web developers who are
-          dedicated to sharing knowledge and insights with you.
-        </p>
-      </div>
-
       <Suspense fallback={<div>Loading footer...</div>}>
         <Footer />
       </Suspense>
@@ -90,9 +84,7 @@ export async function LoadHomePostList() {
     const limitedPosts = data?.slice(0, 3) ?? [];
 
     if (limitedPosts.length === 0) {
-      return (
-        <p className="text-sm text-paragraph py-4">No posts yet. Check back soon.</p>
-      );
+      return <p className="text-sm text-paragraph py-4">No posts yet. Check back soon.</p>;
     }
 
     return (
@@ -131,8 +123,6 @@ export async function LoadHomePostList() {
   } catch (error) {
     // fetchQuery can fail at build time if Convex is unreachable.
     console.error("[LoadHomePostList] fetchQuery failed:", error);
-    return (
-      <p className="text-sm text-paragraph py-4">No posts yet. Check back soon.</p>
-    );
+    return <p className="text-sm text-paragraph py-4">No posts yet. Check back soon.</p>;
   }
 }

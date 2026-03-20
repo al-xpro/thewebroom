@@ -58,9 +58,12 @@ const MANAGERS = ["npm", "pnpm", "yarn", "bun"] as const;
 type Manager = (typeof MANAGERS)[number];
 
 const CMD_RE =
-  /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh)\b/;
+  /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh|vercel)\b/;
 
 function TerminalLine({ line }: { line: string }) {
+  if (line.startsWith("#")) {
+    return <div className="text-[#A0A0A0] dark:text-[#666666]">{line || <br />}</div>;
+  }
   const match = line.match(CMD_RE);
   if (!match) return <div className="text-[#397C3B] dark:text-[#58C760]">{line || <br />}</div>;
   const prefix = match[0];
@@ -81,10 +84,11 @@ interface TerminalData {
   pnpm: string;
   yarn: string;
   bun: string;
+  showHeader: boolean;
 }
 
 function TerminalBlock({ data }: { data: TerminalData }) {
-  const [active, setActive] = useState<Manager>(data.activeManager);
+  const [active, setActive] = useState<Manager>("npm");
   const contents: Record<Manager, string> = {
     npm: data.npm,
     pnpm: data.pnpm,
@@ -95,32 +99,39 @@ function TerminalBlock({ data }: { data: TerminalData }) {
   const lines = text ? text.split("\n") : [];
 
   return (
-    <div className="rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Terminal className="size-4 text-neutral-500" />
-          <div className="flex gap-1 text-xs font-mono">
-            {MANAGERS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setActive(m)}
-                className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer ${
-                  active === m
-                    ? "bg-black text-white dark:bg-white dark:text-black"
-                    : "dark:bg-[#181818] bg-[#E8E8E8]"
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
+    <div className="relative group rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+      {/* Sticky copy button — outside scroll container, only when no header */}
+      {!data.showHeader && (
+        <div className="absolute top-[9px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black border border-[#EAEAEA] dark:border-[#2E2E2E]">
+          <CopyButton getText={() => text} />
         </div>
-        <CopyButton getText={() => text} />
-      </div>
+      )}
 
-      {/* Body */}
+      {data.showHeader && (
+        <div className="flex items-center justify-between px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Terminal className="size-4 text-neutral-500" />
+            <div className="flex gap-1 text-xs font-mono">
+              {MANAGERS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setActive(m)}
+                  className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer ${
+                    active === m
+                      ? "bg-black text-white dark:bg-white dark:text-black"
+                      : "dark:bg-[#181818] bg-[#E8E8E8]"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+          <CopyButton getText={() => text} />
+        </div>
+      )}
+
       <div className="bg-white dark:bg-[#0A0A0A] w-full p-4 font-mono text-[13px] leading-[20px] overflow-x-auto">
         <div className="whitespace-pre min-w-max">
           {lines.length > 0 ? (
@@ -144,6 +155,7 @@ function getHighlighter() {
 }
 
 interface FileData {
+  showHeader: boolean;
   filename: string;
   fileIcon: string;
   highlightedLines: number[];
@@ -157,6 +169,11 @@ interface FileData {
 function FileCodeBlock({ data }: { data: FileData }) {
   const [lightHtml, setLightHtml] = useState<string | null>(data.ssrLight ?? null);
   const [darkHtml, setDarkHtml] = useState<string | null>(data.ssrDark ?? null);
+
+  useEffect(() => {
+    if (data.ssrLight !== null) setLightHtml(data.ssrLight);
+    if (data.ssrDark !== null) setDarkHtml(data.ssrDark);
+  }, [data.ssrLight, data.ssrDark]);
 
   const getFileIcon = (lang: string) => {
     switch (lang) {
@@ -176,7 +193,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
   const languages = ["ts", "tsx", "js", "jsx"];
 
   useEffect(() => {
-    if (lightHtml && darkHtml) return;
+    if (data.ssrLight && data.ssrDark) return;
     if (!data.code) return;
     let active = true;
     (async () => {
@@ -204,7 +221,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
     return () => {
       active = false;
     };
-  }, [data.code]);
+  }, [data.code, data.ssrDark, data.ssrLight]);
 
   const lines = data.code.split("\n");
   const commonFont = "font-mono text-[13px] leading-[20px]";
@@ -215,17 +232,25 @@ function FileCodeBlock({ data }: { data: FileData }) {
   );
 
   return (
-    <div className="rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="shrink-0 text-paragraph">{getFileIcon(data.fileIcon)}</span>
-          <span className={`${commonFont} text-paragraph truncate text-xs font-sans`}>
-            {data.filename}
-          </span>
+    <div className="relative group rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+      {!data.showHeader && (
+        <div className="absolute top-[13px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black border border-[#EAEAEA] dark:border-[#2E2E2E]">
+          <CopyButton getText={() => data.code} />
         </div>
-        <CopyButton getText={() => data.code} />
-      </div>
+      )}
+
+      {/* Header */}
+      {data.showHeader && (
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="shrink-0 text-paragraph">{getFileIcon(data.fileIcon)}</span>
+            <span className={`${commonFont} text-paragraph truncate text-xs font-sans`}>
+              {data.filename}
+            </span>
+          </div>
+          <CopyButton getText={() => data.code} />
+        </div>
+      )}
 
       {/* Body */}
       <div className="relative flex w-full overflow-x-auto bg-white dark:bg-[#0A0A0A] focus:outline-none! focus-visible:outline-none! focus:ring-0! focus-visible:ring-0!">
@@ -410,6 +435,7 @@ function parsePostHtml(html: string): PostNode[] {
       const pnpm = mgr === "pnpm" ? live : (el.getAttribute("data-pnpm-content") ?? "");
       const yarn = mgr === "yarn" ? live : (el.getAttribute("data-yarn-content") ?? "");
       const bun = mgr === "bun" ? live : (el.getAttribute("data-bun-content") ?? "");
+      const showHeader = el.getAttribute("data-show-header") !== "false";
 
       let caption: string | undefined;
       const next = el.nextElementSibling;
@@ -418,7 +444,11 @@ function parsePostHtml(html: string): PostNode[] {
         skipNodes.add(next); // mark for skip instead of .remove()
       }
 
-      nodes.push({ kind: "terminal", data: { activeManager: mgr, npm, pnpm, yarn, bun }, caption });
+      nodes.push({
+        kind: "terminal",
+        data: { activeManager: mgr, npm, pnpm, yarn, bun, showHeader },
+        caption,
+      });
       return;
     }
 
@@ -456,6 +486,7 @@ function parsePostHtml(html: string): PostNode[] {
       nodes.push({
         kind: "file",
         data: {
+          showHeader: el.getAttribute("data-show-header") !== "false",
           filename: el.getAttribute("data-filename") ?? "example.tsx",
           fileIcon: el.getAttribute("data-file-icon") ?? "tsx",
           highlightedLines,

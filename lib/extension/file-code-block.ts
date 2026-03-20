@@ -19,6 +19,11 @@ export const FileCodeBlock = CodeBlockLowlight.extend({
     return {
       // Keep parent attributes (language, etc.) but override with our own
       ...this.parent?.(),
+      showHeader: {
+        default: true,
+        parseHTML: (el) => el.getAttribute("data-show-header") !== "false",
+        renderHTML: (attrs) => ({ "data-show-header": String(attrs.showHeader) }),
+      },
       filename: {
         default: "app/example.tsx",
         parseHTML: (el) => el.getAttribute("data-filename") ?? "app/example.tsx",
@@ -64,6 +69,7 @@ export const FileCodeBlock = CodeBlockLowlight.extend({
       "pre",
       mergeAttributes(HTMLAttributes, {
         "data-type": "file-code-block",
+        "data-show-header": String(node.attrs.showHeader),
       }),
       ["code", { class: `language-${node.attrs.language}` }, 0],
     ];

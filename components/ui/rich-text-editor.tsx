@@ -107,6 +107,8 @@ export function RichTextEditor({
   const [tableRows, setTableRows] = useState(2);
   const [tableCols, setTableCols] = useState(2);
   const [withHeaderRow, setWithHeaderRow] = useState(true);
+  const [codeBlockShowHeader, setCodeBlockShowHeader] = useState(true);
+  const [terminalShowHeader, setTerminalShowHeader] = useState(true);
 
   const editor = useEditor({
     extensions: [
@@ -472,26 +474,92 @@ export function RichTextEditor({
 
         <div className="hidden sm:block w-px h-6 bg-border" />
 
-        <Button
-          type="button"
-          onClick={() => editor.chain().focus().insertContent({ type: "fileCodeBlock" }).run()}
-          disabled={isToolbarDisabled}
-          variant={editor.isActive("fileCodeBlock") ? "default" : "outline"}
-          size="sm"
-          title="Code Block"
-        >
-          <Code2 className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          onClick={() => editor.chain().focus().insertContent({ type: "terminalBlock" }).run()}
-          disabled={isToolbarDisabled}
-          variant={editor.isActive("terminalBlock") ? "default" : "outline"}
-          size="sm"
-          title="Terminal Block"
-        >
-          <Terminal className="h-4 w-4" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              disabled={isToolbarDisabled}
+              variant={editor.isActive("fileCodeBlock") ? "default" : "outline"}
+              size="sm"
+              title="Code Block"
+            >
+              <Code2 className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="center" className="min-w-[200px]">
+            <div className="absolute top-0 mt-2 z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
+              <span className="text-xs font-bold text-black dark:text-white">Code Block</span>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={codeBlockShowHeader}
+                  onCheckedChange={(v) => setCodeBlockShowHeader(v === true)}
+                  className="cursor-pointer"
+                />
+                Show header
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => {
+                  editor
+                    .chain()
+                    .focus()
+                    .insertContent({
+                      type: "fileCodeBlock",
+                      attrs: { showHeader: codeBlockShowHeader },
+                    })
+                    .run();
+                }}
+              >
+                Insert Code Block
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              disabled={isToolbarDisabled}
+              variant={editor.isActive("terminalBlock") ? "default" : "outline"}
+              size="sm"
+              title="Terminal Block"
+            >
+              <Terminal className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="center" className="min-w-[200px]">
+            <div className="absolute top-0 mt-2 z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
+              <span className="text-xs font-bold text-black dark:text-white">Terminal Block</span>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={terminalShowHeader}
+                  onCheckedChange={(v) => setTerminalShowHeader(v === true)}
+                  className="cursor-pointer"
+                />
+                Show header
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => {
+                  editor
+                    .chain()
+                    .focus()
+                    .insertContent({
+                      type: "terminalBlock",
+                      attrs: { showHeader: terminalShowHeader },
+                    })
+                    .run();
+                }}
+              >
+                Insert Terminal Block
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <div className="relative">
           <Popover>

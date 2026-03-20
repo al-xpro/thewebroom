@@ -105,73 +105,115 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
 
   return (
     <NodeViewWrapper
-      className="rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]"
+      className="relative rounded-lg group max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]"
       data-tiptap-custom="file-code-block-wrapper"
       data-language={node.attrs.language}
       data-filename={node.attrs.filename}
       data-file-icon={node.attrs.fileIcon}
     >
       {/* HEADER */}
-      <div
-        contentEditable={false}
-        className="flex items-center justify-between px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] transition-colors duration-200 bg-[#FAFAFA] dark:bg-black"
-      >
-        <div className="flex items-center gap-2">
+      {node.attrs.showHeader !== false && (
+        <div
+          contentEditable={false}
+          className="flex items-center justify-between px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] transition-colors duration-200 bg-[#FAFAFA] dark:bg-black"
+        >
+          <div className="flex w-full items-center gap-2">
+            <button
+              type="button"
+              contentEditable={false}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const nextIcon =
+                  languages[(languages.indexOf(node.attrs.fileIcon) + 1) % languages.length];
+
+                updateAttributes({ fileIcon: nextIcon });
+              }}
+              className="flex items-center justify-center cursor-pointer text-paragraph outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            >
+              {getFileIcon(node.attrs.fileIcon)}
+            </button>
+            <input
+              value={node.attrs.filename}
+              name="code block"
+              onChange={(e) => updateAttributes({ filename: e.target.value })}
+              className="bg-transparent text-xs flex w-full outline-none text-paragraph focus:text-black dark:focus:text-white font-sans truncate"
+            />
+          </div>
           <button
             type="button"
             contentEditable={false}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const nextIcon =
-                languages[(languages.indexOf(node.attrs.fileIcon) + 1) % languages.length];
-
-              updateAttributes({ fileIcon: nextIcon });
+              handleCopy();
             }}
-            className="flex items-center justify-center cursor-pointer text-paragraph outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           >
-            {getFileIcon(node.attrs.fileIcon)}
+            {copied ? (
+              <motion.div
+                key="check"
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.1, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Check className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="copy"
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.1, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Copy className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+              </motion.div>
+            )}
           </button>
-          <input
-            value={node.attrs.filename}
-            name="code block"
-            onChange={(e) => updateAttributes({ filename: e.target.value })}
-            className="bg-transparent text-xs w-30 sm:w-60 outline-none text-paragraph focus:text-black dark:focus:text-white font-sans truncate"
-          />
         </div>
-        <button
-          type="button"
+      )}
+
+      {/* COPY BUTTON IF SHOW HEADER IS FALSE */}
+      {node.attrs.showHeader === false && (
+        <div
           contentEditable={false}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleCopy();
-          }}
-          className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          className="absolute top-[14px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black"
         >
-          {copied ? (
-            <motion.div
-              key="check"
-              initial={{ scale: 0.1, opacity: 1 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.1, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <Check className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="copy"
-              initial={{ scale: 0.1, opacity: 1 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.1, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <Copy className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
-            </motion.div>
-          )}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCopy();
+            }}
+            className="relative p-2 rounded-md border border-[#EAEAEA] dark:border-[#1E1E1E] hover:bg-[#EAEAEA] dark:hover:bg-[#2A2A2A] transition cursor-pointer"
+          >
+            {copied ? (
+              <motion.div
+                key="check"
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.1, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Check className="size-3.5 text-[#666666] dark:text-[#A0A0A0]" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="copy"
+                initial={{ scale: 0.1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.1, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <Copy className="size-3.5 text-[#666666] dark:text-[#A0A0A0]" />
+              </motion.div>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* BODY */}
       <div className="relative flex w-full overflow-x-auto transition-colors duration-200 bg-white dark:bg-[#0A0A0A]">
