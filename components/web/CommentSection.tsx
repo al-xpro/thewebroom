@@ -579,6 +579,7 @@ export function CommentSection(props: {
                   <div className="ml-6 space-y-3">
                     {replies.map((reply) => {
                       const replyFormAfterThis = replyAnchorId === reply._id;
+                      const isUserAuthenticated = isAuthenticated && !!currentUser;
 
                       // fix 4: hide the line segment when the reply form is open for this item
                       // fix 5: first reply gets curved line, rest get straight
@@ -587,8 +588,16 @@ export function CommentSection(props: {
                           <div className="flex gap-3">
                             {/* Line connector */}
                             <div className="relative shrink-0 w-5 self-stretch">
-                              {!replyFormAfterThis && (
-                                <div className="absolute -top-4 -left-2 h-26 border-l-2 border-[#EAEAEA] dark:border-[#1E1E1E]" />
+                              {!isUserAuthenticated ? (
+                                <>
+                                  <div className="absolute -top-4 -left-2 w-8 h-10 border-l-2 border-[#EAEAEA] dark:border-[#1E1E1E] rounded-bl-full" />
+                                  <div className="absolute -top-2 -left-2 h-16 border-l-2 border-[#EAEAEA] dark:border-[#1E1E1E]" />
+                                </>
+                              ) : (
+                                <>
+                                  <div className="absolute -top-4 -left-2 w-8 h-10 border-l-2 border-[#EAEAEA] dark:border-[#1E1E1E] rounded-bl-full" />
+                                  <div className="absolute -top-12 -left-2 h-34 border-l-2 border-[#EAEAEA] dark:border-[#1E1E1E]" />
+                                </>
                               )}
                             </div>
 

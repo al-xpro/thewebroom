@@ -241,7 +241,6 @@ export function RichTextEditor({
     else setTableCols(val);
   };
 
-
   const insertCustomTable = () => {
     editor.chain().focus().insertTable({ rows: tableRows, cols: tableCols, withHeaderRow }).run();
     setShowTableMenu(false);

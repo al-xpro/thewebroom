@@ -89,13 +89,7 @@ function AnimatedAvatar({
 
 // ── Overflow count pill ───────────────────────────────────────────────────────
 
-function OverflowPill({
-  count,
-  index,
-}: {
-  count: number;
-  index: number;
-}) {
+function OverflowPill({ count, index }: { count: number; index: number }) {
   return (
     <motion.div
       className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-white dark:border-black bg-black dark:bg-white text-white dark:text-black text-xs font-bold shadow-sm"
@@ -108,7 +102,7 @@ function OverflowPill({
   );
 }
 
-// Main component 
+// Main component
 
 interface AvatarCirclesProps {
   className?: string;
@@ -137,7 +131,9 @@ export function AvatarCircles({ className, numPeople }: AvatarCirclesProps) {
   const overflow = numPeople ?? 0;
 
   return (
-    <div className={cn("flex -space-x-3 cursor-pointer rtl:space-x-reverse items-center", className)}>
+    <div
+      className={cn("flex -space-x-3 cursor-pointer rtl:space-x-reverse items-center", className)}
+    >
       {users.map((user, i) => (
         <AnimatedAvatar
           key={user.id}
@@ -147,9 +143,7 @@ export function AvatarCircles({ className, numPeople }: AvatarCirclesProps) {
           total={users.length}
         />
       ))}
-      {overflow > 0 && (
-        <OverflowPill count={overflow} index={users.length} />
-      )}
+      {overflow > 0 && <OverflowPill count={overflow} index={users.length} />}
     </div>
   );
 }
