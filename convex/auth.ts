@@ -803,3 +803,33 @@ export const deleteAccountCascade = mutation({
     return { success: true };
   },
 });
+
+// Real list of users in the home page
+
+export const getRecentUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const result = await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "user",
+      paginationOpts: { numItems: 4, cursor: null },
+      sortBy: { field: "createdAt", direction: "desc" },
+    });
+
+    const users = Array.isArray(result)
+      ? result
+      : Array.isArray((result as { page?: unknown[] }).page)
+        ? ((result as { page: unknown[] }).page as Array<Record<string, unknown>>)
+        : [];
+
+    return users
+      .filter((u) => typeof u.email === "string")
+      .map((u) => ({
+        id: String(u._id),
+        name: typeof u.name === "string" && u.name.trim() ? u.name : "Anonymous",
+        imageUrl:
+          typeof u.image === "string" && u.image.trim()
+            ? u.image
+            : `https://avatar.vercel.sh/${typeof u.name === "string" ? u.name : "user"}`,
+      }));
+  },
+});

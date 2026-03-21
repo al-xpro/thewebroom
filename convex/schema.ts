@@ -37,6 +37,7 @@ export default defineSchema({
     authorId: v.string(),
     authorName: v.string(),
     body: v.string(),
+    parentId: v.optional(v.id("comments")),
     status: v.optional(v.union(v.literal("visible"), v.literal("hidden"))),
   }),
 

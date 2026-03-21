@@ -213,16 +213,17 @@ export function RichTextEditor({
 
   if (!editor) return null;
 
-  const isFormattingDisabled =
-    editor.isActive("fileCodeBlock") ||
-    editor.isActive("terminalBlock") ||
-    editor.isActive("table");
+  const isFormattingDisabled = editor.isActive("fileCodeBlock") || editor.isActive("terminalBlock");
 
   // Do NOT gate on isEditorFocused — in Safari, blur fires before the button click,
   // so isEditorFocused is already false when the handler runs, disabling the button
   // and swallowing the click. Keyboard shortcuts worked because they bypass disabled.
-  // Only disable when the action is genuinely impossible (wrong node type).
-  const isToolbarDisabled = isFormattingDisabled;
+  const isInTable = editor.isActive("table");
+
+  const isToolbarDisabled = isFormattingDisabled || isInTable;
+
+  // Only inline marks work inside table cells
+  const isInlineOnlyDisabled = isFormattingDisabled; // bold/italic/link/badge use this
 
   const handleRowChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value);
@@ -240,7 +241,6 @@ export function RichTextEditor({
     else setTableCols(val);
   };
 
-  const isTableActive = editor.isActive("table");
 
   const insertCustomTable = () => {
     editor.chain().focus().insertTable({ rows: tableRows, cols: tableCols, withHeaderRow }).run();
@@ -368,7 +368,7 @@ export function RichTextEditor({
         <Button
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
-          disabled={isToolbarDisabled}
+          disabled={isInlineOnlyDisabled}
           variant={editorState?.isBold ? "default" : "outline"}
           size="sm"
           title="Bold (⌘B)"
@@ -378,7 +378,7 @@ export function RichTextEditor({
         <Button
           type="button"
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          disabled={isToolbarDisabled}
+          disabled={isInlineOnlyDisabled}
           variant={editorState?.isItalic ? "default" : "outline"}
           size="sm"
           title="Italic (⌘I)"
@@ -388,7 +388,7 @@ export function RichTextEditor({
         <Button
           type="button"
           onClick={handleToggleLink}
-          disabled={isToolbarDisabled}
+          disabled={isInlineOnlyDisabled}
           variant={editor.isActive("link") ? "default" : "outline"}
           size="sm"
           title="Link"
@@ -398,7 +398,7 @@ export function RichTextEditor({
         <Button
           type="button"
           onClick={() => editor.chain().focus().toggleBadge().run()}
-          disabled={isToolbarDisabled}
+          disabled={isInlineOnlyDisabled}
           variant={editorState?.isBadge ? "default" : "outline"}
           size="sm"
           title="Tag"
@@ -567,7 +567,7 @@ export function RichTextEditor({
               <Button
                 type="button"
                 disabled={isToolbarDisabled}
-                variant={isTableActive || editor.isActive("table") ? "default" : "outline"}
+                variant={isInTable || editor.isActive("table") ? "default" : "outline"}
                 size="sm"
                 title="Custom Table"
               >

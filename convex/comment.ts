@@ -35,10 +35,7 @@ export const getVisibleCommentsByPostId = query({
     return await ctx.db
       .query("comments")
       .filter((q) =>
-        q.and(
-          q.eq(q.field("postId"), args.postId),
-          q.eq(q.field("status"), "visible")
-        )
+        q.and(q.eq(q.field("postId"), args.postId), q.eq(q.field("status"), "visible"))
       )
       .order("desc")
       .collect();
@@ -49,6 +46,7 @@ export const createComment = mutation({
   args: {
     body: v.string(),
     postId: v.id("posts"),
+    parentId: v.optional(v.id("comments")),
   },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
@@ -60,9 +58,7 @@ export const createComment = mutation({
     const body = args.body.trim();
     if (body.length === 0) throw new ConvexError("Comment cannot be empty");
     if (body.length > COMMENT_MAX_LENGTH) {
-      throw new ConvexError(
-        `Comment cannot exceed ${COMMENT_MAX_LENGTH} characters`
-      );
+      throw new ConvexError(`Comment cannot exceed ${COMMENT_MAX_LENGTH} characters`);
     }
 
     // Rate limit
@@ -92,6 +88,7 @@ export const createComment = mutation({
 
     const commentId = await ctx.db.insert("comments", {
       postId: args.postId,
+      parentId: args.parentId,
       body,
       authorId: user._id,
       authorName: user.name || "",
@@ -142,9 +139,7 @@ export const updateComment = mutation({
     const body = args.body.trim();
     if (body.length === 0) throw new ConvexError("Comment cannot be empty");
     if (body.length > COMMENT_MAX_LENGTH) {
-      throw new ConvexError(
-        `Comment cannot exceed ${COMMENT_MAX_LENGTH} characters`
-      );
+      throw new ConvexError(`Comment cannot exceed ${COMMENT_MAX_LENGTH} characters`);
     }
 
     await ctx.db.patch(args.commentId, { body });
@@ -165,6 +160,13 @@ export const deleteComment = mutation({
     if (!isOwner && !isAdminUserRecord(user)) {
       throw new ConvexError("Not authorized to delete this comment");
     }
+
+    // Delete all replies to this comment first
+    const replies = await ctx.db
+      .query("comments")
+      .filter((q) => q.eq(q.field("parentId"), args.commentId))
+      .collect();
+    await Promise.all(replies.map((r) => ctx.db.delete(r._id)));
 
     await ctx.db.delete(args.commentId);
     return args.commentId;

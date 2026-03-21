@@ -9,6 +9,7 @@ import { SignatureIcon } from "@/public/SignatureIcon";
 import Newsletter from "@/components/web/Newsletter";
 import { ArrowRight } from "lucide-react";
 import { cacheLife, cacheTag } from "next/cache";
+import { AvatarCircles } from "@/components/ui/avatar-magicui";
 
 export default function Home() {
   return (
@@ -22,8 +23,8 @@ export default function Home() {
           <p className="text-lg text-paragraph leading-relaxed text-justify">
             "A home for developers building on the Vercel stack. We cover Next.js from routing to
             deployment, UI engineering with React, TypeScript and Tailwind CSS, the Vercel AI
-            ecosystem, and the mindset shift that makes it all sustainable. Let's
-            get started together!"
+            ecosystem, and the mindset shift that makes it all sustainable. Let's get started
+            together!"
           </p>
         </div>
 
@@ -66,6 +67,19 @@ export default function Home() {
         </div>
       </section>
       <Newsletter />
+      <div className="flex flex-col w-full h-full items-start justify-center py-4 gap-5">
+        <div className="relative flex w-full items-center justify-between gap-4">
+          <h2 className="text-sm uppercase font-medium tracking-[0.18em] text-left text-primary">
+            Beyond the Blog
+          </h2>
+
+          <AvatarCircles numPeople={99} />
+        </div>
+        <p className="text-justify text-lg leading-normal text-paragraph">
+          Check out each and every one of us. We're a team of passionate web developers who are
+          dedicated to sharing knowledge and insights with you.
+        </p>
+      </div>
 
       <Suspense fallback={<div>Loading footer...</div>}>
         <Footer />
