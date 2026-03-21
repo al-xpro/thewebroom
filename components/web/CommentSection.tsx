@@ -229,16 +229,16 @@ function CommentRow({
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-1 gap-4 min-w-0">
+            <div className="flex items-center justify-between mb-1 gap-2 min-w-0">
               <div className="flex items-center gap-2 min-w-0">
                 <p className="font-semibold text-sm truncate">{comment.authorName}</p>
                 {comment.authorId === postAuthorId && (
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded shrink-0">
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                     Author
                   </span>
                 )}
               </div>
-              <p className="text-paragraph text-xs shrink-0">
+              <p className="text-paragraph text-xs truncate">
                 {formatDistanceToNow(new Date(comment._creationTime), { addSuffix: false })}
               </p>
             </div>
@@ -329,7 +329,7 @@ export function CommentSection(props: {
   const [editText, setEditText] = useState("");
   const [editVisibleError, setEditVisibleError] = useState<string | undefined>();
 
-  // fix 3: anchorId = which comment the form appears after visually
+  // anchorId = which comment the form appears after visually
   // parentId = what gets stored as parentId (always the root)
   const [replyAnchorId, setReplyAnchorId] = useState<Id<"comments"> | null>(null);
   const [replyParentId, setReplyParentId] = useState<Id<"comments"> | null>(null);
@@ -420,7 +420,7 @@ export function CommentSection(props: {
     setReplyToName("");
   };
 
-  // fix 1: sort ascending (oldest first) for both top-level and replies
+  // sort ascending (oldest first) for both top-level and replies
   const topLevel = (data?.filter((c) => !c.parentId) ?? []).sort(
     (a, b) => a._creationTime - b._creationTime
   );
@@ -443,7 +443,7 @@ export function CommentSection(props: {
     setEditText,
     editError: editVisibleError,
     isPending,
-    // fix 2: opening edit closes any open reply, opening reply closes any open edit
+    // opening edit closes any open reply, opening reply closes any open edit
     onEdit: (id: Id<"comments">, body: string) => {
       setEditingId(id);
       setEditText(body);
@@ -461,7 +461,7 @@ export function CommentSection(props: {
       setEditText("");
       setEditVisibleError(undefined);
       const clicked = data.find((c) => c._id === id);
-      // fix 3: anchor form to this comment visually
+      // anchor form to this comment visually
       setReplyAnchorId(id);
       // parentId always points to root so replies don't nest deeper
       setReplyParentId((clicked?.parentId ?? id) as Id<"comments">);
@@ -550,7 +550,6 @@ export function CommentSection(props: {
 
         <section className="space-y-6">
           {topLevel.map((comment) => {
-            // fix 1: replies oldest first
             const replies = (repliesMap[comment._id as string] ?? []).sort(
               (a, b) => a._creationTime - b._creationTime
             );
@@ -562,7 +561,6 @@ export function CommentSection(props: {
                 {/* Root comment */}
                 <CommentRow comment={comment} {...sharedRowProps} />
 
-                {/* fix 3: reply form anchored directly under the root comment */}
                 {replyFormAfterRoot && (
                   <div className="ml-14">
                     <CommentForm
@@ -580,9 +578,6 @@ export function CommentSection(props: {
                     {replies.map((reply) => {
                       const replyFormAfterThis = replyAnchorId === reply._id;
                       const isUserAuthenticated = isAuthenticated && !!currentUser;
-
-                      // fix 4: hide the line segment when the reply form is open for this item
-                      // fix 5: first reply gets curved line, rest get straight
                       return (
                         <div key={reply._id} className="space-y-3">
                           <div className="flex gap-3">
@@ -606,7 +601,6 @@ export function CommentSection(props: {
                             </div>
                           </div>
 
-                          {/* fix 3: form appears immediately after the reply it's anchored to */}
                           {replyFormAfterThis && (
                             <div className="ml-8">
                               <CommentForm
