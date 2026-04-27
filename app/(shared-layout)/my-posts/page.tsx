@@ -22,6 +22,7 @@ import Footer from "@/components/web/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { deletePostAction } from "@/app/actions";
+import { getStatusBadgeClassName } from "@/lib/get-status-badge";
 
 export default function MyPostsPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -224,15 +225,17 @@ export default function MyPostsPage() {
                           </div>
                           <div className="flex gap-1 items-center text-black dark:text-white">
                             <Info className="size-4" />
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                (post.status || "published") === "published"
-                                  ? "bg-[#EAFAEA] text-[#287A3A] dark:bg-[#0F2E18] dark:text-[#62C073]"
-                                  : "bg-[#FFF4D6] text-[#A35200] dark:bg-[#331C00] dark:text-[#F2A20D]"
-                              }`}
-                            >
-                              {post.status}
-                            </span>
+                            {(() => {
+                              const normalizedStatus = post.status || "published";
+
+                              return (
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClassName(post.status)}`}
+                                >
+                                  {normalizedStatus}
+                                </span>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -240,13 +243,15 @@ export default function MyPostsPage() {
                   </CardContent>
 
                   <CardFooter className="flex flex-wrap gap-2 pt-4 px-2.5 sm:px-6 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
-                    <Link
-                      href={`/posts/${post.slug}`}
-                      className={buttonVariants({ variant: "secondary", size: "sm" })}
-                    >
-                      <BookText className="size-3" />
-                      View
-                    </Link>
+                    {(post.status || "published") === "published" && (
+                      <Link
+                        href={`/posts/${post.slug}`}
+                        className={buttonVariants({ variant: "secondary", size: "sm" })}
+                      >
+                        <BookText className="size-3" />
+                        View
+                      </Link>
+                    )}
                     <Link
                       href={`/edit/${post.slug}`}
                       className={buttonVariants({ variant: "secondary", size: "sm" })}

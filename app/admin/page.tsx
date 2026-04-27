@@ -22,6 +22,7 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { AnimatePresence, motion } from "framer-motion";
 import Footer from "@/components/web/Footer";
 import type { Id } from "@/convex/_generated/dataModel";
+import { getStatusBadgeClassName } from "@/lib/get-status-badge";
 
 export default function AdminPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
@@ -189,7 +190,9 @@ export default function AdminPage() {
                       {visibilityTarget.nextStatus === "hidden" ? "hide" : "publish"}
                     </span>
                     &nbsp;
-                    <span className="font-medium text-foreground">"{visibilityTarget.title}"</span>.
+                    <span className="font-medium text-foreground">
+                      &quot;{visibilityTarget.title}&quot;
+                    </span>.
                   </p>
                 </div>
               </div>
@@ -240,7 +243,9 @@ export default function AdminPage() {
                   <h2 className="text-base font-semibold text-foreground">Delete post</h2>
                   <p className="text-sm text-paragraph mt-1">
                     Are you sure you want to delete&nbsp;
-                    <span className="font-medium text-foreground">"{deleteTarget.title}"</span>?
+                    <span className="font-medium text-foreground">
+                      &quot;{deleteTarget.title}&quot;
+                    </span>?
                     This will also remove all its comments. This action cannot be undone.
                   </p>
                 </div>
@@ -409,23 +414,25 @@ export default function AdminPage() {
                           className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}
                         >
                           <td className="py-3 px-4 font-medium max-w-[180px]">
-                            <Link
-                              href={`/posts/${post.slug}`}
-                              className="hover:text-primary hover:underline truncate block text-primary"
-                            >
-                              {post.title}
-                            </Link>
+                            {(post.status || "published") === "published" ? (
+                              <Link
+                                href={`/posts/${post.slug}`}
+                                className="hover:text-primary hover:underline truncate block text-primary"
+                              >
+                                {post.title}
+                              </Link>
+                            ) : (
+                              <span className="truncate block text-black dark:text-white">
+                                {post.title}
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 px-4 hidden sm:table-cell text-black dark:text-white">
                             {post.authorName}
                           </td>
                           <td className="py-3 px-4">
                             <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                (post.status || "published") === "published"
-                                  ? "bg-[#EAFAEA] text-[#287A3A] dark:bg-[#0F2E18] dark:text-[#62C073]"
-                                  : "bg-[#FFF4D6] text-[#A35200] dark:bg-[#331C00] dark:text-[#F2A20D]"
-                              }`}
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClassName(post.status)}`}
                             >
                               {post.status || "published"}
                             </span>

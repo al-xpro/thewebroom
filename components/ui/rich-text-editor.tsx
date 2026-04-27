@@ -6,7 +6,12 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import { Button } from "./button";
+import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   Bold,
   Italic,
   List,
@@ -28,6 +33,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { FileCodeBlock } from "@/lib/extension/file-code-block";
 import { TerminalCodeBlock } from "@/lib/extension/terminal-code-block";
 import { Badge } from "@/lib/extension/badge";
@@ -61,6 +67,8 @@ interface RichTextEditorProps {
   id?: string;
   isMetaEditing?: boolean;
 }
+
+type ToolbarPosition = "top" | "left" | "right" | "bottom";
 
 function getTextWithTablePlaceholder(editor: ReturnType<typeof useEditor>): string {
   if (!editor) return "";
@@ -106,8 +114,8 @@ export function RichTextEditor({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtStart, setIsAtStart] = useState(true);
   const [isAtEnd, setIsAtEnd] = useState(false);
-  const [isEditorFocused, setIsEditorFocused] = useState(false);
-  const [isInteractingWithEditor, setIsInteractingWithEditor] = useState(false);
+  const [toolbarPosition, setToolbarPosition] = useState<ToolbarPosition>("bottom");
+  const [isToolbarPositionPopoverOpen, setIsToolbarPositionPopoverOpen] = useState(false);
 
   // Table Configuration State
   const [tableRows, setTableRows] = useState(2);
@@ -167,19 +175,6 @@ export function RichTextEditor({
       },
     },
     content: value ?? "",
-    onFocus: () => {
-      setIsEditorFocused(true);
-    },
-    onBlur: ({ editor }) => {
-      // Delay the blur state by 150ms.
-      // This gives your toolbar buttons enough time to register the click
-      // and run `editor.chain().focus()...` which brings focus right back!
-      setTimeout(() => {
-        if (!editor.isFocused) {
-          setIsEditorFocused(false);
-        }
-      }, 150);
-    },
     onSelectionUpdate: () => forceUpdate((n) => n + 1),
     onUpdate: ({ editor }) => {
       forceUpdate((n) => n + 1);
@@ -206,6 +201,25 @@ export function RichTextEditor({
       editor.commands.setContent(value);
     }
   }, [value, editor]);
+
+  const isToolbarVertical = toolbarPosition === "left" || toolbarPosition === "right";
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (!scrollContainerRef.current) return;
+
+      if (isToolbarVertical) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+        setIsAtStart(scrollTop <= 0);
+        setIsAtEnd(Math.ceil(scrollTop + clientHeight) >= scrollHeight - 1);
+        return;
+      }
+
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setIsAtStart(scrollLeft <= 0);
+      setIsAtEnd(Math.ceil(scrollLeft + clientWidth) >= scrollWidth - 1);
+    });
+  }, [isToolbarVertical]);
 
   if (!editor) return null;
 
@@ -267,14 +281,6 @@ export function RichTextEditor({
     setIsLinkOpen(false);
   };
 
-  // Scroll detection logic for the shadows
-  const handleScroll = () => {
-    if (!scrollContainerRef.current) return;
-    const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-    setIsAtStart(scrollLeft <= 0);
-    setIsAtEnd(Math.ceil(scrollLeft + clientWidth) >= scrollWidth - 1);
-  };
-
   const bodyValue = getTextWithTablePlaceholder(editor);
 
   const MAX_CHARS = 30000;
@@ -292,6 +298,95 @@ export function RichTextEditor({
     if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
     return n.toString();
   }
+
+  // Get popover alignment based on toolbar position
+  const getPopoverAlign = (): "start" | "center" | "end" => {
+    switch (toolbarPosition) {
+      case "left":
+      case "right":
+        return "start";
+      default:
+        return "center";
+    }
+  };
+
+  // Get popover side based on toolbar position
+  const getPopoverSide = (): "top" | "right" | "bottom" | "left" => {
+    switch (toolbarPosition) {
+      case "top":
+        return "bottom";
+      case "bottom":
+        return "top";
+      case "left":
+        return "right";
+      case "right":
+        return "left";
+    }
+  };
+
+  const handleToolbarPositionChange = (nextPosition: ToolbarPosition) => {
+    flushSync(() => setIsToolbarPositionPopoverOpen(false));
+    setToolbarPosition(nextPosition);
+  };
+
+  const handleToolbarScroll = () => {
+    if (!scrollContainerRef.current) return;
+
+    if (isToolbarVertical) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      setIsAtStart(scrollTop <= 0);
+      setIsAtEnd(Math.ceil(scrollTop + clientHeight) >= scrollHeight - 1);
+      return;
+    }
+
+    const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+    setIsAtStart(scrollLeft <= 0);
+    setIsAtEnd(Math.ceil(scrollLeft + clientWidth) >= scrollWidth - 1);
+  };
+
+  const toolbarMotion = {
+    top: {
+      initial: { y: -72, opacity: 0 },
+      animate: { y: 0, opacity: 1 },
+      exit: { y: -72, opacity: 0 },
+    },
+    bottom: {
+      initial: { y: 72, opacity: 0 },
+      animate: { y: 0, opacity: 1 },
+      exit: { y: 72, opacity: 0 },
+    },
+    left: {
+      initial: { x: -72, opacity: 0 },
+      animate: { x: 0, opacity: 1 },
+      exit: { x: -72, opacity: 0 },
+    },
+    right: {
+      initial: { x: 72, opacity: 0 },
+      animate: { x: 0, opacity: 1 },
+      exit: { x: 72, opacity: 0 },
+    },
+  } as const;
+
+  const toolbarShellClassName = {
+    top: "fixed left-0 top-0 w-full border-b",
+    bottom: "fixed bottom-0 left-0 w-full border-t",
+    left: "fixed left-0 top-0 h-screen w-[50px] border-r",
+    right: "fixed right-0 top-0 h-screen w-[50px] border-l",
+  } satisfies Record<ToolbarPosition, string>;
+
+  const toolbarDirectionOptions: Array<{
+    label: string;
+    value: ToolbarPosition;
+    Icon: typeof ArrowUp;
+  }> = [
+    { label: "Top", value: "top", Icon: ArrowUp },
+    { label: "Left", value: "left", Icon: ArrowLeft },
+    { label: "Right", value: "right", Icon: ArrowRight },
+    { label: "Bottom", value: "bottom", Icon: ArrowDown },
+  ];
+
+  const ActiveToolbarPositionIcon =
+    toolbarDirectionOptions.find((option) => option.value === toolbarPosition)?.Icon ?? ArrowUp;
 
   return (
     <div
@@ -315,437 +410,524 @@ export function RichTextEditor({
         const isToolbar = target.closest("[data-toolbar]");
 
         if (isToolbar) {
-          setIsInteractingWithEditor(true);
           // If we are editing title/subtitle, prevent the toolbar click
           // from stealing focus, which keeps the editor "blurred" and buttons disabled.
           if (isMetaEditing) {
             e.preventDefault();
           }
-        } else if (target.closest("[data-editor], [data-popover]")) {
-          setIsInteractingWithEditor(true);
-        } else {
-          setIsInteractingWithEditor(false);
         }
       }}
-      className="group w-full bg-transparent border-none shadow-none p-0"
+      className={cn(
+        "group w-full bg-transparent border-none shadow-none p-0",
+        hasError && "outline outline-1 outline-[#F9B9BA] dark:outline-[#822125]"
+      )}
     >
-      <div
-        data-toolbar
-        className={`fixed left-0 w-full top-0 z-50 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#EDEDED] dark:bg-[#0A0A0A] ${isMetaEditing && "pointer-events-none cursor-not-allowed"}`}
-      >
-        {/* Left Shadow */}
-        <div
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={toolbarPosition}
+          data-toolbar
+          initial={toolbarMotion[toolbarPosition].initial}
+          animate={toolbarMotion[toolbarPosition].animate}
+          exit={toolbarMotion[toolbarPosition].exit}
+          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
           className={cn(
-            "absolute inset-y-0 lg:-inset-y-[0.5px] lg:opacity-100 left-0 w-12 bg-gradient-to-r from-black/5 dark:from-black/80 to-transparent pointer-events-none z-50 transition-opacity duration-500",
-            isAtStart ? "opacity-0" : "opacity-100"
+            "z-50 bg-white dark:bg-black border-[#EAEAEA] dark:border-[#1E1E1E]",
+            toolbarShellClassName[toolbarPosition],
+            isMetaEditing && "pointer-events-none cursor-not-allowed"
           )}
-        />
-
-        {/* Right Shadow */}
-        <div
-          className={cn(
-            "absolute inset-y-0 lg:-inset-y-[0.5px] lg:opacity-100 right-0 w-12 bg-gradient-to-l from-black/5 dark:from-black/80 to-transparent pointer-events-none z-50 transition-opacity duration-500",
-            isAtEnd ? "opacity-0" : "opacity-100"
-          )}
-        />
-
-        {/* Scroll Container */}
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
-          {/* Width-Max Container */}
-          <div className="flex items-center gap-2 px-3 py-2 w-max mx-auto relative">
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().undo().run()}
-              disabled={!editor.can().chain().focus().undo().run() || disableInlineFormatting}
-              variant="outline"
-              size="sm"
-              title="Undo"
-            >
-              <Undo className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().redo().run()}
-              disabled={!editor.can().chain().focus().redo().run() || disableInlineFormatting}
-              variant="outline"
-              size="sm"
-              title="Redo"
-            >
-              <Redo className="h-4 w-4" />
-            </Button>
+          <div
+            className={cn(
+              "absolute pointer-events-none z-50 transition-opacity duration-500",
+              isToolbarVertical
+                ? "inset-x-0 top-0 h-12 bg-gradient-to-b from-white dark:from-black to-transparent"
+                : "inset-y-0 left-0 w-12 bg-gradient-to-r from-white dark:from-black to-transparent xl:-inset-y-[1px] xl:opacity-100",
+              isAtStart ? "opacity-0" : "opacity-100"
+            )}
+          />
 
-            <div className="h-8 w-px bg-white dark:bg-black" />
+          <div
+            className={cn(
+              "absolute pointer-events-none z-50 transition-opacity duration-500",
+              isToolbarVertical
+                ? "inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white dark:from-black to-transparent"
+                : "inset-y-0 right-0 w-12 bg-gradient-to-l from-white dark:from-black to-transparent xl:-inset-y-[1px] xl:opacity-100",
+              isAtEnd ? "opacity-0" : "opacity-100"
+            )}
+          />
 
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive("heading", { level: 1 }) ? "default" : "outline"}
-              size="sm"
-              title="Heading 1"
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleToolbarScroll}
+            className={cn(
+              "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+              isToolbarVertical
+                ? "flex h-full items-center mx-auto overflow-y-auto overflow-x-hidden"
+                : "w-full overflow-x-auto overflow-y-hidden"
+            )}
+          >
+            <div
+              className={cn(
+                "relative flex gap-2",
+                isToolbarVertical
+                  ? "my-auto h-max flex-col items-center justify-center px-2 py-3"
+                  : "mx-auto w-max items-center px-3 py-2"
+              )}
             >
-              <Heading1 className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive("heading", { level: 2 }) ? "default" : "outline"}
-              size="sm"
-              title="Heading 2"
-            >
-              <Heading2 className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().setParagraph().run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive("paragraph") ? "default" : "outline"}
-              size="sm"
-              title="Paragraph"
-            >
-              <BiParagraph className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleCaption().run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive("caption") ? "default" : "outline"}
-              size="sm"
-              title="Caption"
-            >
-              <MessageSquareQuote className="h-4 w-4" />
-            </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().undo().run()}
+                disabled={!editor.can().chain().focus().undo().run() || disableInlineFormatting}
+                variant="outline"
+                size="sm"
+                title="Undo"
+              >
+                <Undo className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().redo().run()}
+                disabled={!editor.can().chain().focus().redo().run() || disableInlineFormatting}
+                variant="outline"
+                size="sm"
+                title="Redo"
+              >
+                <Redo className="h-4 w-4" />
+              </Button>
 
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleCallout().run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive("callout") ? "default" : "outline"}
-              size="sm"
-              title="Callout"
-            >
-              <StickyNote className="h-4 w-4" />
-            </Button>
+              <div
+                className={cn(
+                  "bg-[#EAEAEA] dark:bg-[#1E1E1E]",
+                  isToolbarVertical ? "h-px w-8" : "h-8 w-px"
+                )}
+              />
 
-            <div className="h-8 w-px bg-white dark:bg-black" />
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive("heading", { level: 1 }) ? "default" : "outline"}
+                size="sm"
+                title="Heading 1"
+              >
+                <Heading1 className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive("heading", { level: 2 }) ? "default" : "outline"}
+                size="sm"
+                title="Heading 2"
+              >
+                <Heading2 className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().setParagraph().run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive("paragraph") ? "default" : "outline"}
+                size="sm"
+                title="Paragraph"
+              >
+                <BiParagraph className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleCaption().run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive("caption") ? "default" : "outline"}
+                size="sm"
+                title="Caption"
+              >
+                <MessageSquareQuote className="h-4 w-4" />
+              </Button>
 
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              disabled={disableInlineFormatting}
-              variant={editorState?.isBold ? "default" : "outline"}
-              size="sm"
-              title="Bold (⌘B)"
-            >
-              <Bold className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              disabled={disableInlineFormatting}
-              variant={editorState?.isItalic ? "default" : "outline"}
-              size="sm"
-              title="Italic (⌘I)"
-            >
-              <Italic className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={handleToggleLink}
-              disabled={disableInlineFormatting}
-              variant={editor.isActive("link") ? "default" : "outline"}
-              size="sm"
-              title="Link"
-            >
-              <Link2 className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleBadge().run()}
-              disabled={disableInlineFormatting}
-              variant={editorState?.isBadge ? "default" : "outline"}
-              size="sm"
-              title="Tag"
-            >
-              <Tag className="h-4 w-4" />
-            </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleCallout().run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive("callout") ? "default" : "outline"}
+                size="sm"
+                title="Callout"
+              >
+                <StickyNote className="h-4 w-4" />
+              </Button>
 
-            <div className="h-8 w-px bg-white dark:bg-black" />
+              <div
+                className={cn(
+                  "bg-[#EAEAEA] dark:bg-[#1E1E1E]",
+                  isToolbarVertical ? "h-px w-8" : "h-8 w-px"
+                )}
+              />
 
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              variant={editor.isActive("bulletList") ? "default" : "outline"}
-              disabled={disableBlockFormatting}
-              size="sm"
-              title="Bullet List"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              variant={editor.isActive("orderedList") ? "default" : "outline"}
-              disabled={disableBlockFormatting}
-              size="sm"
-              title="Ordered List"
-            >
-              <ListOrdered className="h-4 w-4" />
-            </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                disabled={disableInlineFormatting}
+                variant={editorState?.isBold ? "default" : "outline"}
+                size="sm"
+                title="Bold (⌘B)"
+              >
+                <Bold className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                disabled={disableInlineFormatting}
+                variant={editorState?.isItalic ? "default" : "outline"}
+                size="sm"
+                title="Italic (⌘I)"
+              >
+                <Italic className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={handleToggleLink}
+                disabled={disableInlineFormatting}
+                variant={editor.isActive("link") ? "default" : "outline"}
+                size="sm"
+                title="Link"
+              >
+                <Link2 className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleBadge().run()}
+                disabled={disableInlineFormatting}
+                variant={editorState?.isBadge ? "default" : "outline"}
+                size="sm"
+                title="Tag"
+              >
+                <Tag className="h-4 w-4" />
+              </Button>
 
-            <div className="h-8 w-px bg-white dark:bg-black" />
+              <div
+                className={cn(
+                  "bg-[#EAEAEA] dark:bg-[#1E1E1E]",
+                  isToolbarVertical ? "h-px w-8" : "h-8 w-px"
+                )}
+              />
 
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().setTextAlign("left").run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive({ textAlign: "left" }) ? "default" : "outline"}
-              size="sm"
-              title="Align Left"
-            >
-              <AlignLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().setTextAlign("center").run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive({ textAlign: "center" }) ? "default" : "outline"}
-              size="sm"
-              title="Align Center"
-            >
-              <AlignCenter className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().setTextAlign("right").run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive({ textAlign: "right" }) ? "default" : "outline"}
-              size="sm"
-              title="Align Right"
-            >
-              <AlignRight className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editor.chain().focus().setTextAlign("justify").run()}
-              disabled={disableBlockFormatting}
-              variant={editor.isActive({ textAlign: "justify" }) ? "default" : "outline"}
-              size="sm"
-              title="Align Justify"
-            >
-              <AlignJustify className="h-4 w-4" />
-            </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                variant={editor.isActive("bulletList") ? "default" : "outline"}
+                disabled={disableBlockFormatting}
+                size="sm"
+                title="Bullet List"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                variant={editor.isActive("orderedList") ? "default" : "outline"}
+                disabled={disableBlockFormatting}
+                size="sm"
+                title="Ordered List"
+              >
+                <ListOrdered className="h-4 w-4" />
+              </Button>
 
-            <div className="h-8 w-px bg-white dark:bg-black" />
+              <div
+                className={cn(
+                  "bg-[#EAEAEA] dark:bg-[#1E1E1E]",
+                  isToolbarVertical ? "h-px w-8" : "h-8 w-px"
+                )}
+              />
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  disabled={disableBlockFormatting}
-                  variant={editor.isActive("fileCodeBlock") ? "default" : "outline"}
-                  size="sm"
-                  title="Code Block"
-                >
-                  <Code2 className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="center" className="p-3">
-                <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
-                  <span className="text-xs font-bold text-black dark:text-white">Code Block</span>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={codeBlockShowHeader}
-                      onCheckedChange={(v) => setCodeBlockShowHeader(v === true)}
-                      className="cursor-pointer"
-                    />
-                    Show header
-                  </label>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full"
-                    onClick={() => {
-                      editor
-                        .chain()
-                        .focus()
-                        .insertContent({
-                          type: "fileCodeBlock",
-                          attrs: { showHeader: codeBlockShowHeader },
-                        })
-                        .run();
-                    }}
-                  >
-                    Insert Code Block
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  disabled={disableBlockFormatting}
-                  variant={editor.isActive("terminalBlock") ? "default" : "outline"}
-                  size="sm"
-                  title="Terminal Block"
-                >
-                  <Terminal className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="center" className="p-3">
-                <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
-                  <span className="text-xs font-bold text-black dark:text-white">
-                    Terminal Block
-                  </span>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={terminalShowHeader}
-                      onCheckedChange={(v) => setTerminalShowHeader(v === true)}
-                      className="cursor-pointer"
-                    />
-                    Show header
-                  </label>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full"
-                    onClick={() => {
-                      editor
-                        .chain()
-                        .focus()
-                        .insertContent({
-                          type: "terminalBlock",
-                          attrs: { showHeader: terminalShowHeader },
-                        })
-                        .run();
-                    }}
-                  >
-                    Insert Terminal Block
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().setTextAlign("left").run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive({ textAlign: "left" }) ? "default" : "outline"}
+                size="sm"
+                title="Align Left"
+              >
+                <AlignLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().setTextAlign("center").run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive({ textAlign: "center" }) ? "default" : "outline"}
+                size="sm"
+                title="Align Center"
+              >
+                <AlignCenter className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().setTextAlign("right").run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive({ textAlign: "right" }) ? "default" : "outline"}
+                size="sm"
+                title="Align Right"
+              >
+                <AlignRight className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+                disabled={disableBlockFormatting}
+                variant={editor.isActive({ textAlign: "justify" }) ? "default" : "outline"}
+                size="sm"
+                title="Align Justify"
+              >
+                <AlignJustify className="h-4 w-4" />
+              </Button>
 
-            <div className="relative">
+              <div
+                className={cn(
+                  "bg-[#EAEAEA] dark:bg-[#1E1E1E]",
+                  isToolbarVertical ? "h-px w-8" : "h-8 w-px"
+                )}
+              />
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
                     disabled={disableBlockFormatting}
-                    variant={isInTable || editor.isActive("table") ? "default" : "outline"}
+                    variant={editor.isActive("fileCodeBlock") ? "default" : "outline"}
                     size="sm"
-                    title="Custom Table"
+                    title="Code Block"
                   >
-                    <TableIcon className="h-4 w-4" />
+                    <Code2 className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="center" className="p-3">
-                  <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl w-54 flex flex-col gap-3">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-bold text-black dark:text-white">
-                        Create Table
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex flex-col gap-1 flex-1">
-                        <label
-                          htmlFor="rows"
-                          className="text-[10px] uppercase font-bold text-paragraph"
-                        >
-                          Rows
-                        </label>
-                        <input
-                          type="number"
-                          id="rows"
-                          min="2"
-                          max="20"
-                          value={tableRows}
-                          onChange={handleRowChange}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              setSafeTableRows(e.currentTarget.value);
-                            }
-                          }}
-                          className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1 flex-1">
-                        <label
-                          htmlFor="cols"
-                          className="text-[10px] uppercase font-bold text-paragraph"
-                        >
-                          Cols
-                        </label>
-                        <input
-                          type="number"
-                          id="cols"
-                          min="2"
-                          max="6"
-                          value={tableCols}
-                          onChange={handleColChange}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              setSafeTableCols(e.currentTarget.value);
-                            }
-                          }}
-                          className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 pt-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
-                      <label
-                        htmlFor="checkbox"
-                        className="flex items-center gap-2 text-sm cursor-pointer transition-colors w-26"
-                      >
-                        <Checkbox
-                          checked={withHeaderRow}
-                          id="checkbox"
-                          onCheckedChange={(checked) => setWithHeaderRow(checked === true)}
-                          className="accent-primary cursor-pointer"
-                        />
-                        Header Row
-                      </label>
-                    </div>
+                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="p-3">
+                  <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
+                    <span className="text-xs font-bold text-black dark:text-white">Code Block</span>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={codeBlockShowHeader}
+                        onCheckedChange={(v) => setCodeBlockShowHeader(v === true)}
+                        className="cursor-pointer"
+                      />
+                      Show header
+                    </label>
                     <Button
                       type="button"
-                      onClick={insertCustomTable}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          insertCustomTable();
-                        }
-                      }}
-                      className="w-full"
                       variant="secondary"
+                      className="w-full"
+                      onClick={() => {
+                        editor
+                          .chain()
+                          .focus()
+                          .insertContent({
+                            type: "fileCodeBlock",
+                            attrs: { showHeader: codeBlockShowHeader },
+                          })
+                          .run();
+                      }}
                     >
-                      Insert Table
+                      Insert Code Block
                     </Button>
                   </div>
                 </PopoverContent>
               </Popover>
-            </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    disabled={disableBlockFormatting}
+                    variant={editor.isActive("terminalBlock") ? "default" : "outline"}
+                    size="sm"
+                    title="Terminal Block"
+                  >
+                    <Terminal className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="p-3">
+                  <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
+                    <span className="text-xs font-bold text-black dark:text-white">
+                      Terminal Block
+                    </span>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={terminalShowHeader}
+                        onCheckedChange={(v) => setTerminalShowHeader(v === true)}
+                        className="cursor-pointer"
+                      />
+                      Show header
+                    </label>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => {
+                        editor
+                          .chain()
+                          .focus()
+                          .insertContent({
+                            type: "terminalBlock",
+                            attrs: { showHeader: terminalShowHeader },
+                          })
+                          .run();
+                      }}
+                    >
+                      Insert Terminal Block
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
 
-            <div className="h-8 w-px bg-white dark:bg-black" />
+              <div className="relative">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      disabled={disableBlockFormatting}
+                      variant={isInTable || editor.isActive("table") ? "default" : "outline"}
+                      size="sm"
+                      title="Custom Table"
+                    >
+                      <TableIcon className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="p-3">
+                    <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl w-54 flex flex-col gap-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-black dark:text-white">
+                          Create Table
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex flex-col gap-1 flex-1">
+                          <label
+                            htmlFor="rows"
+                            className="text-[10px] uppercase font-bold text-paragraph"
+                          >
+                            Rows
+                          </label>
+                          <input
+                            type="number"
+                            id="rows"
+                            min="2"
+                            max="20"
+                            value={tableRows}
+                            onChange={handleRowChange}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                setSafeTableRows(e.currentTarget.value);
+                              }
+                            }}
+                            className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none no-spinner"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 flex-1">
+                          <label
+                            htmlFor="cols"
+                            className="text-[10px] uppercase font-bold text-paragraph"
+                          >
+                            Cols
+                          </label>
+                          <input
+                            type="number"
+                            id="cols"
+                            min="2"
+                            max="6"
+                            value={tableCols}
+                            onChange={handleColChange}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                setSafeTableCols(e.currentTarget.value);
+                              }
+                            }}
+                            className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none no-spinner"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 pt-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
+                        <label
+                          htmlFor="checkbox"
+                          className="flex items-center gap-2 text-sm cursor-pointer transition-colors w-26"
+                        >
+                          <Checkbox
+                            checked={withHeaderRow}
+                            id="checkbox"
+                            onCheckedChange={(checked) => setWithHeaderRow(checked === true)}
+                            className="accent-primary cursor-pointer"
+                          />
+                          Header Row
+                        </label>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={insertCustomTable}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            insertCustomTable();
+                          }
+                        }}
+                        className="w-full"
+                        variant="secondary"
+                      >
+                        Insert Table
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            {/* Character Counter */}
-            <div className="flex w-16 justify-between items-center text-xs">
-              <span
-                className={`text-xs tabular-nums transition-colors ${counterColor(bodyValue.length, MAX_CHARS)}`}
+              <div
+                className={cn(
+                  "bg-[#EAEAEA] dark:bg-[#1E1E1E]",
+                  isToolbarVertical ? "h-px w-8" : "h-8 w-px"
+                )}
+              />
+
+              <Popover
+                open={isToolbarPositionPopoverOpen}
+                onOpenChange={setIsToolbarPositionPopoverOpen}
               >
-                {formatCount(bodyValue.length)} / {formatCount(MAX_CHARS)}
-              </span>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" title="Toolbar position">
+                    <ActiveToolbarPositionIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="p-3">
+                  <div className="z-50 p-3 w-full bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      {toolbarDirectionOptions.map(({ label, value, Icon }) => (
+                        <Button
+                          key={value}
+                          type="button"
+                          variant={toolbarPosition === value ? "default" : "secondary"}
+                          className="w-full"
+                          onClick={() => handleToolbarPositionChange(value)}
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{label}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Character Counter */}
+              <div
+                className={cn(
+                  "flex items-center text-xs",
+                  isToolbarVertical ? "w-full justify-center" : "w-16 justify-between"
+                )}
+              >
+                <span
+                  className={`text-xs tabular-nums transition-colors ${counterColor(bodyValue.length, MAX_CHARS)}`}
+                >
+                  {formatCount(bodyValue.length)} / {formatCount(MAX_CHARS)}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </AnimatePresence>
 
       <EditorContent
         editor={editor}

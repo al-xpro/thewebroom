@@ -20,25 +20,82 @@ async function CreatePostContent() {
 
 function CreatePostSkeleton() {
   return (
-    <div className="flex flex-col w-full gap-8 pb-16">
-      <div className="flex items-center justify-between gap-3">
-        <Skeleton className="h-8 w-24 rounded-md" />
-        <Skeleton className="h-8 w-24 rounded-md" />
-      </div>
+    <div className="flex flex-col w-full gap-8 pb-16 animate-pulse">
+      {/* Top action bar: "My Posts" on left, dual "Save" buttons on right */}
+      <div className="flex items-center justify-between gap-5">
+        {/* Back Button */}
+        <Skeleton className="h-9 w-28 rounded-md" />
 
-      <div className="flex flex-col gap-4">
-        <Skeleton className="h-11 w-3/4 sm:w-1/2" />
-        <Skeleton className="h-20 w-full" />
-        <Separator className="my-4" />
-        <div className="flex flex-wrap items-start justify-between gap-6 sm:gap-10">
-          <Skeleton className="h-16 w-[170px] rounded-xl" />
-          <Skeleton className="h-16 w-[150px] rounded-xl" />
-          <Skeleton className="h-16 w-[150px] rounded-xl" />
+        {/* Save Draft & Save Publish Buttons */}
+        <div className="flex flex-wrap items-end justify-end gap-2">
+          <Skeleton className="h-9 w-32 rounded-md" />
+          <Skeleton className="h-9 w-36 rounded-md" />
         </div>
       </div>
 
-      <Skeleton className="h-[280px] w-full rounded-xl sm:h-[380px]" />
-      <Skeleton className="h-[580px] w-full rounded-xl" />
+      <article className="flex flex-col gap-11">
+        <header className="flex flex-col gap-4">
+          {/* Title - Matches text-3xl/4xl height */}
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-3/4 sm:w-2/3" />
+          </div>
+
+          {/* Subtitle - Matches text-lg height */}
+          <div className="space-y-2">
+            <Skeleton className="h-[30px] w-full" />
+          </div>
+
+          <Separator className="my-4" />
+
+          {/* Meta Row - Matches sm:gap-14 */}
+          <div className="flex flex-wrap items-center justify-between sm:gap-14">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <Skeleton className="h-5 w-5 rounded-full" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            ))}
+            {/* Copy Slug (Hidden on mobile) */}
+            <div className="hidden sm:flex flex-col items-center gap-2">
+              <Skeleton className="h-5 w-5 rounded-sm" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+          </div>
+        </header>
+
+        {/* Image Preview Area - Matches h-[280px]/[380px] */}
+        <div className="relative h-[280px] w-full overflow-hidden rounded-md border border-[#EAEAEA] dark:border-[#1E1E1E] sm:h-[380px]">
+          <Skeleton className="h-full w-full" />
+        </div>
+
+        {/* Editor Content Area */}
+        <div className="flex flex-col gap-4 pt-2">
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-11/12" />
+          <Skeleton className="h-5 w-4/5" />
+          <Skeleton className="h-[250px] w-full rounded-md mt-4" />
+        </div>
+      </article>
+
+      {/* Fixed Toolbar Placeholder - Bulked up with more buttons for the new editor */}
+      <div className="fixed bottom-0 left-0 w-full z-50 border-t border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#EDEDED] dark:bg-[#0A0A0A]">
+        <div className="flex items-center gap-3 px-4 py-2 w-max mx-auto h-[45px]">
+          {/* Simulating a rich text editor toolbar with distinct groups */}
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map((i) => (
+            <div key={i} className="flex gap-1.5 items-center">
+              <Skeleton className="h-8 w-8 rounded-md bg-black/10 dark:bg-white/10" />
+              {/* Add dividers between logical groupings */}
+              {(i === 2 || i === 7 || i === 11 || i === 13 || i === 17 || i === 20) && (
+                <div className="h-5 w-px bg-gray-300 dark:bg-gray-800 mx-1" />
+              )}
+            </div>
+          ))}
+
+          <div className="flex gap-1.5 items-center">
+            <Skeleton className="h-3 w-14 rounded-md bg-black/10 dark:bg-white/10" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

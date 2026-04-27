@@ -9,7 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
-  ArrowRight,
+  Book,
+  BookDashed,
   BookType,
   Calendar,
   Check,
@@ -99,6 +100,9 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
     (post as { imageUrl?: string }).imageUrl ?? null
   );
   const [isMetaEditing, setIsMetaEditing] = useState(false);
+  const [draftPending, setDraftPending] = useState(false);
+  const [isTopicOpen, setIsTopicOpen] = useState(false);
+  const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
   const userQuery = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
   const user = userQuery ?? initialUser;
@@ -138,17 +142,36 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
     return Math.min(Math.max(value, min), max);
   };
 
-  async function onSubmit(values: EditPostValues) {
-    setIsPending(true);
+  async function onSubmit(values: EditPostValues, status: "published" | "draft" = "published") {
+    if (status === "draft") {
+      setDraftPending(true);
+    } else {
+      setIsPending(true);
+    }
+
     try {
       if (!post.slug) throw new Error("Post slug is missing");
-      await updatePostAction(post._id, post.slug, values, post.imageStorageId);
-      showSuccessToast("Post updated successfully!");
-      router.push("/my-posts");
+      const response = await updatePostAction(post._id, post.slug, values, post.imageStorageId, status);
+      const nextSlug = response.slug ?? post.slug;
+
+      if (status === "draft") {
+        showSuccessToast("Draft saved successfully!");
+        router.push("/my-posts");
+      } else {
+        showSuccessToast("Post updated and published successfully!");
+        router.push(`/posts/${nextSlug}`);
+      }
     } catch (error) {
-      showErrorToast(error instanceof Error ? error.message : "Failed to update post");
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : status === "draft"
+            ? "Failed to save draft"
+            : "Failed to update post"
+      );
     } finally {
       setIsPending(false);
+      setDraftPending(false);
     }
   }
 
@@ -234,16 +257,19 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
   return (
     <>
       {isDragging && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur">
-          <div className="flex flex-col items-center gap-4 text-white">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-white/60 dark:bg-black/60 backdrop-blur">
+          <div className="flex flex-col items-center gap-4 text-black dark:text-white">
             <div className="text-7xl">+</div>
             <p className="text-xl font-semibold">Drop image to upload</p>
           </div>
         </div>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex flex-col gap-8 pb-16">
-        <div className="flex items-center justify-between gap-3">
+      <form
+        onSubmit={form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)}
+        className="flex flex-col gap-8 pb-16"
+      >
+        <div className="flex items-center justify-between gap-5">
           <Link href="/my-posts" className="flex items-center justify-center gap-2">
             <Button variant="outline" size="sm" className="relative z-20">
               <ArrowLeft className="h-4 w-4" />
@@ -251,12 +277,25 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
             </Button>
           </Link>
 
-          <Button disabled={isPending} size="sm" type="submit" className="shrink-0">
-            {isPending && <Loader2 className="size-4 animate-spin" />}
-            <span className="flex items-center gap-2">
-              Save Changes <ArrowRight className="size-4" />
-            </span>
-          </Button>
+          <div className="flex flex-wrap items-end justify-end gap-2">
+            <Button
+              disabled={isPending || draftPending}
+              size="sm"
+              type="button"
+              className="shrink-0"
+              onClick={form.handleSubmit((values) => onSubmit(values, "draft"), onInvalid)}
+            >
+              {draftPending && <Loader2 className="size-4 animate-spin" />}
+              <span className="flex items-center gap-2">Save as Draft <BookDashed className="size-4" /></span>
+            </Button>
+
+            <Button disabled={isPending || draftPending} size="sm" type="submit" className="shrink-0">
+              {isPending && <Loader2 className="size-4 animate-spin" />}
+              <span className="flex items-center gap-2">
+                Save & Publish <Book className="size-4" />
+              </span>
+            </Button>
+          </div>
         </div>
 
         <article className="flex flex-col gap-8">
@@ -358,13 +397,11 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                 name="topic"
                 control={form.control}
                 render={({ field }) => {
-                  const [isOpen, setIsOpen] = useState(false);
-
                   return (
                     <div className="flex flex-col items-center gap-2">
                       <BookType className="size-4 sm:size-5 text-black dark:text-white" />
 
-                      <Popover open={isOpen} onOpenChange={setIsOpen}>
+                      <Popover open={isTopicOpen} onOpenChange={setIsTopicOpen}>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
@@ -386,7 +423,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                                 onClick={() => {
                                   field.onChange(topic);
                                   clearError("topic");
-                                  setIsOpen(false);
+                                  setIsTopicOpen(false);
                                 }}
                                 className={`text-center w-fit text-[11px] sm:text-sm px-1.5 sm:px-2.5 py-0.5 rounded-full font-medium text-sm cursor-pointer bg-primary/10 text-primary hover:bg-primary/20 ${field.value === topic ? "ring-1 ring-primary" : ""}`}
                               >
@@ -408,13 +445,10 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
               <Controller
                 name="minRead"
                 control={form.control}
-                render={({ field }) => {
-                  const [isEditing, setIsEditing] = useState(false);
-
-                  return (
+                render={({ field }) => (
                     <div className="flex flex-col items-center gap-2 text-black dark:text-white">
                       <ClockFading className="size-4 sm:size-5" />
-                      {isEditing ? (
+                      {isMinReadEditing ? (
                         <>
                           <label htmlFor="minutes-read" className="sr-only">
                             Min read
@@ -430,7 +464,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 e.currentTarget.blur();
-                                setIsEditing(false);
+                                setIsMinReadEditing(false);
                               }
                               // prevent non-numeric characters like "e", "+", "-"
                               if (["e", "E", "+", "-", "."].includes(e.key)) {
@@ -457,15 +491,15 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                               let value = Number(field.value);
                               if (!value || isNaN(value)) value = 5;
                               field.onChange(clamp(value, 1, 30));
-                              setIsEditing(false);
+                              setIsMinReadEditing(false);
                             }}
-                            className="w-[61px] sm:w-20 text-center bg-transparent outline-none border-b border-border"
+                            className="w-[61px] sm:w-20 text-center bg-[#EDEDED] dark:bg-[#0A0A0A] outline-none rounded-md no-spinner"
                           />
                         </>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setIsEditing(true)}
+                          onClick={() => setIsMinReadEditing(true)}
                           className="w-[61px] sm:w-20 hover:opacity-70 transition cursor-pointer"
                         >
                           {field.value || 5} min read
@@ -477,8 +511,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                         className="text-xs text-center"
                       />
                     </div>
-                  );
-                }}
+                )}
               />
               <CopySlugButton slug={slugPreview} />
             </div>
@@ -505,7 +538,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                     "relative mb-2 h-[280px] w-full overflow-hidden rounded-md shadow-sm sm:h-[380px]",
                     previewUrl
                       ? "bg-[#FAFAFA] dark:bg-[#0A0A0A]"
-                      : "border border-dashed border-[#EAEAEA] bg-[#FAFAFA] dark:border-[#1E1E1E] dark:bg-black dark:hover:bg-[#0A0A0A]"
+                      : "border border-dashed border-[#EAEAEA] bg-white dark:border-[#1E1E1E] dark:bg-black hover:bg-[#FAFAFA] dark:hover:bg-[#0A0A0A]"
                   )}
                 >
                   {previewUrl && (
@@ -516,7 +549,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                         fill
                         sizes="100%"
                         loading="eager"
-                        className="object-cover rounded-md p-6"
+                        className="object-cover rounded-4xl p-6"
                       />
                     </div>
                   )}
@@ -538,7 +571,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                     {/* Badge logic positioned at the bottom center */}
                     <div className="px-10 w-full flex justify-center">
                       {field.value instanceof File ? (
-                        <span className="flex items-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-4 py-2 text-xs font-medium text-white shadow-xl">
+                        <span className="flex items-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-4 py-2 text-xs font-medium text-black dark:text-white shadow-xl">
                           <Upload className="size-3.5" />
                           <p className="max-w-[200px] truncate">{field.value.name}</p>
                           <p className="shrink-0">
@@ -546,7 +579,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                           </p>
                         </span>
                       ) : previewUrl ? (
-                        <span className="flex items-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-6 py-2 text-xs font-medium text-white shadow-xl">
+                        <span className="flex items-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-6 py-2 text-xs font-medium text-black dark:text-white shadow-xl">
                           <Upload className="size-3.5" />
                           <p>Click or drag to replace</p>
                         </span>

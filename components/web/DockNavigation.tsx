@@ -106,6 +106,7 @@ function useReadingProgress() {
 export function DockNavigation() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const pathname = usePathname();
+  const isEditorRoute = pathname?.startsWith("/create") || pathname?.startsWith("/edit/");
   const isPostRoute =
     ((pathname?.startsWith("/posts/") && pathname !== "/posts") ||
       pathname?.startsWith("/post/")) ??
@@ -131,14 +132,15 @@ export function DockNavigation() {
     setPostExists(false);
 
     if (!isPostPage) return;
+    const surfaceSelector = isEditorRoute ? ".ProseMirror" : "article";
 
-    if (document.querySelector("article")) {
+    if (document.querySelector(surfaceSelector)) {
       setPostExists(true);
       return;
     }
 
     const observer = new MutationObserver(() => {
-      if (document.querySelector("article")) {
+      if (document.querySelector(surfaceSelector)) {
         setPostExists(true);
         observer.disconnect();
       }
@@ -146,7 +148,7 @@ export function DockNavigation() {
 
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [pathname, isPostPage]);
+  }, [isEditorRoute, pathname, isPostPage]);
 
   const showMinimap = isPostPage && postExists;
 
@@ -523,7 +525,7 @@ export function DockNavigation() {
                   ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[320px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
                   : showMinimap
                     ? isVertical
-                      ? "w-14 min-h-[350px] max-h-[400px] h-full flex-col py-3 items-center overflow-hidden touch-none"
+                      ? "w-14 min-h-[260px] max-h-[400px] h-full flex-col py-3 items-center overflow-hidden touch-none"
                       : "w-[400px] h-14 flex-row px-3 items-center overflow-hidden touch-none"
                     : isVertical
                       ? "w-16 h-auto flex-col p-2"
@@ -773,7 +775,7 @@ function Minimap({
     prevCompletion.current = completion;
   }, [completion]);
 
-  const LINE_COUNT = 50;
+  const LINE_COUNT = 40;
   const mousePos = useMotionValue(Infinity);
 
   const floatIndex = completion * (LINE_COUNT - 1);

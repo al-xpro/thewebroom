@@ -9,6 +9,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
   ArrowRight,
+  Book,
+  BookDashed,
   BookType,
   Calendar,
   Check,
@@ -49,7 +51,7 @@ type UserType = FunctionReturnType<typeof api.auth.getCurrentUser>;
 
 interface CreatePostClientProps {
   initialUser: UserType;
-} 
+}
 
 function EditorialError({ message, className }: { message?: string; className?: string }) {
   if (!message) return null;
@@ -99,6 +101,9 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
   const [hasMounted, setHasMounted] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isMetaEditing, setIsMetaEditing] = useState(false);
+  const [draftPending, setDraftPending] = useState(false);
+  const [isTopicOpen, setIsTopicOpen] = useState(false);
+  const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
   const userQuery = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
   const user = userQuery ?? initialUser;
@@ -150,17 +155,35 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
     return () => clearTimeout(timer);
   }, [isAuthenticated, isLoading]);
 
-  async function onSubmit(values: PostValues) {
-    setIsPending(true);
+  async function onSubmit(values: PostValues, status: "published" | "draft" = "published") {
+    if (status === "draft") {
+      setDraftPending(true);
+    } else {
+      setIsPending(true);
+    }
+
     try {
-      const { slug } = await createBlogAction(values);
-      showSuccessToast("Post published successfully!");
-      router.push(`/posts/${slug}`);
+      const { slug } = await createBlogAction(values, status);
+
+      if (status === "draft") {
+        showSuccessToast("Draft saved successfully!");
+        router.push("/my-posts");
+      } else {
+        showSuccessToast("Post published successfully!");
+        router.push(`/posts/${slug}`);
+      }
     } catch (error) {
       if (isRedirectError(error)) throw error;
-      showErrorToast(error instanceof Error ? error.message : "Failed to publish post");
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : status === "draft"
+            ? "Failed to save draft"
+            : "Failed to publish post"
+      );
     } finally {
       setIsPending(false);
+      setDraftPending(false);
     }
   }
 
@@ -278,16 +301,19 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
       )}
 
       {isDragging && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur">
-          <div className="flex flex-col items-center gap-4 text-white">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-white/60 dark:bg-black/60 backdrop-blur">
+          <div className="flex flex-col items-center gap-4 text-black dark:text-white">
             <div className="text-7xl">+</div>
             <p className="text-xl font-semibold">Drop image to upload</p>
           </div>
         </div>
       )}
 
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex flex-col gap-8 pb-16">
-        <div className="flex items-center justify-between gap-3">
+      <form
+        onSubmit={form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)}
+        className="flex flex-col gap-8 pb-16"
+      >
+        <div className="flex items-center justify-between gap-5">
           <Link href="/posts" className="flex items-center justify-center gap-2">
             <Button variant="outline" size="sm" className="relative z-20">
               <ArrowLeft className="h-4 w-4" />
@@ -295,12 +321,32 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
             </Button>
           </Link>
 
-          <Button disabled={isPending} size="sm" type="submit" className="shrink-0">
-            {isPending && <Loader2 className="size-4 animate-spin" />}
-            <span className="flex items-center gap-2">
-              Publish Post <ArrowRight className="size-4" />
-            </span>
-          </Button>
+          <div className="flex flex-wrap items-end justify-end gap-2">
+            <Button
+              disabled={isPending || draftPending}
+              size="sm"
+              type="button"
+              className="shrink-0"
+              onClick={form.handleSubmit((values) => onSubmit(values, "draft"), onInvalid)}
+            >
+              {draftPending && <Loader2 className="size-4 animate-spin" />}
+              <span className="flex items-center gap-2">
+                Save as Draft <BookDashed className="size-4" />
+              </span>
+            </Button>
+
+            <Button
+              disabled={isPending || draftPending}
+              size="sm"
+              type="submit"
+              className="shrink-0"
+            >
+              {isPending && <Loader2 className="size-4 animate-spin" />}
+              <span className="flex items-center gap-2">
+                Publish Post <Book className="size-4" />
+              </span>
+            </Button>
+          </div>
         </div>
 
         <article className="flex flex-col gap-8">
@@ -390,13 +436,11 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                 name="topic"
                 control={form.control}
                 render={({ field }) => {
-                  const [isOpen, setIsOpen] = useState(false);
-
                   return (
                     <div className="flex flex-col items-center gap-2">
                       <BookType className="size-4 sm:size-5 text-black dark:text-white" />
 
-                      <Popover open={isOpen} onOpenChange={setIsOpen}>
+                      <Popover open={isTopicOpen} onOpenChange={setIsTopicOpen}>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
@@ -418,7 +462,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                                 onClick={() => {
                                   field.onChange(topic);
                                   clearError("topic");
-                                  setIsOpen(false);
+                                  setIsTopicOpen(false);
                                 }}
                                 className={`text-center w-fit text-[11px] sm:text-sm px-1.5 sm:px-2.5 py-0.5 rounded-full font-medium text-sm cursor-pointer bg-primary/10 text-primary hover:bg-primary/20 ${field.value === topic ? "ring-1 ring-primary" : ""}`}
                               >
@@ -440,77 +484,73 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
               <Controller
                 name="minRead"
                 control={form.control}
-                render={({ field }) => {
-                  const [isEditing, setIsEditing] = useState(false);
+                render={({ field }) => (
+                  <div className="flex flex-col items-center gap-2 text-black dark:text-white">
+                    <ClockFading className="size-4 sm:size-5" />
+                    {isMinReadEditing ? (
+                      <>
+                        <label htmlFor="minutes-read" className="sr-only">
+                          Min read
+                        </label>
 
-                  return (
-                    <div className="flex flex-col items-center gap-2 text-black dark:text-white">
-                      <ClockFading className="size-4 sm:size-5" />
-                      {isEditing ? (
-                        <>
-                          <label htmlFor="minutes-read" className="sr-only">
-                            Min read
-                          </label>
+                        <input
+                          id="minutes-read"
+                          aria-label="minutes read"
+                          type="number"
+                          min="1"
+                          max="30"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.currentTarget.blur();
+                              setIsMinReadEditing(false);
+                            }
+                            // prevent non-numeric characters like "e", "+", "-"
+                            if (["e", "E", "+", "-", "."].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            // allow empty while typing
+                            if (raw === "") {
+                              field.onChange("");
+                              return;
+                            }
+                            let value = Number(raw);
+                            // ignore invalid numbers (like "e", "-", etc.)
+                            if (isNaN(value)) return;
+                            // clamp immediately
+                            value = clamp(value, 1, 30);
+                            field.onChange(value);
+                            clearError("minRead");
+                          }}
+                          onBlur={() => {
+                            let value = Number(field.value);
+                            if (!value || isNaN(value)) value = 5;
+                            field.onChange(clamp(value, 1, 30));
+                            setIsMinReadEditing(false);
+                          }}
+                          className="w-[61px] sm:w-20 text-center bg-[#EDEDED] dark:bg-[#0A0A0A] outline-none rounded-md no-spinner"
+                        />
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsMinReadEditing(true)}
+                        className="w-[61px] sm:w-20 hover:opacity-70 transition cursor-pointer"
+                      >
+                        {field.value || 5} min read
+                      </button>
+                    )}
 
-                          <input
-                            id="minutes-read"
-                            aria-label="minutes read"
-                            type="number"
-                            min="1"
-                            max="30"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.currentTarget.blur();
-                                setIsEditing(false);
-                              }
-                              // prevent non-numeric characters like "e", "+", "-"
-                              if (["e", "E", "+", "-", "."].includes(e.key)) {
-                                e.preventDefault();
-                              }
-                            }}
-                            value={field.value ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              // allow empty while typing
-                              if (raw === "") {
-                                field.onChange("");
-                                return;
-                              }
-                              let value = Number(raw);
-                              // ignore invalid numbers (like "e", "-", etc.)
-                              if (isNaN(value)) return;
-                              // clamp immediately
-                              value = clamp(value, 1, 30);
-                              field.onChange(value);
-                              clearError("minRead");
-                            }}
-                            onBlur={() => {
-                              let value = Number(field.value);
-                              if (!value || isNaN(value)) value = 5;
-                              field.onChange(clamp(value, 1, 30));
-                              setIsEditing(false);
-                            }}
-                            className="w-[61px] sm:w-20 text-center bg-transparent outline-none border-b border-border"
-                          />
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setIsEditing(true)}
-                          className="w-[61px] sm:w-20 hover:opacity-70 transition cursor-pointer"
-                        >
-                          {field.value || 5} min read
-                        </button>
-                      )}
-
-                      <EditorialError
-                        message={visibleErrors.minRead}
-                        className="text-xs text-center"
-                      />
-                    </div>
-                  );
-                }}
+                    <EditorialError
+                      message={visibleErrors.minRead}
+                      className="text-xs text-center"
+                    />
+                  </div>
+                )}
               />
               <CopySlugButton slug={slugPreview} />
             </div>
@@ -537,7 +577,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                     "relative mb-2 h-[280px] w-full overflow-hidden rounded-md shadow-sm sm:h-[380px]",
                     previewUrl
                       ? "bg-[#FAFAFA] dark:bg-[#0A0A0A]"
-                      : "border border-dashed border-[#EAEAEA] bg-[#FAFAFA] dark:border-[#1E1E1E] dark:bg-black dark:hover:bg-[#0A0A0A]"
+                      : "border border-dashed border-[#EAEAEA] bg-white dark:border-[#1E1E1E] dark:bg-black hover:bg-[#FAFAFA] dark:hover:bg-[#0A0A0A]"
                   )}
                 >
                   {previewUrl ? (
@@ -579,7 +619,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                   >
                     <div className="relative left-0 top-full px-10 mx-auto">
                       {field.value && (
-                        <span className="relative bottom-12 flex items-center justify-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-4 py-2 text-xs font-medium text-white">
+                        <span className="relative bottom-12 flex items-center justify-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-4 py-2 text-xs font-medium text-black dark:text-white">
                           <Upload className="size-3.5" />
                           <p className="flex-1 min-w-0 truncate">{field.value.name}</p>
                           <p className="min-w-0 truncate">

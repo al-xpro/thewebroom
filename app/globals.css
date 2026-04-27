@@ -155,6 +155,19 @@ body::-webkit-scrollbar {
     background-color: #FF3400;
     color: #000;
 }
+
+@layer utilities {
+  .no-spinner::-webkit-inner-spin-button,
+  .no-spinner::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .no-spinner {
+    -moz-appearance: textfield;
+  }
+}
+
 }
 
 @layer base {

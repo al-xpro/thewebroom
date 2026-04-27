@@ -102,7 +102,7 @@ async function PostBody({ params }: PostSlugRouteProps) {
   const { slug } = await params;
 
   const post = await fetchQuery(api.posts.getPostBySlug, { slug });
-  if (!post) return notFound();
+  if (!post || (post.status !== undefined && post.status !== "published")) return notFound();
 
   const preloadedCommentsData = await preloadQuery(api.comment.getCommentsByPostId, {
     postId: post._id,

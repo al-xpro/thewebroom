@@ -12,7 +12,7 @@ export default defineSchema({
     authorName: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
     status: v.optional(
-      v.union(v.literal("published"), v.literal("hidden"), v.literal("flagged"))
+      v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
     ),
     contentHtml: v.optional(v.string()),
     topic: v.union(

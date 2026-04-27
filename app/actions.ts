@@ -12,7 +12,10 @@ import { Id } from "@/convex/_generated/dataModel";
 // show the success toast before navigating. redirect() throws internally,
 // which means any code after await createBlogAction() never executes —
 // including showSuccessToast.
-export async function createBlogAction(values: z.infer<typeof postSchema>) {
+export async function createBlogAction(
+  values: z.infer<typeof postSchema>,
+  status: "published" | "draft" = "published"
+) {
   const parsed = postSchema.safeParse(values);
   if (!parsed.success) throw new Error("Validation failed");
 
@@ -42,6 +45,7 @@ export async function createBlogAction(values: z.infer<typeof postSchema>) {
       minRead: parsed.data.minRead,
       contentHtml: parsed.data.contentHtml,
       topic: parsed.data.topic,
+      status,
       imageStorageId: storageId,
     },
     { token }
@@ -73,7 +77,8 @@ export async function updatePostAction(
   postId: string,
   slug: string,
   values: z.infer<typeof editPostSchema>,
-  existingImageStorageId: Id<"_storage"> | undefined
+  existingImageStorageId: Id<"_storage"> | undefined,
+  status: "published" | "draft" = "published"
 ) {
   const token = await getToken();
   if (!token) throw new Error("Not authenticated");
@@ -92,7 +97,7 @@ export async function updatePostAction(
     imageStorageId = result.storageId as Id<"_storage">;
   }
 
-  await fetchMutation(
+  const response = await fetchMutation(
     api.posts.updatePost,
     {
       postId: postId as Id<"posts">,
@@ -103,10 +108,17 @@ export async function updatePostAction(
       contentHtml: values.contentHtml,
       imageStorageId,
       topic: values.topic,
+      status,
     },
     { token }
   );
 
   updateTag("blog");
   updateTag(`post-${slug}`);
+
+  if (response.slug && response.slug !== slug) {
+    updateTag(`post-${response.slug}`);
+  }
+
+  return response;
 }

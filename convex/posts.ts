@@ -4,13 +4,11 @@ import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { Doc, Id } from "./_generated/dataModel";
 import { components, internal } from "./_generated/api";
 
-const TOPIC_VALUES = [
-  "Web Architecture",
-  "UI Engineering",
-  "AI for Developers",
-  "Productivity",
-] as const;
-type Topic = (typeof TOPIC_VALUES)[number];
+type Topic =
+  | "Web Architecture"
+  | "UI Engineering"
+  | "AI for Developers"
+  | "Productivity";
 
 type BetterAuthUserContact = {
   email?: string | null;
@@ -89,6 +87,9 @@ export const createPost = mutation({
         v.literal("Productivity")
       )
     ),
+    status: v.optional(
+      v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
+    ),
     imageStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
@@ -106,15 +107,15 @@ export const createPost = mutation({
 
     await assertUserNotBanned(ctx, { _id: user._id, email: user.email });
 
-    // Check rate limit for post creation
+    // Check rate limit for post creation (applies to both draft and publish on create page)
+    const now = Date.now();
+    const POST_RATE_LIMIT = 2;
+    const POST_WINDOW_MS = 24 * 60 * 60 * 1000;
+
     const rateLimit = await ctx.db
       .query("rateLimits")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .first();
-
-    const now = Date.now();
-    const POST_RATE_LIMIT = 2;
-    const POST_WINDOW_MS = 24 * 60 * 60 * 1000;
 
     if (rateLimit) {
       const windowStart = rateLimit.postWindowStart || now;
@@ -126,7 +127,7 @@ export const createPost = mutation({
         if (currentCount >= POST_RATE_LIMIT) {
           const timeUntilReset = POST_WINDOW_MS - timeSinceWindowStart;
           throw new ConvexError(
-            `You can only publish ${POST_RATE_LIMIT} posts per day. Please try again in ${Math.ceil(timeUntilReset / 60000)} minutes.`
+            `You can only create ${POST_RATE_LIMIT} posts per day (draft or published). Please try again in ${Math.ceil(timeUntilReset / 60000)} minutes.`
           );
         }
       }
@@ -148,10 +149,10 @@ export const createPost = mutation({
       imageStorageId: args.imageStorageId,
       contentHtml: args.contentHtml,
       topic: (args.topic ?? "Web Architecture") as Topic,
-      status: "published",
+      status: args.status ?? "published",
     });
 
-    // Update rate limit
+    // Update rate limit (counts both draft and publish creations)
     if (rateLimit) {
       const windowStart = rateLimit.postWindowStart || now;
       const timeSinceWindowStart = now - windowStart;
@@ -283,7 +284,9 @@ export const updatePost = mutation({
         v.literal("Productivity")
       )
     ),
-    status: v.optional(v.union(v.literal("published"), v.literal("hidden"), v.literal("flagged"))),
+    status: v.optional(
+      v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
+    ),
   },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
@@ -355,7 +358,7 @@ export const updatePost = mutation({
           } else {
             await ctx.scheduler.runAfter(
               0,
-              (internal.emails as any).deliverPostPublishedModerationEmail,
+              internal.emails.deliverPostPublishedModerationEmail,
               {
                 name: post.authorName,
                 email: authorEmail,
@@ -380,7 +383,11 @@ export const updatePost = mutation({
       }
     }
 
-    return { success: true };
+    return {
+      success: true,
+      slug: patch.slug ?? post.slug,
+      status: patch.status ?? post.status ?? "published",
+    };
   },
 });
 
@@ -406,7 +413,9 @@ export const deletePost = mutation({
       throw new ConvexError("Not authorized to delete this post");
     }
 
-    if (isAdmin) {
+    // Only send moderation email if admin is deleting someone else's post, not their own
+    const isDeletingOthersPost = isAdmin && post.authorId.toString() !== user._id.toString();
+    if (isDeletingOthersPost) {
       const authorEmail = await getPostAuthorEmail(ctx, post.authorId);
       if (authorEmail) {
         try {
@@ -490,6 +499,8 @@ export const searchPosts = query({
 export const getAllPostSlugs = query({
   handler: async (ctx) => {
     const posts = await ctx.db.query("posts").collect();
-    return posts.map((p) => ({ slug: p.slug }));
+    return posts
+      .filter((p) => p.status === "published" || p.status === undefined)
+      .map((p) => ({ slug: p.slug }));
   },
 });

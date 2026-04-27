@@ -22,7 +22,9 @@ http.route({
     if (!slug) return new Response("Missing slug", { status: 400 });
 
     const post = await ctx.runQuery(api.posts.getPostBySlug, { slug });
-    if (!post) return new Response("Not found", { status: 404 });
+    if (!post || (post.status !== undefined && post.status !== "published")) {
+      return new Response("Not found", { status: 404 });
+    }
 
     return new Response(
       JSON.stringify({
@@ -45,7 +47,7 @@ http.route({
     const posts = await ctx.runQuery(api.posts.getAllPostSlugs);
     const slugs = posts
       .map((p: { slug: string | undefined }) => p.slug)
-      .filter((slug: any): slug is string => slug !== undefined);
+      .filter((slug): slug is string => slug !== undefined);
     return new Response(JSON.stringify(slugs), {
       headers: { "Content-Type": "application/json" },
     });
@@ -57,7 +59,7 @@ http.route({
   method: "GET",
   handler: httpAction(async (ctx) => {
     const posts = await ctx.runQuery(api.posts.getPublishedPosts);
-    const simplified = posts.map((p: any) => ({
+    const simplified = posts.map((p) => ({
       slug: p.slug,
       createdAt: p._creationTime,
     }));
