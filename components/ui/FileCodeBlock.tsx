@@ -105,7 +105,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
 
   return (
     <NodeViewWrapper
-      className="relative rounded-lg group max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]"
+      className="relative rounded-lg group/codeblock max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]"
       data-tiptap-custom="file-code-block-wrapper"
       data-language={node.attrs.language}
       data-filename={node.attrs.filename}
@@ -120,6 +120,8 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
           <div className="flex w-full items-center gap-2">
             <button
               type="button"
+              name="file-icon"
+              aria-label="file icon"
               contentEditable={false}
               onClick={(e) => {
                 e.preventDefault();
@@ -133,7 +135,9 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
             >
               {getFileIcon(node.attrs.fileIcon)}
             </button>
+            <label htmlFor="code-block" className="sr-only">code block</label>
             <input
+              id="code-block"
               value={node.attrs.filename}
               name="code block"
               onChange={(e) => updateAttributes({ filename: e.target.value })}
@@ -142,6 +146,8 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
           </div>
           <button
             type="button"
+            name="copy-button"
+            aria-label="copy button"
             contentEditable={false}
             onClick={(e) => {
               e.preventDefault();
@@ -179,10 +185,12 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
       {node.attrs.showHeader === false && (
         <div
           contentEditable={false}
-          className="absolute top-[14px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black"
+          className="absolute top-[14px] right-3 z-30 opacity-0 group-hover/codeblock:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black"
         >
           <button
             type="button"
+            name="copy-button"
+            aria-label="copy button"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

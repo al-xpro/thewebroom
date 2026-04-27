@@ -91,7 +91,11 @@ function CommentForm({
             : "border-transparent focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-within:border-[#FF3400]"
         }`}
       >
+        <label htmlFor="comment-body" className="sr-only">
+          Comment body
+        </label>
         <Textarea
+          id="comment-body"
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
@@ -193,6 +197,9 @@ function CommentRow({
                   : "border-transparent focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-within:border-[#FF3400]"
               }`}
             >
+              <label htmlFor="comment-edit-body" className="sr-only">
+                Edit comment body
+              </label>
               <Textarea
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
@@ -201,6 +208,7 @@ function CommentRow({
                 maxLength={COMMENT_MAX}
                 className="break-word"
                 autoFocus
+                id="comment-edit-body"
               />
               <div className="px-3 py-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
                 <span

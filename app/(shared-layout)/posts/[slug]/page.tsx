@@ -143,7 +143,7 @@ async function PostBody({ params }: PostSlugRouteProps) {
       </header>
 
       <div className="flex flex-col w-full">
-        <div className="relative mb-8 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
+        <div className="relative mb-8 h-[280px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[380px]">
           <Image
             src={post.imageUrl ?? ""}
             alt="post image"
@@ -205,7 +205,7 @@ function PostSkeleton() {
             <Skeleton className="w-14 h-4" />
           </div>
         </div>
-        <div className="relative mt-5 h-[260px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[340px] lg:h-[380px]">
+        <div className="relative mt-5 h-[280px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[380px]">
           <Skeleton className="w-full h-full rounded-xl" />
         </div>
         <div className="mt-10 space-y-2">

@@ -12,7 +12,7 @@ export default function Footer() {
 
   return (
     <footer>
-      <div className="flex flex-col gap-3 sm:gap-2 w-full h-full py-4 border-t">
+      <div className="flex flex-col gap-3 sm:gap-2 w-full h-full py-4 border-t mb-8">
         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-2 sm:gap-x-4 gap-y-2 text-sm text-[#666666] dark:text-[#A0A0A0]">
           <Link href="/privacy-policy" className="text-primary hover:underline">
             Privacy Policy

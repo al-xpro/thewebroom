@@ -1,6 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkBotSignals } from "@/lib/bot-protection";
 
+const ALLOWED_ORIGIN = "*";
+
+// Helper to append CORS headers to any response
+function withCors(response: NextResponse) {
+  response.headers.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  return response;
+}
+
 const AUTH_ROUTES = [
   "/auth/login",
   "/auth/sign-up",
@@ -15,9 +25,9 @@ const AUTH_ROUTES = [
 const rateLimitStore = new Map<string, { count: number; windowStart: number }>();
 
 const RATE_LIMIT_RULES: { pattern: RegExp; limit: number; windowMs: number }[] = [
-  { pattern: /^\/api\/auth/,        limit: 20, windowMs: 60_000 },
+  { pattern: /^\/api\/auth/, limit: 20, windowMs: 60_000 },
   { pattern: /^\/api\/create-blog/, limit: 10, windowMs: 60_000 },
-  { pattern: /^\/auth\//,           limit: 30, windowMs: 60_000 },
+  { pattern: /^\/auth\//, limit: 30, windowMs: 60_000 },
 ];
 
 const AI_SCRAPER_UA = /GPTBot|ChatGPT-User|CCBot|anthropic-ai|Claude-Web|Bytespider|PetalBot/i;
@@ -25,8 +35,10 @@ const AI_SCRAPER_UA = /GPTBot|ChatGPT-User|CCBot|anthropic-ai|Claude-Web|Bytespi
 // IP ban cache — avoids hitting Convex on every request
 const ipBanCache = new Map<string, { banned: boolean; cachedAt: number }>();
 const IP_BAN_CACHE_TTL_MS = 5 * 60 * 1000;
-const CONVEX_SITE_URL = process.env.NEXT_PUBLIC_CONVEX_URL
-  ?.replace(".convex.cloud", ".convex.site");
+const CONVEX_SITE_URL = process.env.NEXT_PUBLIC_CONVEX_URL?.replace(
+  ".convex.cloud",
+  ".convex.site"
+);
 
 function getIp(request: NextRequest): string {
   // On Vercel, x-vercel-forwarded-for is set by Vercel's infrastructure
@@ -37,10 +49,7 @@ function getIp(request: NextRequest): string {
   if (!ip) {
     // Not running on Vercel (local dev) — use forwarded-for as best-effort
     // This is safe locally since there's no production traffic here
-    return (
-      request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-      "unknown"
-    );
+    return request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   }
 
   return ip;
@@ -73,10 +82,9 @@ async function isIpBanned(ip: string): Promise<boolean> {
   }
 
   try {
-    const res = await fetch(
-      `${CONVEX_SITE_URL}/is-ip-banned?ip=${encodeURIComponent(ip)}`,
-      { signal: AbortSignal.timeout(800) }
-    );
+    const res = await fetch(`${CONVEX_SITE_URL}/is-ip-banned?ip=${encodeURIComponent(ip)}`, {
+      signal: AbortSignal.timeout(800),
+    });
     if (res.ok) {
       const data = await res.json();
       ipBanCache.set(ip, { banned: Boolean(data.banned), cachedAt: Date.now() });
@@ -90,26 +98,35 @@ async function isIpBanned(ip: string): Promise<boolean> {
 }
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+const { pathname } = request.nextUrl;
+
+  // 1. Handle Preflight OPTIONS requests (Crucial for CORS)
+  if (request.method === "OPTIONS") {
+    return withCors(new NextResponse(null, { status: 204 }));
+  }
+
   const ip = getIp(request);
   const ua = request.headers.get("user-agent") ?? "";
 
-  // Block AI scrapers
-  if (AI_SCRAPER_UA.test(ua)) return new NextResponse(null, { status: 403 });
+  // 2. Wrap your blocks (403/429) in the withCors helper
+  if (AI_SCRAPER_UA.test(ua)) {
+    return withCors(new NextResponse(null, { status: 403 }));
+  }
 
-  // Bot detection (UA patterns + Vercel BotID if Pro)
   const botCheck = checkBotSignals(request);
-  if (botCheck.isBot) return new NextResponse(null, { status: 403 });
+  if (botCheck.isBot) {
+    return withCors(new NextResponse(null, { status: 403 }));
+  }
 
-  // IP ban check
-  if (await isIpBanned(ip)) return new NextResponse(null, { status: 403 });
+  if (await isIpBanned(ip)) {
+    return withCors(new NextResponse(null, { status: 403 }));
+  }
 
-  // Edge rate limiting
   if (!checkRateLimit(ip, pathname)) {
-    return NextResponse.json(
-      { message: "Too many requests. Please slow down and try again shortly." },
+    return withCors(NextResponse.json(
+      { message: "Too many requests." },
       { status: 429 }
-    );
+    ));
   }
 
   // Auth route guards
@@ -118,12 +135,12 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith("/auth/reset-password")) {
       const token = request.nextUrl.searchParams.get("token")?.trim();
       if (!token) {
-        return NextResponse.redirect(new URL("/auth/forgot-password", request.url));
+        return withCors(NextResponse.redirect(new URL("/auth/forgot-password", request.url)));
       }
     }
   }
 
-  return NextResponse.next();
+  return withCors(NextResponse.next());
 }
 
 export const config = {

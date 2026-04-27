@@ -106,9 +106,15 @@ function useReadingProgress() {
 export function DockNavigation() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const pathname = usePathname();
+  const isPostRoute =
+    ((pathname?.startsWith("/posts/") && pathname !== "/posts") ||
+      pathname?.startsWith("/post/")) ??
+    false;
   const isPostPage =
-    (pathname?.startsWith("/posts/") && pathname !== "/posts") ||
+    isPostRoute ||
     pathname?.includes("privacy-policy") ||
+    pathname?.startsWith("/create") ||
+    pathname?.startsWith("/edit/") ||
     pathname?.includes("terms-and-conditions");
   const [isMounted, setIsMounted] = useState(false);
   const [allowDrag, setAllowDrag] = useState(true);
@@ -395,7 +401,7 @@ export function DockNavigation() {
 
   const getContainerStyles = () => {
     const base =
-      "fixed inset-0 z-50 flex p-6 pointer-events-none transition-all duration-500 ease-in-out min-w-[320px]";
+      "fixed inset-0 z-50 flex p-16 pointer-events-none transition-all duration-500 ease-in-out min-w-[320px]";
     if (isSearching) return cn(base, "items-center justify-center");
     const positions = {
       bottom: "items-end justify-center",
@@ -512,7 +518,7 @@ export function DockNavigation() {
               onMouseLeave={handleItemLeave}
               style={showMinimap ? { y: dragY } : undefined}
               className={cn(
-                "relative flex gap-2 rounded-2xl border border-gray bg-white dark:bg-black shadow-2xl backdrop-blur-2xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
+                "relative flex gap-2 rounded-2xl border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black shadow-2xl backdrop-blur-2xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
                 isSearching
                   ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[320px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
                   : showMinimap

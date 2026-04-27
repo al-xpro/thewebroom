@@ -260,3 +260,16 @@ html:not(.dark) .shiki span {
     color: #fff;
   }
 }
+
+
+/* Custom placeholder for title and subtitle for create and edit post page */
+
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #a0a0a0;
+  pointer-events: none;
+}
+
+.dark [contenteditable][data-placeholder]:empty::before {
+  color: #666666;
+}

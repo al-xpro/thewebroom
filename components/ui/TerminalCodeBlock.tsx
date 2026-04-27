@@ -112,7 +112,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
   const commonFont = "font-mono text-[13px] leading-[20px]";
 
   return (
-    <NodeViewWrapper className="relative rounded-lg group max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <NodeViewWrapper className="relative rounded-lg group/terminal max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
       {/* HEADER */}
       {node.attrs.showHeader !== false && (
         <div
@@ -139,6 +139,8 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
           </div>
           <button
             type="button"
+            name="copy-button"
+            aria-label="copy button"
             contentEditable={false}
             onClick={(e) => {
               e.preventDefault();
@@ -176,10 +178,12 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
       {node.attrs.showHeader === false && (
         <div
           contentEditable={false}
-          className="absolute top-[10px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black"
+          className="absolute top-[10px] right-3 z-30 opacity-0 group-hover/terminal:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black"
         >
           <button
             type="button"
+            name="copy-button"
+            aria-label="copy button"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
