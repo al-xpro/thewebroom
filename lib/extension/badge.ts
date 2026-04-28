@@ -10,7 +10,7 @@ declare module "@tiptap/core" {
 
 export const Badge = Mark.create({
   name: "badge",
-  priority: 1001,
+  priority: 1000,
 
   addOptions() {
     return {

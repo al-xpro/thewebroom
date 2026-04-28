@@ -57,6 +57,8 @@ import { Input } from "./input";
 import { LimitTableRows } from "@/lib/extension/limit-table-rows";
 import { Callout } from "@/lib/extension/callout";
 import { cn } from "@/lib/utils";
+import { AlignmentExtension } from "@/lib/extension/alignment";
+import { ShortcutsExtension } from "@/lib/extension/shortcuts";
 
 interface RichTextEditorProps {
   value?: string;
@@ -154,6 +156,8 @@ export function RichTextEditor({
         },
       }),
       TableDeleteExtension,
+      AlignmentExtension,
+      ShortcutsExtension,
       LimitTableRows,
       Placeholder.configure({ placeholder }),
       Link.configure({
@@ -204,6 +208,24 @@ export function RichTextEditor({
 
   const isToolbarVertical = toolbarPosition === "left" || toolbarPosition === "right";
 
+  const handleToggleLink = () => {
+    if (!editor || isFormattingDisabled) return;
+    const previousUrl = editor.getAttributes("link").href as string | undefined;
+    setLinkValue(previousUrl ?? "https://");
+    setIsLinkOpen(true);
+    setIsLinkExists(previousUrl ? true : false);
+  };
+
+  const handleConfirmLink = () => {
+    if (!editor) return;
+    if (!linkValue.trim()) {
+      editor.chain().focus().unsetLink().run();
+    } else {
+      editor.chain().focus().extendMarkRange("link").setLink({ href: linkValue }).run();
+    }
+    setIsLinkOpen(false);
+  };
+
   useEffect(() => {
     requestAnimationFrame(() => {
       if (!scrollContainerRef.current) return;
@@ -220,6 +242,20 @@ export function RichTextEditor({
       setIsAtEnd(Math.ceil(scrollLeft + clientWidth) >= scrollWidth - 1);
     });
   }, [isToolbarVertical]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (!editor) return;
+
+      const previousUrl = editor.getAttributes("link").href as string | undefined;
+      setLinkValue(previousUrl ?? "https://");
+      setIsLinkExists(!!previousUrl);
+      setIsLinkOpen(true);
+    };
+
+    window.addEventListener("open-link-dialog", handler);
+    return () => window.removeEventListener("open-link-dialog", handler);
+  }, [editor]);
 
   if (!editor) return null;
 
@@ -261,24 +297,6 @@ export function RichTextEditor({
 
   const insertCustomTable = () => {
     editor.chain().focus().insertTable({ rows: tableRows, cols: tableCols, withHeaderRow }).run();
-  };
-
-  const handleToggleLink = () => {
-    if (!editor || isFormattingDisabled) return;
-    const previousUrl = editor.getAttributes("link").href as string | undefined;
-    setLinkValue(previousUrl ?? "https://");
-    setIsLinkOpen(true);
-    setIsLinkExists(previousUrl ? true : false);
-  };
-
-  const handleConfirmLink = () => {
-    if (!editor) return;
-    if (!linkValue.trim()) {
-      editor.chain().focus().unsetLink().run();
-    } else {
-      editor.chain().focus().extendMarkRange("link").setLink({ href: linkValue }).run();
-    }
-    setIsLinkOpen(false);
   };
 
   const bodyValue = getTextWithTablePlaceholder(editor);

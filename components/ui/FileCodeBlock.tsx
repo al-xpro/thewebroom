@@ -13,6 +13,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
   const [html, setHtml] = useState("");
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [uniqueId] = useState(() => `code-block-${Math.random().toString(36).substr(2, 9)}`);
 
   useEffect(() => {
     setMounted(true);
@@ -110,6 +111,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
       data-language={node.attrs.language}
       data-filename={node.attrs.filename}
       data-file-icon={node.attrs.fileIcon}
+
     >
       {/* HEADER */}
       {node.attrs.showHeader !== false && (
@@ -135,9 +137,9 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
             >
               {getFileIcon(node.attrs.fileIcon)}
             </button>
-            <label htmlFor="code-block" className="sr-only">code block</label>
+            <label htmlFor={node.attrs.filename} className="sr-only">code block</label>
             <input
-              id="code-block"
+              id={node.attrs.filename}
               value={node.attrs.filename}
               name="code block"
               onChange={(e) => updateAttributes({ filename: e.target.value })}
