@@ -41,3 +41,5 @@ yarn-error.log*
 next-env.d.ts
 
 certificates
+# private working notes (agent guides, reviews): kept local, never published
+/docs/
