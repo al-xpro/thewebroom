@@ -15,7 +15,7 @@ export default function NotFound() {
         </div>
         
         <p className="md:text-xl text-paragraph leading-relaxed text-balance mx-auto">
-          Sorry, we couldn't find the page you're looking for. <br className="hidden sm:block"/>
+          Sorry, we couldn&apos;t find the page you&apos;re looking for. <br className="hidden sm:block"/>
            It might have been moved or deleted.
         </p>
 
