@@ -1,0 +1,31 @@
+name: Task
+description: Docs, refactors and chores (set the matching label after creating it)
+labels: [chore]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this change, and what exists today.
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be true when it's done, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] A checkable outcome
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Out of scope, patterns to follow, things not to touch.

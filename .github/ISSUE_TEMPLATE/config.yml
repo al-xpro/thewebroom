@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/al-xpro/thewebroom/security/advisories/new
+    about: Report it privately, not as a public issue.
+  - name: Report a post, comment or member on the site
+    url: https://github.com/al-xpro/thewebroom/blob/main/SUPPORT.md
+    about: Content on The Web Room is moderated on the site, not in this repository.
+  - name: Work enquiries
+    url: https://alxpro.com
+    about: The Web Room is built by AlxPro.

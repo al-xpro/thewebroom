@@ -1,0 +1,32 @@
+name: Fix
+description: Something is broken or behaves unexpectedly
+labels: [fix]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What happens today, and where (browser, device, steps to reproduce).
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] The bug no longer reproduces with the steps above
+        - [ ] A test covers the fix
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Out of scope, patterns to follow, things not to touch.
