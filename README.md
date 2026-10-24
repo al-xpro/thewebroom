@@ -15,8 +15,8 @@ prerendered pages, and comments and presence update in real time.
   captions, alignment and keyboard shortcuts. Posts can be saved as drafts and published
   later.
 - **Reading:** posts grouped in four topics (Web Architecture, UI Engineering, AI for
-  Developers, Productivity), full-text search, an "on this page" outline, and copy-to-clipboard
-  on code.
+  Developers, Productivity) with topic filters and pagination, a dock with search (⌘K) and a
+  reading-progress minimap of the post's headings, and copy buttons on code blocks.
 - **Real time:** threaded comments with replies, and presence showing who else is reading a
   post, both over Convex subscriptions.
 - **Accounts:** e-mail and password with e-mail verification, GitHub sign-in, password reset
