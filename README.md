@@ -1,364 +1,170 @@
-# The Web Room - Technical Blog Platform
+# The Web Room | Technical Blog Platform
 
-A production-ready blogging platform built with **Next.js 16**, **Convex**, and **TypeScript**. Features secure authentication, real-time comments, comprehensive rate limiting, and admin controls.
+[![CI](https://github.com/al-xpro/thewebroom/actions/workflows/ci.yml/badge.svg)](https://github.com/al-xpro/thewebroom/actions/workflows/ci.yml)
 
-**Status**: ✅ Production Ready | **Security Score**: A (9/10) | **Performance**: Excellent (PPR optimized)
+A blog platform for developers, designed and developed by [AlxPro](https://alxpro.com):
+members write posts in a rich-text editor built for code, readers get statically
+prerendered pages, and comments and presence update in real time.
 
----
+**Live:** [thewebroom.vercel.app](https://thewebroom.vercel.app)
 
-## What Is This?
+## What it does
 
-The Web Room is a **technical blog platform** where developers can:
-- 📝 Create and publish blog posts with rich text editing
-- 💬 Comment in real-time with edit/delete
-- 🔐 Sign up via GitHub OAuth or email/password with email verification
-- 🎯 Filter posts by topic (Web Architecture, UI Engineering, AI for Developers, Productivity)
-- 👤 Build profiles with display names
-- 🚫 Admins can moderate content and ban users
-- ⚡ Spam-proof with multi-layer rate limiting
+- **Writing:** a TipTap editor with syntax-highlighted code blocks (Shiki, with file names
+  and highlighted lines), terminal blocks with npm/pnpm/yarn tabs, callouts, badges, tables,
+  captions, alignment and keyboard shortcuts. Posts can be saved as drafts and published
+  later.
+- **Reading:** posts grouped in four topics (Web Architecture, UI Engineering, AI for
+  Developers, Productivity) with topic filters and pagination, a dock with search (⌘K) and a
+  reading-progress minimap of the post's headings, and copy buttons on code blocks.
+- **Real time:** threaded comments with replies, and presence showing who else is reading a
+  post, both over Convex subscriptions.
+- **Accounts:** e-mail and password with e-mail verification, GitHub sign-in, password reset
+  with a one-time code, a display name chosen at onboarding, and account deletion that asks
+  you to sign in again first.
+- **Moderation:** an admin dashboard to hide or delete posts and comments, ban accounts and
+  IP addresses, and e-mail authors when their post is hidden, restored or removed.
+- **Abuse limits:** posts, comments, account creation, password-reset requests and one-time
+  code attempts are rate-limited in the database, so limits survive restarts and apply across
+  instances.
+- **Rendering:** Partial Prerendering with Cache Components. A post's page is static HTML,
+  comments stream in, and edits invalidate exactly the cached post by tag.
+- **Security headers:** a Content Security Policy, HSTS, `X-Frame-Options`,
+  `Referrer-Policy` and `Permissions-Policy` on every route.
+- **SEO:** per-post metadata and Open Graph images, a sitemap built from published posts,
+  and `robots.txt`.
 
-**Perfect for**: Developer communities, technical blogs, knowledge sharing platforms
+## Tech stack
 
----
-
-## Tech Stack
-
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | Next.js 16, React 19, TypeScript | Server Components, edge optimization, PPR |
-| **Backend** | Convex | Serverless DB, real-time sync, mutations |
-| **Auth** | better-auth | OAuth, passwords, session management |
-| **Styling** | Tailwind CSS, shadcn/ui | Components, responsive design, dark mode |
-| **Content** | TipTap, Shiki | Rich text editor, syntax highlighting |
-| **Email** | Sendgrid | Verification emails, password resets |
-
----
-
-## Core Features
-
-### 🔐 Authentication
-- GitHub OAuth (one-click signup)
-- Email + password with secure hashing (bcrypt)
-- Email verification (SHA256 hashed tokens, 15-min TTL)
-- Password reset with OTP verification (SHA256 hashed, constant-time comparison)
-- No account enumeration (silent success responses)
-- Session security (HTTP-only, Secure, SameSite=Strict cookies)
-
-### 📝 Content Management
-- Create, edit, delete blog posts
-- Rich text editor (TipTap) with tables, images, code blocks
-- Syntax highlighting (Shiki) for 200+ languages
-- Auto-generated slugs, featured images, reading time
-- 4 topics: Web Architecture, UI Engineering, AI for Developers, Productivity
-- Post status: published, hidden, flagged (enforced in queries)
-
-### 💬 Community
-- Real-time comments on posts
-- Edit/delete own comments
-- User profiles with display names (3-10 chars validation)
-- Presence tracking (see active users in real-time)
-- Admin comment moderation (hide/show)
-
-### ⚡ Rate Limiting (Multi-Layer)
-| Feature | Limit | Storage | Survives Restart |
-|---------|-------|---------|------------------|
-| Post creation | 2 per 24h | DB | ✅ Yes |
-| Comments | 3 per 6h | DB | ✅ Yes |
-| Account creation | 1 per IP/24h | DB | ✅ Yes |
-| OTP attempts | 3 max → 24h lockout | DB | ✅ Yes |
-| Password reset | 3 requests/24h | DB | ✅ Yes |
-
-### 👮 Admin Controls
-- User banning (prevents re-registration)
-- Post status enforcement (published/hidden/flagged)
-- Comment moderation (hide inappropriate comments)
-- Audit trail (all admin actions logged)
-- Dashboard for admin operations
-
-### 🔒 Security Headers
-- `Strict-Transport-Security` (HSTS, 1 year)
-- `Content-Security-Policy` (restrict scripts)
-- `X-Frame-Options: DENY` (prevent clickjacking)
-- `X-Content-Type-Options: nosniff` (prevent MIME sniffing)
-- `Referrer-Policy` (no referrer leaks)
-
----
+- [Next.js 16](https://nextjs.org) (App Router, Cache Components) and React 19
+- TypeScript, Tailwind CSS 4 and [shadcn/ui](https://ui.shadcn.com)
+- [Convex](https://convex.dev): database, file storage, real-time queries, server functions,
+  and the presence component
+- [better-auth](https://better-auth.com) through `@convex-dev/better-auth`
+- [TipTap](https://tiptap.dev) 3 with custom extensions, and [Shiki](https://shiki.style)
+- [Resend](https://resend.com) for transactional e-mail
+- Zod and React Hook Form for validation
+- Hosted on [Vercel](https://vercel.com)
 
 ## Architecture
 
-### Routes & Rendering Strategy
-
-```
-/                          → Home page (static)
-/posts                     → Blog listing (PPR - prerendered + dynamic comments)
-/posts/[slug]              → Blog post (PPR - static HTML + streaming comments)
-/create                    → Post editor (dynamic, auth required)
-/edit/[slug]               → Post editor (dynamic, ownership required)
-/my-posts                  → User's posts (dynamic, auth required)
-/profile                   → User settings (dynamic, auth required)
-/auth/*                    → Auth flows (login, signup, verify, reset)
-/onboarding/*              → First-time setup (display name)
-/admin                     → Admin dashboard (admin only)
-/api/auth/[...all]         → Better-auth handlers
-/api/create-blog           → Post creation (rate limited)
-```
-
-**PPR (Partial Pre-Rendering)**: Blog posts are pre-rendered as static HTML at build time, then comments stream in dynamically. Readers get instant page loads (sub-100ms).
-
-### Database Schema
-
-```typescript
-// Core tables
-users              // Email, name, emailVerified, status
-accounts           // OAuth links (GitHub)
-posts              // Title, slug, body, status, topic
-comments           // PostId, body, authorId
-rateLimits         // userId + postCount/commentCount
-emailVerificationTokens  // tokenHash, expiresAt, usedAt (no reuse)
-passwordResetOtps  // otpHash, expiresAt, attempts (rate limited)
-otpLockouts        // email, locked for 24h after 3 fails
-userBans           // email or userId, reason, active flag
-presences          // Real-time user presence tracking
-```
-
-All tables are indexed on common queries (userId, email, slug) for O(1) lookups.
-
----
-
-## Security
-
-**Threat Model**: Community blog (spam/abuse prevention) — NOT financial/healthcare data
-
-### What's Implemented ✅
-- SHA256 hashed email verification tokens (15-min TTL, single-use)
-- SHA256 hashed OTP with constant-time comparison (3 attempts → 24h lockout)
-- Multi-layer rate limiting (DB authoritative, survives restarts)
-- No account enumeration (password reset returns same response for all inputs)
-- IP spoofing prevention (only trusts Vercel headers)
-- XSS protection (DOMPurify client-side sanitization)
-- CSRF protection (SameSite cookies, secure headers)
-- Input validation (Zod server-side schemas)
-- Admin audit trail (all actions logged)
-
-### What's NOT Implemented (Intentional)
-- 2FA/TOTP (adds friction, low ROI for blog)
-- CAPTCHA (rate limiting adequate, expensive)
-- Database encryption (Convex handles at-rest encryption)
-- DDoS protection (Vercel/Cloudflare edge)
-
-**See [SECURITY.md](./SECURITY.md) for full details** | **Run [SECURITY_TESTING.md](./SECURITY_TESTING.md) before launch**
-
----
-
-## Performance Metrics
-
-### Core Web Vitals ✅
-- **LCP** (Largest Contentful Paint): ~1.2s
-- **FID** (First Input Delay): <100ms
-- **CLS** (Cumulative Layout Shift): <0.1
-
-### Bundle Size
-- HTML: ~45KB (gzipped)
-- JavaScript: ~180KB (gzipped, with code splitting)
-- CSS: ~35KB (gzipped, Tailwind purged)
-- **Total Initial Load**: ~260KB
-
-### Database Performance
-- Post lookup: ~15ms (indexed by slug)
-- Comments query: ~20ms (indexed by postId)
-- Rate limit check: ~10ms (indexed by userId)
-- User query: ~8ms (indexed by email)
-
-### PPR Benefits
-- First visit: ~1.5s (full page load)
-- Subsequent visits: ~500ms (cached HTML)
-- Comments stream in separately (non-blocking)
-- No N+1 queries (single-document fetches)
-
----
-
-## Getting Started
-
-### Prerequisites
-```bash
-Node.js 18+, npm/pnpm, Git
-Convex account (free: https://convex.dev)
-GitHub OAuth app (optional)
-Sendgrid API key (optional, for email)
-```
-
-### Setup (5 minutes)
-
-```bash
-# 1. Clone
-git clone https://github.com/yourusername/the-web-room.git
-cd the-web-room
-
-# 2. Install
-npm install
-
-# 3. Create .env.local
-cat > .env.local << EOF
-NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-GITHUB_CLIENT_ID=your_id
-GITHUB_CLIENT_SECRET=your_secret
-SENDGRID_API_KEY=your_key
-SITE_URL=http://localhost:3000
-EOF
-
-# 4. Initialize Convex
-npx convex auth add
-
-# 5. Run
-npm run dev
-# → http://localhost:3000
-```
-
----
-
-## Deployment
-
-### Vercel (Frontend)
-```bash
-npm install -g vercel
-vercel
-# Set env vars in dashboard
-```
-
-### Convex (Backend)
-```bash
-npx convex deploy
-```
-
-### Pre-Launch Checklist
-- [ ] Environment variables set in Vercel
-- [ ] `npx convex deploy` completed
-- [ ] Custom domain configured
-- [ ] HTTPS redirects working
-- [ ] Email service verified (Sendgrid)
-- [ ] Security headers present (run SECURITY_TESTING.md)
-- [ ] Rate limits tested (post 3 times, 3rd fails)
-- [ ] Team members can sign up & post
-
-### Post-Launch
-- Monitor Convex logs for errors
-- Run `npm audit` monthly
-- Review security reports at security@thewebroom.com
-
----
-
-## What You Can Do
-
-### As a User
-✅ Create account (GitHub OAuth or email)  
-✅ Verify email (click link in inbox)  
-✅ Complete profile (choose display name)  
-✅ Create posts (max 2 per 24 hours)  
-✅ Edit/delete own posts  
-✅ Comment on posts (max 3 per 6 hours)  
-✅ Edit/delete own comments  
-✅ Manage profile (change display name, delete account)  
-
-### As an Admin
-✅ Ban users (by email or user ID)  
-✅ Hide/show posts (change status field)  
-✅ Hide/show comments (moderate)  
-✅ View audit trail (all actions logged)  
-✅ Set admin users (via ADMIN_USER_ID env var)  
-
-### Technical Customization
-✅ Add new post topics (edit schema)  
-✅ Adjust rate limits (edit Convex mutations)  
-✅ Customize styling (Tailwind config)  
-✅ Add OAuth providers (better-auth config)  
-✅ Extend comment system (nested replies, reactions)  
-✅ Add analytics/metrics (new tables + queries)  
-
----
-
-## File Structure
-
-```
-app/                          Next.js 16 App Router
-├── (shared-layout)/ ┌─ Posts, create, edit, my-posts, profile
-├── auth/            ├─ Login, signup, verify-email, password reset
-├── onboarding/      ├─ Complete profile setup
-├── admin/           └─ Admin dashboard
-├── api/auth         Better-auth handlers
-└── schemas/         Zod validation schemas
-
+```text
+app/
+  (shared-layout)/   home, posts, post page, create, edit, my posts, profile, legal pages
+  auth/              sign in, sign up, verify e-mail, forgot and reset password, one-time code
+  onboarding/        profile completion after the first sign-in
+  admin/             moderation dashboard
+  api/auth/          better-auth handlers, account-creation limit
+  schemas/           Zod schemas shared by forms and server actions
+  actions.ts         server actions: create, update and delete posts, with cache invalidation
 components/
-├── ui/              Shadcn/ui components (35+)
-└── web/             Custom components (CommentSection, PostContent, etc.)
-
+  web/               feature components: comments, post content, dock navigation, presence
+  ui/                shadcn/ui primitives, code and terminal blocks, the editor shell
 convex/
-├── schema.ts        Database schema definition
-├── auth.ts          Authentication mutations
-├── posts.ts         Post CRUD operations
-├── comment.ts       Comment CRUD operations
-├── passwordReset.ts Password reset flow
-├── rateLimiting.ts  Rate limiting logic
-└── emailTemplates.ts Email HTML
-
+  schema.ts          every table
+  auth.ts            better-auth setup, bans, onboarding, account deletion
+  posts.ts           posts, search, moderation e-mails
+  comment.ts         comments and replies
+  rateLimiting.ts    database-backed limits
+  passwordReset.ts   hashed one-time codes, lockouts, reset sessions
+  http.ts            HTTP endpoints for the proxy, sitemap and metadata
 lib/
-├── auth-*.ts        Client/server auth utilities
-├── utils.ts         General helpers
-└── extension/       Editor extensions (Shiki, etc.)
-
-public/              Static assets
-.env.local           Secrets (git ignored)
-next.config.ts       Security headers, compression
-tsconfig.json        TypeScript config
-tailwind.config.ts   Styling config
+  get-post.ts        "use cache" data fetchers with cache tags
+  extension/         custom TipTap extensions
+  sanitize.ts        DOMPurify allow-lists for post HTML
+proxy.ts             request gate: bot and AI-scraper blocking, IP bans, a first-line rate limit
 ```
 
----
+**Two backends.** Convex is the source of truth: data, authorization and limits are enforced
+in its functions, never trusted from the browser. Next.js renders pages, runs the server
+actions that create and edit posts, and reads Convex with `fetchQuery`/`preloadQuery`.
+
+**Caching.** Post pages prerender with `"use cache"`, `cacheLife` and `cacheTag`
+(`post-${slug}`, `comments-${postId}`, `blog`). Server actions call `updateTag` after a
+write, so a change refreshes only the pages it affects.
+
+**Request gate.** `proxy.ts` runs before auth routes and the editor: it blocks known bots
+and AI scrapers, checks the IP against the ban list (cached, fails open), and applies an
+in-memory limit to obvious hammering. It reads the client IP only from Vercel's
+`x-vercel-forwarded-for` in production. The authoritative limits are in Convex.
+
+**Secrets at rest.** E-mail verification tokens, one-time codes, reset sessions and
+re-authentication challenges are stored only as SHA-256 hashes, with an expiry and
+single use.
+
+## Getting started
+
+Requires Node.js 20.9 or later and a free [Convex](https://convex.dev) account.
+
+```bash
+npm install
+npx convex dev     # creates a dev deployment, writes CONVEX_DEPLOYMENT and NEXT_PUBLIC_CONVEX_URL to .env.local, and pushes the functions
+npm run dev        # http://localhost:3000, in a second terminal
+npm run lint
+npm run build
+```
+
+### Environment variables
+
+Names only here. Never commit values.
+
+**Next.js** (`.env.local`):
+
+| Name | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_CONVEX_URL` | The Convex deployment URL (`*.convex.cloud`). Written by `npx convex dev`. |
+| `CONVEX_SITE_URL` | The deployment's HTTP actions URL (`*.convex.site`), for the sitemap and post metadata. |
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL for the sitemap. Defaults to `https://thewebroom.vercel.app`. |
+
+**Convex** (set with `npx convex env set NAME value`):
+
+| Name | Purpose |
+| --- | --- |
+| `SITE_URL` | The site's URL, for auth callbacks and links in e-mails. |
+| `BETTER_AUTH_SECRET` | Signs sessions. Generate with `openssl rand -base64 32`. |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth app. Without them, GitHub sign-in is hidden. |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Resend, for verification, reset and moderation e-mails. |
+| `ADMIN_USER_ID`, `ADMIN_EMAIL` | The admin accounts, as comma-separated lists. |
+
+## How this was built
+
+I'm the developer on this project, working with AI coding agents
+([Claude Code](https://claude.com/claude-code)) the way a lead works with a pair
+programmer. I own the architecture, the specs and the code that ships.
+
+The first version was built privately from February to April 2026 and published as `v1.0`
+in October 2026. Before publishing, a review found security issues that are tracked and
+fixed in the open in the [`v1.1 — Ready to publish`](https://github.com/al-xpro/thewebroom/milestone/1)
+milestone.
+
+Since then, every change goes through the same loop:
+
+1. **Spec.** An issue with context, a goal and acceptance criteria.
+2. **Implement on a branch.** Typecheck, lint and the build run before I see it.
+3. **Review.** I read the diff, run it, and change the code myself where it needs it.
+4. **Pull request.** What, Why and How to test, linked to its issue. CI has to pass, and I
+   merge.
+
+Commits drafted with an agent carry a `Co-Authored-By` trailer, so the history is honest
+about how the work was done.
 
 ## Roadmap
 
-**Planned Upgrades**:
-- [ ] Newsletter signup (email list)
-- [ ] Search improvements (full-text indexing)
-- [ ] Trending posts (analytics-based)
-- [ ] Reading list (save posts)
-- [ ] Social sharing (Twitter, LinkedIn buttons)
-- [ ] Comment reactions (👍 👎 ❤️)
-- [ ] Admin analytics dashboard
-- [ ] Email digest (weekly summary)
+The [milestones](https://github.com/al-xpro/thewebroom/milestones):
 
----
+- **v1.1 — Ready to publish:** security fixes, dependency updates, CI and community files.
+- **v1.2 — Foundations:** tests, indexed and paginated queries, upload limits, an RSS feed.
+- **v2.0 — Community:** public profiles, following people and topics, a Following feed,
+  notifications, and block and report.
+- **v2.1 — Writing assistant:** agents that help members write and review posts, never
+  publish for them.
 
 ## Contributing
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-thing`
-3. Commit changes: `git commit -m "Add amazing thing"`
-4. Push: `git push origin feature/amazing-thing`
-5. Open Pull Request
-
----
-
-## Security Reporting
-
-**Found a vulnerability?** Please report responsibly.
-
-📧 **Email**: security@thewebroom.com  
-⏰ **Response**: 7 days initial, 30 days for patch, 90-day disclosure deadline  
-
-**Do NOT**: Post publicly, share without permission, or use vulnerability to access others' accounts.
-
----
+Issues are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), the
+[code of conduct](CODE_OF_CONDUCT.md) and the [security policy](SECURITY.md).
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) file
-
----
-
-## Acknowledgments
-
-[Next.js](https://nextjs.org/) | [Convex](https://convex.dev/) | [better-auth](https://better-auth.com/) | [Tailwind CSS](https://tailwindcss.com/) | [shadcn/ui](https://ui.shadcn.com/) | [TipTap](https://tiptap.dev/) | [Shiki](https://shiki.matsu.io/)
-
----
-
-**Last Updated**: March 14, 2026 | **Version**: 1.0.0 | **Maintainer**: Alex Prostamo
+© AlxPro. All rights reserved. The code is public so it can be read and reviewed.
+It is not licensed for reuse or redistribution. See [LICENSE](LICENSE).
