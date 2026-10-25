@@ -200,7 +200,7 @@ export default function EmailVerificationClient() {
           Click the link in your email to verify your address. The link expires in 15 minutes.
         </div>
         <div className="space-y-3 w-full">
-          <p className="text-sm text-paragraph">Didn't receive the email?</p>
+          <p className="text-sm text-paragraph">Didn&apos;t receive the email?</p>
           <Button
             onClick={handleResendEmail}
             disabled={isResending || cooldown > 0 || resendCount >= 2}

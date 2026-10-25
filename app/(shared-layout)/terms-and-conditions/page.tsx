@@ -31,8 +31,8 @@ export default function TermsAndConditionsPage() {
             These terms are designed to comply with the requirements of the{" "}
             <span className="font-bold">EU General Data Protection Regulation (GDPR)</span>, the{" "}
             <span className="font-bold">UK GDPR</span>, the{" "}
-            <span className="font-bold">California Consumer Privacy Act (CCPA/CPRA)</span>, Brazil's{" "}
-            <span className="font-bold">LGPD</span>, Canada's{" "}
+            <span className="font-bold">California Consumer Privacy Act (CCPA/CPRA)</span>, Brazil&apos;s{" "}
+            <span className="font-bold">LGPD</span>, Canada&apos;s{" "}
             <span className="font-bold">PIPEDA</span>, and other applicable frameworks. Where local
             consumer protection or privacy laws grant stronger rights, those rights apply and
             nothing in these terms is intended to limit them.

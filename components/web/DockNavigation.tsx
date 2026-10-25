@@ -1229,7 +1229,7 @@ function extractTextFromHtml(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
 
-  let textParts: string[] = [];
+  const textParts: string[] = [];
 
   // Normal visible text
   if (doc.body.textContent) {
@@ -1423,7 +1423,7 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
         ) : results && results.length === 0 ? (
           <div className="flex items-center justify-center h-full px-6">
             <p className="text-paragraph text-sm truncate max-w-full text-center">
-              No results found for "{debouncedTerm}"
+              No results found for &quot;{debouncedTerm}&quot;
             </p>
           </div>
         ) : (

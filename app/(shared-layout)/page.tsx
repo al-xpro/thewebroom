@@ -21,10 +21,10 @@ export default function Home() {
             <AuroraText>The Web Room</AuroraText>
           </h1>
           <p className="text-lg text-paragraph leading-relaxed text-justify">
-            "A home for developers building on the Vercel stack. We cover Next.js from routing to
+            &quot;A home for developers building on the Vercel stack. We cover Next.js from routing to
             deployment, UI engineering with React, TypeScript and Tailwind CSS, the Vercel AI
-            ecosystem, and the mindset shift that makes it all sustainable. Let's get started
-            together!"
+            ecosystem, and the mindset shift that makes it all sustainable. Let&apos;s get started
+            together!&quot;
           </p>
         </div>
 
@@ -76,7 +76,7 @@ export default function Home() {
           <AvatarCircles numPeople={99} />
         </div>
         <p className="text-justify text-lg leading-normal text-paragraph">
-          Check out each and every one of us. We're a team of passionate web developers who are
+          Check out each and every one of us. We&apos;re a team of passionate web developers who are
           dedicated to sharing knowledge and insights with you.
         </p>
       </div>

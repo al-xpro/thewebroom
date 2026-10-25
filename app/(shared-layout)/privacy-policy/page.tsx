@@ -30,8 +30,8 @@ export default function PrivacyPolicyPage() {
             collect it, how we protect it, and how users can exercise their rights. It applies
             globally and is written to meet the requirements of the EU General Data Protection
             Regulation (<span className="font-bold">GDPR</span>), the UK GDPR, the California
-            Consumer Privacy Act (<span className="font-bold">CCPA/CPRA</span>), Brazil's Lei Geral
-            de Proteção de Dados (<span className="font-bold">LGPD</span>), Canada's Personal
+            Consumer Privacy Act (<span className="font-bold">CCPA/CPRA</span>), Brazil&apos;s Lei Geral
+            de Proteção de Dados (<span className="font-bold">LGPD</span>), Canada&apos;s Personal
             Information Protection and Electronic Documents Act (
             <span className="font-bold">PIPEDA</span>), and other applicable privacy frameworks.
             Where local law grants stronger rights, those rights apply.
@@ -222,7 +222,7 @@ export default function PrivacyPolicyPage() {
               regions where our service providers operate. For transfers from the EEA, UK, or
               Switzerland to countries without an adequacy decision, we rely on Standard Contractual
               Clauses or other approved transfer mechanisms under GDPR section 5. For other
-              jurisdictions, we apply security measures consistent with the platform's risk profile.
+              jurisdictions, we apply security measures consistent with the platform&apos;s risk profile.
             </p>
           </section>
 
