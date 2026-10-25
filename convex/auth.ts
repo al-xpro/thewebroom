@@ -10,9 +10,19 @@ import { verifyPassword } from "better-auth/crypto";
 const GITHUB_DELETE_REAUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const GITHUB_DELETE_REAUTH_GRANT_TTL_MS = 5 * 60 * 1000;
 const DISPLAY_NAME_PATTERN = /^[a-zA-Z0-9\s-]+$/;
-const ADMIN_USER_ID = process.env.ADMIN_USER_ID;
+// Comma-separated lists, compared by exact match: a substring test would make any
+// account whose e-mail or ID is contained in an admin's an admin too.
+function parseEnvList(value: string | undefined, normalize: (item: string) => string) {
+  return new Set(
+    (value ?? "")
+      .split(",")
+      .map((item) => normalize(item.trim()))
+      .filter(Boolean)
+  );
+}
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_USER_IDS = parseEnvList(process.env.ADMIN_USER_ID, (id) => id);
+const ADMIN_EMAILS = parseEnvList(process.env.ADMIN_EMAIL, (email) => email.toLowerCase());
 function getAuthSiteUrl() {
   return process.env.SITE_URL;
 }
@@ -44,11 +54,15 @@ function normalizeEmail(email: string) {
 
 function isAdminEmail(email: string | null | undefined) {
   if (!email) return false;
-  return ADMIN_EMAIL?.includes(normalizeEmail(email));
+  return ADMIN_EMAILS.has(normalizeEmail(email));
+}
+
+function isAdminUserId(userId: string) {
+  return ADMIN_USER_IDS.has(userId.trim());
 }
 
 export function isAdminUserRecord(user: { _id: string; email?: string | null }) {
-  if (ADMIN_USER_ID?.includes(user._id.toString())) return true;
+  if (isAdminUserId(user._id.toString())) return true;
   return isAdminEmail(user.email);
 }
 
@@ -280,7 +294,7 @@ export const banUserByAdmin = mutation({
       }
     }
 
-    if (targetUserId && ADMIN_USER_ID?.includes(targetUserId)) {
+    if (targetUserId && isAdminUserId(targetUserId)) {
       throw new ConvexError("Cannot ban an admin account");
     }
     if (targetUser && typeof targetUser.email === "string" && isAdminEmail(targetUser.email)) {
