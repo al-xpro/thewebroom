@@ -12,7 +12,7 @@ Disallow: /api/
 Disallow: /not-found
 Disallow: /onboarding/post-auth
 Crawl-delay: 1
-Sitemap: https://thewebroom.vercel.app/sitemap.xml
+Sitemap: https://thewebroom.alxpro.com/sitemap.xml
 
 User-agent: Googlebot
 Crawl-delay: 0

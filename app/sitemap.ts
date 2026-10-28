@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://thewebroom.vercel.app";
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://thewebroom.alxpro.com";
 
 // Cached instead of `dynamic = "force-dynamic"`, which Cache Components rejects. Publishing
 // a post invalidates the `blog` tag, so the sitemap refreshes with it.
