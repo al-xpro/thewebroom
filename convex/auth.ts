@@ -6,6 +6,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import { betterAuth } from "better-auth";
 import { ConvexError, v } from "convex/values";
 import { verifyPassword } from "better-auth/crypto";
+import authConfig from "./auth.config";
 
 const GITHUB_DELETE_REAUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const GITHUB_DELETE_REAUTH_GRANT_TTL_MS = 5 * 60 * 1000;
@@ -135,7 +136,7 @@ export const createAuth = (
     database: authComponent.adapter(ctx),
     emailAndPassword: { enabled: true, requireEmailVerification: true },
     socialProviders,
-    plugins: [convex()],
+    plugins: [convex({ authConfig })],
   });
 };
 
