@@ -14,6 +14,7 @@ import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
 import { connection } from "next/server";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
+import { escapeHtml, sanitizePostHtml } from "@/lib/sanitize-server";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface PostSlugRouteProps {
@@ -108,8 +109,9 @@ async function PostBody({ params }: PostSlugRouteProps) {
     postId: post._id,
   });
 
-  const contentHtml = post.contentHtml || `<p>${post.body}</p>`;
-  const highlightedHtml = await injectShikiIntoHtml(contentHtml);
+  const contentHtml = post.contentHtml || `<p>${escapeHtml(post.body)}</p>`;
+  // Sanitized on the server: the client's DOMPurify only runs after hydration.
+  const highlightedHtml = sanitizePostHtml(await injectShikiIntoHtml(contentHtml));
 
   return (
     <>

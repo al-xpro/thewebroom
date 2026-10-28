@@ -566,7 +566,7 @@ export function PostContent({ html, className = "" }: PostContentProps) {
               {node.caption && (
                 <div
                   className="my-4 text-sm italic text-paragraph text-center"
-                  dangerouslySetInnerHTML={{ __html: node.caption }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(node.caption) }}
                 />
               )}
             </div>
