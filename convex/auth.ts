@@ -708,11 +708,10 @@ export const sendVerificationEmail = mutation({
       where: [{ field: "email", operator: "eq", value: userEmail }],
     })) as { _id: string; email: string; emailVerified?: boolean } | null;
  
-    if (!userRecord) return { success: true, sent: false };
- 
-    if (userRecord.emailVerified) {
-      throw new ConvexError("Email already verified");
-    }
+    // Unknown and already-verified addresses get the same answer, so the result doesn't
+    // reveal which e-mails have a verified account. Sign-up calls this even for existing
+    // accounts, because better-auth reports success for them too.
+    if (!userRecord || userRecord.emailVerified) return { success: true, sent: false };
  
     const now = Date.now();
     const TTL_MS = 15 * 60 * 1000;
