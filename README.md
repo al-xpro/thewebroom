@@ -88,6 +88,11 @@ and AI scrapers, checks the IP against the ban list (cached, fails open), and ap
 in-memory limit to obvious hammering. It reads the client IP only from Vercel's
 `x-vercel-forwarded-for` in production. The authoritative limits are in Convex.
 
+**Sign-ups.** The auth route forwards the client IP to Convex with an HMAC signature
+(`AUTH_PROXY_SECRET`). Before better-auth creates any user, Convex verifies it and checks
+bans and the per-IP limit in one transaction, so sign-ups that bypass the website are
+refused.
+
 **Secrets at rest.** E-mail verification tokens, one-time codes, reset sessions and
 re-authentication challenges are stored only as SHA-256 hashes, with an expiry and
 single use.
@@ -114,6 +119,8 @@ Names only here. Never commit values.
 | --- | --- |
 | `NEXT_PUBLIC_CONVEX_URL` | The Convex deployment URL (`*.convex.cloud`). Written by `npx convex dev`. |
 | `CONVEX_SITE_URL` | The deployment's HTTP actions URL (`*.convex.site`), for the sitemap and post metadata. |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | The same `*.convex.site` URL, for the auth route and server-side tokens. Set by `npx convex deploy` during production builds. |
+| `AUTH_PROXY_SECRET` | Signs the client IP the auth route forwards to Convex. Same value as in Convex. Generate with `openssl rand -base64 32`. |
 | `NEXT_PUBLIC_SITE_URL` | Canonical URL for the sitemap. Defaults to `https://thewebroom.vercel.app`. |
 
 **Convex** (set with `npx convex env set NAME value`):
@@ -125,6 +132,7 @@ Names only here. Never commit values.
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth app. Without them, GitHub sign-in is hidden. |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Resend, for verification, reset and moderation e-mails. |
 | `ADMIN_USER_ID`, `ADMIN_EMAIL` | The admin accounts, as comma-separated lists. |
+| `AUTH_PROXY_SECRET` | Same value as in Next.js. Without it, sign-ups are refused. |
 
 ## How this was built
 
