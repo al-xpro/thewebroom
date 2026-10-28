@@ -26,22 +26,6 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 
 type SignUpFields = keyof z.infer<typeof signUpSchema>;
 
-async function getClientIpAddress(): Promise<string> {
-  try {
-    const response = await fetch("https://api.ipify.org?format=json", {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-    if (response.ok) {
-      const data = await response.json();
-      return data.ip || "unknown";
-    }
-  } catch {
-    // IP service may be unavailable or blocked
-  }
-  return "unknown";
-}
-
 export default function SignUpClient() {
   const [isPending, startTransition] = useTransition();
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<SignUpFields, string>>>({});
@@ -50,7 +34,6 @@ export default function SignUpClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
-  const assertEmailNotBanned = useMutation(api.auth.assertEmailNotBanned);
   const sendVerificationEmail = useMutation(api.auth.sendVerificationEmail);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
@@ -88,41 +71,8 @@ export default function SignUpClient() {
     const pendingName = createPendingName();
 
     startTransition(async () => {
-      try {
-        // Check if email is banned
-        const banCheck = await assertEmailNotBanned({ email: data.email });
-        if (!banCheck.allowed) {
-          setBlockedMessage(
-            banCheck.message || "This email is permanently banned and cannot create new accounts."
-          );
-          setVisibleErrors({});
-          return;
-        }
-
-        // Check IP-based rate limit
-        const ipAddress = await getClientIpAddress();
-        const rateLimitCheck = await fetch("/api/auth/check-rate-limit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ipAddress, email: data.email }),
-        });
-
-        if (!rateLimitCheck.ok) {
-          const errorData = await rateLimitCheck.json();
-          setBlockedMessage(
-            errorData.message || "Too many accounts created from this IP. Please try again later."
-          );
-          setVisibleErrors({});
-          return;
-        }
-      } catch (error) {
-        setBlockedMessage(
-          error instanceof Error ? error.message : "Unable to validate account status"
-        );
-        setVisibleErrors({});
-        return;
-      }
-
+      // Bans and the per-IP account limit are enforced by the server when the account is
+      // created (convex/auth.ts); a refusal comes back through onError below.
       await authClient.signUp.email({
         email: data.email,
         name: pendingName,

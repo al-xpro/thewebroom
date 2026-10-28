@@ -2,11 +2,19 @@ import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import { betterAuth } from "better-auth";
 import { ConvexError, v } from "convex/values";
 import { verifyPassword } from "better-auth/crypto";
+import { APIError } from "better-auth/api";
 import authConfig from "./auth.config";
+import { verifyClientIp } from "../lib/auth-proxy-signature";
 
 const GITHUB_DELETE_REAUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const GITHUB_DELETE_REAUTH_GRANT_TTL_MS = 5 * 60 * 1000;
@@ -117,6 +125,65 @@ export async function assertUserNotBanned(
 
 export const authComponent = createClient<DataModel>(components.betterAuth);
 
+const ACCOUNT_CREATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+// Runs inside the transaction that decides a sign-up: the ban check and the per-IP limit
+// can't be skipped by calling better-auth directly, unlike checks made in the browser.
+export const registerSignUp = internalMutation({
+  args: { email: v.string(), ipAddress: v.string() },
+  handler: async (ctx, args): Promise<{ allowed: true } | { allowed: false; message: string }> => {
+    const email = normalizeEmail(args.email);
+
+    if (await getActiveBanByEmail(ctx, email)) {
+      return { allowed: false, message: "This e-mail address can't be used to create an account." };
+    }
+
+    const now = Date.now();
+    const recent = await ctx.db
+      .query("accountCreationLimits")
+      .withIndex("by_ipAddress", (q) => q.eq("ipAddress", args.ipAddress))
+      .collect();
+    if (recent.some((creation) => creation.createdAt > now - ACCOUNT_CREATION_WINDOW_MS)) {
+      return { allowed: false, message: "Too many accounts were created recently. Try again tomorrow." };
+    }
+
+    await ctx.db.insert("accountCreationLimits", {
+      ipAddress: args.ipAddress,
+      accountEmail: email,
+      createdAt: now,
+    });
+    return { allowed: true };
+  },
+});
+
+// Called by better-auth before it creates any user (e-mail or GitHub sign-up).
+async function assertSignUpAllowed(
+  ctx: GenericCtx<DataModel>,
+  email: string,
+  headers: Headers | undefined
+) {
+  const secret = process.env.AUTH_PROXY_SECRET;
+  if (!secret) {
+    console.error("[Auth][SignUp] AUTH_PROXY_SECRET is not set: refusing sign-ups.");
+    throw new APIError("FORBIDDEN", { message: "Sign-ups are temporarily unavailable." });
+  }
+
+  // Only the website's auth route signs the client IP, so a missing or invalid signature
+  // means the request bypassed it.
+  const ipAddress = headers ? await verifyClientIp(secret, headers) : null;
+  if (!ipAddress) {
+    throw new APIError("FORBIDDEN", { message: "Sign up on the website." });
+  }
+
+  if (!("runMutation" in ctx)) {
+    throw new APIError("FORBIDDEN", { message: "Sign up on the website." });
+  }
+  const result = await ctx.runMutation(internal.auth.registerSignUp, { email, ipAddress });
+  if (!result.allowed) {
+    throw new APIError("FORBIDDEN", { message: result.message });
+  }
+}
+
 export const createAuth = (
   ctx: GenericCtx<DataModel>,
   { optionsOnly } = { optionsOnly: false }
@@ -137,6 +204,15 @@ export const createAuth = (
     emailAndPassword: { enabled: true, requireEmailVerification: true },
     socialProviders,
     plugins: [convex({ authConfig })],
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user, context) => {
+            await assertSignUpAllowed(ctx, user.email, context?.request?.headers ?? context?.headers);
+          },
+        },
+      },
+    },
   });
 };
 
