@@ -28,7 +28,7 @@ export default function AdminPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const [isPending, startTransition] = useTransition();
   const isAdmin = useQuery(api.auth.getIsAdmin, isAuthenticated ? {} : "skip");
-  const posts = useQuery(api.posts.getPosts);
+  const posts = useQuery(api.posts.getAllPostsForAdmin, isAdmin ? {} : "skip");
   const users = useQuery(api.auth.listUsersForAdmin, isAdmin ? {} : "skip");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [visibilityTarget, setVisibilityTarget] = useState<{

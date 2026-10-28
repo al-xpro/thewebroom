@@ -24,7 +24,8 @@ export default defineSchema({
   })
     .searchIndex("search_title", { searchField: "title" })
     .searchIndex("search_body", { searchField: "body" })
-    .index("by_slug", ["slug"]),
+    .index("by_slug", ["slug"])
+    .index("by_authorId", ["authorId"]),
 
   presences: defineTable({
     userId: v.string(),
