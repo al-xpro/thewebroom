@@ -39,7 +39,7 @@ export default defineSchema({
     body: v.string(),
     parentId: v.optional(v.id("comments")),
     status: v.optional(v.union(v.literal("visible"), v.literal("hidden"))),
-  }),
+  }).index("by_authorId", ["authorId"]),
 
   rateLimits: defineTable({
     userId: v.string(),
