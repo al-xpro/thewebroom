@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { topicValidator } from "./topics";
 
 export default defineSchema({
   posts: defineTable({
@@ -12,15 +13,13 @@ export default defineSchema({
     authorName: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
     status: v.optional(
-      v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
+      v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"), v.literal("scheduled"))
     ),
+    // Scheduled posts (#60): when they go out, and the job that publishes them.
+    publishAt: v.optional(v.number()),
+    scheduledJobId: v.optional(v.id("_scheduled_functions")),
     contentHtml: v.optional(v.string()),
-    topic: v.union(
-      v.literal("Web Architecture"),
-      v.literal("UI Engineering"),
-      v.literal("AI for Developers"),
-      v.literal("Productivity")
-    ),
+    topic: topicValidator,
   })
     .searchIndex("search_title", { searchField: "title" })
     .searchIndex("search_body", { searchField: "body" })
@@ -48,7 +47,19 @@ export default defineSchema({
     postCount: v.optional(v.number()),
     commentWindowStart: v.optional(v.number()),
     commentCount: v.optional(v.number()),
+    followWindowStart: v.optional(v.number()),
+    followCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
+
+  // Who follows what (#59). Topics now; people (#28) use the same table.
+  follows: defineTable({
+    followerId: v.string(),
+    targetType: v.union(v.literal("topic"), v.literal("user")),
+    targetId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_follower", ["followerId", "targetType", "targetId"])
+    .index("by_target", ["targetType", "targetId"]),
 
   accountCreationLimits: defineTable({
     ipAddress: v.string(),

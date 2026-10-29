@@ -14,8 +14,11 @@ import { Controller, useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import z from "zod";
 import { safeNextPath } from "@/lib/next-path";
+import { TOPICS, type Topic } from "@/convex/topics";
+import { TopicFollowPicker } from "@/components/web/TopicFollowPicker";
 
 const completeProfileSchema = z.object({
+  topics: z.array(z.enum(TOPICS)).min(1, "Pick at least one topic to follow"),
   name: z
     .string()
     .min(3, "Name must be at least 3 characters")
@@ -34,6 +37,8 @@ export default function CompleteProfileClient() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
   const completeProfileOnboarding = useMutation(api.auth.completeProfileOnboarding);
+  const setFollowedTopics = useMutation(api.follows.setFollowedTopics);
+  const followedTopics = useQuery(api.follows.myFollowedTopics, isAuthenticated ? {} : "skip");
 
   const [isPending, startTransition] = useTransition();
   const [visibleErrors, setVisibleErrors] = useState<
@@ -44,6 +49,7 @@ export default function CompleteProfileClient() {
     resolver: zodResolver(completeProfileSchema),
     defaultValues: {
       name: "",
+      topics: [],
     },
   });
 
@@ -68,10 +74,14 @@ export default function CompleteProfileClient() {
       return;
     }
 
+    if (followedTopics?.length && form.getValues("topics").length === 0) {
+      form.setValue("topics", followedTopics);
+    }
+
     if (!force && user && isOnboardingComplete(user) && user?.displayUsername) {
       form.setValue("name", user.displayUsername, { shouldValidate: true });
     }
-  }, [form, force, isAuthenticated, isLoading, next, router, user]);
+  }, [followedTopics, form, force, isAuthenticated, isLoading, next, router, user]);
 
   function onInvalid(fieldErrors: typeof form.formState.errors) {
     const messages: Partial<Record<CompleteProfileFields, string>> = {};
@@ -99,6 +109,7 @@ export default function CompleteProfileClient() {
     startTransition(async () => {
       try {
         await completeProfileOnboarding({ name: values.name });
+        await setFollowedTopics({ topics: values.topics });
         showSuccessToast("Profile completed successfully");
         router.replace(next ?? "/");
       } catch (error) {
@@ -122,7 +133,7 @@ export default function CompleteProfileClient() {
           <div className="text-center space-y-1">
             <h1 className="text-2xl font-bold">Complete Your Profile</h1>
             <p className="text-sm text-paragraph">
-              Choose your display name to finish account setup.
+              Choose your display name and the topics you want to follow.
             </p>
           </div>
 
@@ -151,9 +162,35 @@ export default function CompleteProfileClient() {
             )}
           />
 
+          <Controller
+            name="topics"
+            control={form.control}
+            render={({ field }) => (
+              <Field>
+                <FieldLabel>Topics to follow</FieldLabel>
+                <p className="text-xs text-paragraph">
+                  Posts on these topics show up first for you. Change them any time on your profile.
+                </p>
+                <TopicFollowPicker
+                  selected={field.value}
+                  disabled={isPending}
+                  onToggle={(topic: Topic) => {
+                    field.onChange(
+                      field.value.includes(topic)
+                        ? field.value.filter((t) => t !== topic)
+                        : [...field.value, topic]
+                    );
+                    clearError("topics");
+                  }}
+                />
+                {visibleErrors.topics && <FieldError errors={[{ message: visibleErrors.topics }]} />}
+              </Field>
+            )}
+          />
+
           <Button disabled={isPending} className="w-full">
             {isPending && <Loader2 className="size-4 animate-spin" />}
-            <span>Save Name</span>
+            <span>Finish</span>
           </Button>
         </FieldGroup>
       </form>

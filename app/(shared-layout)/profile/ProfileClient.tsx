@@ -16,6 +16,9 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TOPICS } from "@/convex/topics";
+import { TopicFollowPicker } from "@/components/web/TopicFollowPicker";
+import { useTopicFollows } from "@/hooks/use-topic-follows";
 
 export default function ProfileClient() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -42,6 +45,7 @@ export default function ProfileClient() {
       : "skip"
   );
 
+  const topicFollows = useTopicFollows();
   const deleteAccountCascade = useMutation(api.auth.deleteAccountCascade);
   const createGithubDeleteReauthChallenge = useMutation(api.auth.createGithubDeleteReauthChallenge);
   const completeGithubDeleteReauth = useMutation(api.auth.completeGithubDeleteReauth);
@@ -243,6 +247,23 @@ export default function ProfileClient() {
                   <Skeleton className="h-9 w-full rounded-md" />
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="space-y-3">
+            <CardHeader>
+              <CardTitle className="text-black dark:text-white">Topics you follow</CardTitle>
+              <CardDescription>Posts on these topics show up first for you.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {topicFollows.canFollow ? (
+                <TopicFollowPicker
+                  selected={TOPICS.filter(topicFollows.isFollowing)}
+                  onToggle={topicFollows.toggle}
+                />
+              ) : (
+                <Skeleton className="h-9 w-full rounded-full" />
+              )}
             </CardContent>
           </Card>
 

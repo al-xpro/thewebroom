@@ -1,3 +1,4 @@
+import { TOPICS } from "@/convex/topics";
 import { BookUser, HomeIcon, LibraryBig, LogIn, User, UserPlus } from "lucide-react";
 
 export const NavbarDataBlog = [
@@ -22,9 +23,4 @@ export const NavbarDataUnauth = [
 
 // Posts page
 
-export const Topics = [
-  "Web Architecture",
-  "UI Engineering",
-  "AI for Developers",
-  "Productivity",
-];
+export const Topics = TOPICS;

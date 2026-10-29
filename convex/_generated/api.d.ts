@@ -14,6 +14,7 @@ import type * as crons from "../crons.js";
 import type * as emailSender from "../emailSender.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as emails from "../emails.js";
+import type * as follows from "../follows.js";
 import type * as http from "../http.js";
 import type * as ipBans from "../ipBans.js";
 import type * as migrations from "../migrations.js";
@@ -21,6 +22,9 @@ import type * as passwordReset from "../passwordReset.js";
 import type * as posts from "../posts.js";
 import type * as presence from "../presence.js";
 import type * as rateLimiting from "../rateLimiting.js";
+import type * as revalidate from "../revalidate.js";
+import type * as scheduledPosts from "../scheduledPosts.js";
+import type * as topics from "../topics.js";
 
 import type {
   ApiFromModules,
@@ -35,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   emailSender: typeof emailSender;
   emailTemplates: typeof emailTemplates;
   emails: typeof emails;
+  follows: typeof follows;
   http: typeof http;
   ipBans: typeof ipBans;
   migrations: typeof migrations;
@@ -42,6 +47,9 @@ declare const fullApi: ApiFromModules<{
   posts: typeof posts;
   presence: typeof presence;
   rateLimiting: typeof rateLimiting;
+  revalidate: typeof revalidate;
+  scheduledPosts: typeof scheduledPosts;
+  topics: typeof topics;
 }>;
 
 /**

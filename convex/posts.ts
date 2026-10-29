@@ -3,12 +3,8 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { Doc, Id } from "./_generated/dataModel";
 import { components, internal } from "./_generated/api";
+import { topicValidator, type Topic } from "./topics";
 
-type Topic =
-  | "Web Architecture"
-  | "UI Engineering"
-  | "AI for Developers"
-  | "Productivity";
 
 type BetterAuthUserContact = {
   email?: string | null;
@@ -106,12 +102,7 @@ export const createPost = mutation({
     minRead: v.number(),
     contentHtml: v.optional(v.string()),
     topic: v.optional(
-      v.union(
-        v.literal("Web Architecture"),
-        v.literal("UI Engineering"),
-        v.literal("AI for Developers"),
-        v.literal("Productivity")
-      )
+      topicValidator
     ),
     status: v.optional(
       v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
@@ -248,7 +239,11 @@ export const getPublishedPosts = query({
     // Filter to published-only in JS — no unsafe TypeScript cast needed.
     // A post is "published" if status is explicitly "published" OR
     // if the status field was never set (legacy posts before status existed).
-    const publishedPosts = posts.filter((p) => p.status === "published" || p.status === undefined);
+    // Newest first by the time they went out: a scheduled post publishes after its draft
+    // was created (#60).
+    const publishedPosts = posts
+      .filter((p) => p.status === "published" || p.status === undefined)
+      .sort((a, b) => (b.publishAt ?? b._creationTime) - (a.publishAt ?? a._creationTime));
 
     return await Promise.all(
       publishedPosts.map(async (post) => {
@@ -297,12 +292,7 @@ export const updatePost = mutation({
     contentHtml: v.optional(v.string()),
     imageStorageId: v.optional(v.id("_storage")),
     topic: v.optional(
-      v.union(
-        v.literal("Web Architecture"),
-        v.literal("UI Engineering"),
-        v.literal("AI for Developers"),
-        v.literal("Productivity")
-      )
+      topicValidator
     ),
     status: v.optional(
       v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
