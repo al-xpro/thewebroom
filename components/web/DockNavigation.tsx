@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { Kbd } from "../ui/kbd";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 
 // Types
 type DockPosition = "bottom" | "top" | "left" | "right";
@@ -1427,8 +1428,8 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
             </p>
           </div>
         ) : (
-          <div
-            className="h-full overflow-y-auto p-2"
+          <ScrollFade
+            className="h-full p-2"
             onMouseMove={() => {
               if (usingKeyboard) {
                 setUsingKeyboard(false);
@@ -1483,7 +1484,7 @@ function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearc
                 </Link>
               ))}
             </div>
-          </div>
+          </ScrollFade>
         )}
       </div>
     </div>
