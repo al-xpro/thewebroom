@@ -147,12 +147,12 @@ export function RichTextEditor({
       TableRow,
       TableHeader.configure({
         HTMLAttributes: {
-          class: "bg-[#FAFAFA] dark:bg-black font-bold text-black dark:text-white p-2 text-left",
+          class: "",
         },
       }),
       TableCell.configure({
         HTMLAttributes: {
-          class: "bg-white dark:bg-[#0A0A0A] p-2 text-left text-paragraph",
+          class: "",
         },
       }),
       TableDeleteExtension,
@@ -715,9 +715,9 @@ export function RichTextEditor({
                     <Code2 className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="p-3">
-                  <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
-                    <span className="text-xs font-bold text-black dark:text-white">Code Block</span>
+                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="w-56 rounded-xl border bg-white p-3 dark:bg-black">
+                  <div className="flex flex-col gap-3">
+                    <span className="type-meta text-xs">Code</span>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <Checkbox
                         checked={codeBlockShowHeader}
@@ -728,7 +728,7 @@ export function RichTextEditor({
                     </label>
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="default"
                       className="w-full"
                       onClick={() => {
                         editor
@@ -741,7 +741,7 @@ export function RichTextEditor({
                           .run();
                       }}
                     >
-                      Insert Code Block
+                      Insert
                     </Button>
                   </div>
                 </PopoverContent>
@@ -758,11 +758,9 @@ export function RichTextEditor({
                     <Terminal className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="p-3">
-                  <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
-                    <span className="text-xs font-bold text-black dark:text-white">
-                      Terminal Block
-                    </span>
+                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="w-56 rounded-xl border bg-white p-3 dark:bg-black">
+                  <div className="flex flex-col gap-3">
+                    <span className="type-meta text-xs">Terminal</span>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <Checkbox
                         checked={terminalShowHeader}
@@ -773,7 +771,7 @@ export function RichTextEditor({
                     </label>
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="default"
                       className="w-full"
                       onClick={() => {
                         editor
@@ -786,7 +784,7 @@ export function RichTextEditor({
                           .run();
                       }}
                     >
-                      Insert Terminal Block
+                      Insert
                     </Button>
                   </div>
                 </PopoverContent>
@@ -805,18 +803,16 @@ export function RichTextEditor({
                       <TableIcon className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="p-3">
-                    <div className="z-50 p-3 bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl w-54 flex flex-col gap-3">
+                  <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="w-56 rounded-xl border bg-white p-3 dark:bg-black">
+                    <div className="flex flex-col gap-3">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-bold text-black dark:text-white">
-                          Create Table
-                        </span>
+                        <span className="type-meta text-xs">Table</span>
                       </div>
                       <div className="flex gap-2">
                         <div className="flex flex-col gap-1 flex-1">
                           <label
                             htmlFor="rows"
-                            className="text-[10px] uppercase font-bold text-paragraph"
+                            className="type-meta text-xs"
                           >
                             Rows
                           </label>
@@ -833,13 +829,13 @@ export function RichTextEditor({
                                 setSafeTableRows(e.currentTarget.value);
                               }
                             }}
-                            className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none no-spinner"
+                            className="input-underline w-full py-1 text-sm font-light tabular-nums no-spinner"
                           />
                         </div>
                         <div className="flex flex-col gap-1 flex-1">
                           <label
                             htmlFor="cols"
-                            className="text-[10px] uppercase font-bold text-paragraph"
+                            className="type-meta text-xs"
                           >
                             Cols
                           </label>
@@ -856,11 +852,11 @@ export function RichTextEditor({
                                 setSafeTableCols(e.currentTarget.value);
                               }
                             }}
-                            className="w-full text-sm p-1.5 border border-[#EAEAEA] dark:border-[#1E1E1E] rounded bg-white dark:bg-black focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-visible:border-primary dark:focus-visible:border-primary focus-within:outline-none no-spinner"
+                            className="input-underline w-full py-1 text-sm font-light tabular-nums no-spinner"
                           />
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2 pt-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
+                      <div className="flex flex-col gap-2">
                         <label
                           htmlFor="checkbox"
                           className="flex items-center gap-2 text-sm cursor-pointer transition-colors w-26"
@@ -871,7 +867,7 @@ export function RichTextEditor({
                             onCheckedChange={(checked) => setWithHeaderRow(checked === true)}
                             className="accent-primary cursor-pointer"
                           />
-                          Header Row
+                          Header row
                         </label>
                       </div>
                       <Button
@@ -884,9 +880,9 @@ export function RichTextEditor({
                           }
                         }}
                         className="w-full"
-                        variant="secondary"
+                        variant="default"
                       >
-                        Insert Table
+                        Insert
                       </Button>
                     </div>
                   </PopoverContent>
@@ -909,8 +905,8 @@ export function RichTextEditor({
                     <ActiveToolbarPositionIcon className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="p-3">
-                  <div className="z-50 p-3 w-full bg-[#F6F6F6] dark:bg-[#060606] border border-[#EAEAEA] dark:border-[#1E1E1E] rounded-lg shadow-xl flex flex-col gap-3">
+                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="w-56 rounded-xl border bg-white p-3 dark:bg-black">
+                  <div className="flex flex-col gap-3">
                     <div className="flex flex-col items-center justify-center gap-2">
                       {toolbarDirectionOptions.map(({ label, value, Icon }) => (
                         <Button
@@ -978,7 +974,6 @@ export function RichTextEditor({
           [&_.ProseMirror_blockquote]:leading-6.5
           [&_.ProseMirror_.react-renderer]:my-12
           [&_.ProseMirror_.react-renderer:has(+figcaption)]:mb-0
-          [&_.ProseMirror_table]:my-12
           [&_.ProseMirror_table:has(+figcaption)]:mb-0
 
           [&_.ProseMirror_ul]:flex
@@ -1031,75 +1026,19 @@ export function RichTextEditor({
           [&_.ProseMirror_a:hover]:underline
           hover:[&_.ProseMirror_a]:cursor-pointer
 
-          [&_table]:relative
-          [&_table]:my-12
-          [&_table]:flex
-          [&_table]:w-full
-          [&_table]:table-fixed
-          [&_table]:justify-center-safe
-          [&_table]:overflow-x-auto
-          [&_table]:overflow-y-hidden
-          [&_table]:border-separate
-          [&_table]:border-spacing-0
-          [&_table]:rounded-xl
-          [&_table]:px-4
-          [&_table]:[scrollbar-width:none]
-          [&_table]:[-ms-overflow-style:none]
-          [&_table]:[&::-webkit-scrollbar]:hidden
-          [&_table]:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
-          [&_table]:[mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
-          [&_colgroup]:hidden
-          [&_col]:hidden
-          [&_td]:min-w-[150px]
-          [&_td]:h-20
-          [&_th]:min-w-[150px]
-          [&_th]:h-20
 
-          [&_.ProseMirror_th]:border-t
-          [&_.ProseMirror_th]:border-l
-          [&_.ProseMirror_th]:border-[#EAEAEA]
-          dark:[&_.ProseMirror_th]:border-[#1E1E1E]
-          [&_.ProseMirror_td]:border-t
-          [&_.ProseMirror_td]:border-l
-          [&_.ProseMirror_td]:border-[#EAEAEA]
-          dark:[&_.ProseMirror_td]:border-[#1E1E1E]
-          [&_.ProseMirror_tr_th:last-child]:border-r
-          [&_.ProseMirror_tr_td:last-child]:border-r
-          [&_.ProseMirror_tr:last-child_td]:border-b
-          [&_.ProseMirror_tr:last-child_th]:border-b
 
-          [&_.ProseMirror_tr:first-child_th:first-child]:rounded-tl-xl
-          [&_.ProseMirror_tr:first-child_td:first-child]:rounded-tl-xl
-          [&_.ProseMirror_tr:first-child_th:last-child]:rounded-tr-xl
-          [&_.ProseMirror_tr:first-child_td:last-child]:rounded-tr-xl
-          [&_.ProseMirror_tr:last-child_th:first-child]:rounded-bl-xl
-          [&_.ProseMirror_tr:last-child_td:first-child]:rounded-bl-xl
-          [&_.ProseMirror_tr:last-child_th:last-child]:rounded-br-xl
-          [&_.ProseMirror_tr:last-child_td:last-child]:rounded-br-xl
 
-          [&_.ProseMirror_th]:bg-[#FAFAFA]
-          [&_.ProseMirror_th]:pl-4
-          [&_.ProseMirror_th]:text-left
-          [&_.ProseMirror_th]:font-bold
-          [&_.ProseMirror_th]:align-middle
-          dark:[&_.ProseMirror_th]:bg-black
-          [&_.ProseMirror_td]:bg-white
-          [&_.ProseMirror_td]:pl-4
-          [&_.ProseMirror_td]:text-left
-          [&_.ProseMirror_td]:align-middle
-          dark:[&_.ProseMirror_td]:bg-[#0A0A0A]
         "
       />
 
       <AlertDialog open={isLinkOpen} onOpenChange={setIsLinkOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-bold">Edit Link</AlertDialogTitle>
-            <AlertDialogDescription className="text-paragraph">
-              Enter a new link for the selected text
-            </AlertDialogDescription>
+            <AlertDialogTitle className="type-heading">Link</AlertDialogTitle>
+            <AlertDialogDescription className="sr-only">The address for the selected text</AlertDialogDescription>
           </AlertDialogHeader>
-          <label htmlFor="link-url"></label>
+          <label htmlFor="link-url" className="sr-only">Address</label>
           <Input
             id="link-url"
             value={linkValue}
@@ -1107,10 +1046,10 @@ export function RichTextEditor({
             placeholder="https://example.com"
           />
           <AlertDialogFooter>
-            <AlertDialogCancel variant="secondary">Cancel</AlertDialogCancel>
+            <AlertDialogCancel variant="ghost">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmLink}
-              variant="secondary"
+              variant="default"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -1127,7 +1066,6 @@ export function RichTextEditor({
                   editor?.chain().focus().unsetLink().run();
                   setIsLinkOpen(false);
                 }}
-                className="h-8.5"
               >
                 Remove
               </Button>

@@ -384,3 +384,31 @@ html:not(.dark) .shiki span {
     --underline: var(--destructive);
   }
 }
+
+/* Tables in posts and the editor: full width, compact, and never scrolling sideways —
+   long cells wrap instead. Rows are separated by thin lines; nothing else. */
+:is(.post-content, .ProseMirror) table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin-block: 2rem;
+  font-size: 0.875rem;
+}
+:is(.post-content, .ProseMirror) :is(th, td) {
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  font-weight: 300;
+}
+:is(.post-content, .ProseMirror) th {
+  font-weight: 500;
+  color: var(--foreground);
+}
+:is(.post-content, .ProseMirror) :is(th, td) > p {
+  margin: 0;
+}
+.ProseMirror .tableWrapper {
+  overflow: visible;
+}
