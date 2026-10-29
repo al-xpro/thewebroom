@@ -37,5 +37,13 @@ export async function withSignedClientIp(request: Request): Promise<Request> {
     console.error("[Auth][Proxy] AUTH_PROXY_SECRET is not set: Convex will refuse sign-ups.");
   }
 
-  return new Request(request, { headers });
+  // Rebuilt from its parts: `new Request(request, ...)` throws "Cannot read private member
+  // #state" when the incoming request comes from another copy of the Request class.
+  const hasBody = request.method !== "GET" && request.method !== "HEAD";
+  return new Request(request.url, {
+    method: request.method,
+    headers,
+    body: hasBody ? await request.arrayBuffer() : undefined,
+    signal: request.signal,
+  });
 }

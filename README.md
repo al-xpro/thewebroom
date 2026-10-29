@@ -134,6 +134,7 @@ Names only here. Never commit values.
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Resend, for verification, reset and moderation e-mails. The sender must be on a domain verified in Resend, e.g. `The Web Room <noreply@thewebroom.alxpro.com>`. |
 | `ADMIN_USER_ID`, `ADMIN_EMAIL` | The admin accounts, as comma-separated lists. |
 | `AUTH_PROXY_SECRET` | Same value as in Next.js. Without it, sign-ups are refused. |
+| `TRUSTED_ORIGINS` | Optional. Other origins allowed to call auth, comma-separated, wildcards allowed. On the dev deployment: `https://the-web-room-*-alxpro.vercel.app`, so sign-in works on Vercel previews. |
 
 ## How this was built
 

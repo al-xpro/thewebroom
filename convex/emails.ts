@@ -1,5 +1,4 @@
-import { internal } from "./_generated/api";
-import { internalAction, mutation } from "./_generated/server";
+import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import {
   buildBannedUserEmail,
@@ -188,35 +187,5 @@ export const deliverPostPublishedModerationEmail = internalAction({
     });
 
     return { success: true, delivered: result.delivered };
-  },
-});
-
-export const sendEmailVerificationEmail = mutation({
-  args: {
-    email: v.string(),
-    verificationLink: v.string(),
-  },
-  handler: async (ctx, args) => {
-    await ctx.scheduler.runAfter(0, internal.emails.deliverEmailVerificationEmail, {
-      email: args.email,
-      verificationLink: args.verificationLink,
-    });
-    return { success: true, queued: true };
-  },
-});
-
-export const sendPasswordResetEmail = mutation({
-  args: {
-    email: v.string(),
-    otp: v.string(),
-    resetLink: v.string(),
-  },
-  handler: async (ctx, args) => {
-    await ctx.scheduler.runAfter(0, internal.emails.deliverPasswordResetEmail, {
-      email: args.email,
-      otp: args.otp,
-      resetLink: args.resetLink,
-    });
-    return { success: true, queued: true };
   },
 });
