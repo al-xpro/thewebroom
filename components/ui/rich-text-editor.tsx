@@ -9,8 +9,6 @@ import { Button } from "./button";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
-  ArrowLeft,
-  ArrowRight,
   ArrowUp,
   Bold,
   Italic,
@@ -397,9 +395,8 @@ export function RichTextEditor({
     value: ToolbarPosition;
     Icon: typeof ArrowUp;
   }> = [
+    // Only top and bottom: on the sides the toolbar squeezes the dock's minimap.
     { label: "Top", value: "top", Icon: ArrowUp },
-    { label: "Left", value: "left", Icon: ArrowLeft },
-    { label: "Right", value: "right", Icon: ArrowRight },
     { label: "Bottom", value: "bottom", Icon: ArrowDown },
   ];
 

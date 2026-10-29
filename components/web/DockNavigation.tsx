@@ -169,6 +169,13 @@ export function DockNavigation() {
 
   const isVertical = (position === "left" || position === "right") && !isSearching;
 
+  // The dock's size follows what it shows, but only once the previous content has left:
+  // resizing while the minimap is still animating out (AnimatePresence "wait") stretched
+  // the dock across the viewport, e.g. when leaving a post with the browser's back button.
+  const targetMode = isSearching ? "search" : showMinimap ? "minimap" : "dock";
+  const [frameMode, setFrameMode] = useState(targetMode);
+  const frame = isSearching ? "search" : frameMode;
+
   // --- Drag Controls ---
   // We use dragControls to allow dragging ONLY from the specific Grip icon
   const dragControls = useDragControls();
@@ -405,7 +412,7 @@ export function DockNavigation() {
 
   const getContainerStyles = () => {
     const base =
-      "fixed inset-0 z-50 flex p-16 pointer-events-none transition-all duration-500 ease-in-out min-w-[320px]";
+      "fixed inset-0 z-50 flex px-3 py-16 sm:p-16 pointer-events-none transition-all duration-500 ease-in-out min-w-[320px]";
     if (isSearching) return cn(base, "items-center justify-center");
     const positions = {
       bottom: "items-end justify-center",
@@ -523,12 +530,12 @@ export function DockNavigation() {
               style={showMinimap ? { y: dragY } : undefined}
               className={cn(
                 "relative flex gap-2 rounded-2xl border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black shadow-2xl backdrop-blur-2xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
-                isSearching
-                  ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[320px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
-                  : showMinimap
+                frame === "search"
+                  ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[300px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
+                  : frame === "minimap"
                     ? isVertical
                       ? "w-14 min-h-[260px] max-h-[400px] h-full flex-col py-3 items-center overflow-hidden touch-none"
-                      : "w-[400px] h-14 flex-row px-3 items-center overflow-hidden touch-none"
+                      : "w-[400px] max-w-full h-14 flex-row px-3 items-center overflow-hidden touch-none"
                     : isVertical
                       ? "w-16 h-auto flex-col p-2"
                       : "w-auto h-16 flex-row scale-92 sm:scale-100 p-2"
@@ -557,7 +564,7 @@ export function DockNavigation() {
                 </>
               )}
 
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" onExitComplete={() => setFrameMode(targetMode)}>
                 {isSearching ? (
                   <motion.div
                     key="search"
