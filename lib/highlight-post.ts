@@ -14,12 +14,13 @@ export async function injectShikiIntoHtml(html: string): Promise<string> {
       const codeMatch = inner.match(/<code[^>]*>([\s\S]*?)<\/code>/);
       if (!codeMatch) return match;
 
+      // &amp; goes last, so "&amp;lt;" decodes to "&lt;" and not to "<".
       const code = codeMatch[1]
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'");
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, "&");
 
       try {
         const lang = LANGUAGES.includes(fileIcon) ? fileIcon : "text";
