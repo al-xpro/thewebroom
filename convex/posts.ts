@@ -76,7 +76,7 @@ async function getUniqueSlug(
 }
 
 function getAppUrl() {
-  return (process.env.SITE_URL ?? "https://thewebroom.vercel.app").replace(/\/$/, "");
+  return (process.env.SITE_URL ?? "https://thewebroom.alxpro.com").replace(/\/$/, "");
 }
 
 async function getPostAuthorEmail(ctx: MutationCtx, authorId: string) {

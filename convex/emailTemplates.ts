@@ -1,4 +1,4 @@
-const BLOG_URL = "https://thewebroom.vercel.app";
+const BLOG_URL = "https://thewebroom.alxpro.com";
 const SUPPORT_EMAIL = "alxpro.dev@gmail.com";
 const GUIDELINES_URL = `${BLOG_URL}/terms-and-conditions`;
 const CURRENT_YEAR = new Date().getFullYear();

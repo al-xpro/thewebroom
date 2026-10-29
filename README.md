@@ -6,7 +6,7 @@ A blog platform for developers, designed and developed by [AlxPro](https://alxpr
 members write posts in a rich-text editor built for code, readers get statically
 prerendered pages, and comments and presence update in real time.
 
-**Live:** [thewebroom.vercel.app](https://thewebroom.vercel.app)
+**Live:** [thewebroom.alxpro.com](https://thewebroom.alxpro.com)
 
 ## What it does
 
@@ -120,8 +120,9 @@ Names only here. Never commit values.
 | `NEXT_PUBLIC_CONVEX_URL` | The Convex deployment URL (`*.convex.cloud`). Written by `npx convex dev`. |
 | `CONVEX_SITE_URL` | The deployment's HTTP actions URL (`*.convex.site`), for the sitemap and post metadata. |
 | `NEXT_PUBLIC_CONVEX_SITE_URL` | The same `*.convex.site` URL, for the auth route and server-side tokens. Set by `npx convex deploy` during production builds. |
-| `AUTH_PROXY_SECRET` | Signs the client IP the auth route forwards to Convex. Same value as in Convex. Generate with `openssl rand -base64 32`. |
-| `NEXT_PUBLIC_SITE_URL` | Canonical URL for the sitemap. Defaults to `https://thewebroom.vercel.app`. |
+| `AUTH_PROXY_SECRET` | Signs the client IP the auth route forwards to Convex. Same value as the Convex deployment it talks to: one value for local and Preview (dev), another for Production. Generate with `openssl rand -base64 32`. |
+| `CONVEX_DEPLOY_KEY` | Vercel Production only. The production build runs `npx convex deploy` with it; previews build against the dev deployment without it. |
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL for the sitemap. Defaults to `https://thewebroom.alxpro.com`. |
 
 **Convex** (set with `npx convex env set NAME value`):
 
@@ -130,7 +131,7 @@ Names only here. Never commit values.
 | `SITE_URL` | The site's URL, for auth callbacks and links in e-mails. |
 | `BETTER_AUTH_SECRET` | Signs sessions. Generate with `openssl rand -base64 32`. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth app. Without them, GitHub sign-in is hidden. |
-| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Resend, for verification, reset and moderation e-mails. |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Resend, for verification, reset and moderation e-mails. The sender must be on a domain verified in Resend, e.g. `The Web Room <noreply@thewebroom.alxpro.com>`. |
 | `ADMIN_USER_ID`, `ADMIN_EMAIL` | The admin accounts, as comma-separated lists. |
 | `AUTH_PROXY_SECRET` | Same value as in Next.js. Without it, sign-ups are refused. |
 

@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-node_modules
+/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -40,6 +40,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-certificates
-# private working notes (agent guides, reviews): kept local, never published
+# testing (Playwright)
+/test-results/
+/playwright-report/
+/blob-report/
+
+# local HTTPS certificates (mkcert)
+/certificates
+
+# private working notes and agent instructions: kept local, never published
 /docs/
+/CLAUDE.md
