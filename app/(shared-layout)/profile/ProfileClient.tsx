@@ -5,11 +5,13 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Eye, EyeOff, LogOut } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Loader2, LogOut } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { api } from "@/convex/_generated/api";
 import Footer from "@/components/web/Footer";
+import { updateDisplayNameAction } from "@/app/actions";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
@@ -21,7 +23,6 @@ export default function ProfileClient() {
   const searchParams = useSearchParams();
   const deleteReauthToken = (searchParams.get("deleteReauthToken") ?? "").trim();
 
-  const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -29,6 +30,8 @@ export default function ProfileClient() {
   const [isCompletingGithubReauth, setIsCompletingGithubReauth] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [open, setOpen] = useState(false);
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [isSavingName, setIsSavingName] = useState(false);
 
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
   const deleteGuard = useQuery(api.auth.getDeleteAccountGuard, isAuthenticated ? {} : "skip");
@@ -74,6 +77,34 @@ export default function ProfileClient() {
 
     return () => { cancelled = true; };
   }, [completeGithubDeleteReauth, deleteReauthToken, isAuthenticated, router]);
+
+  // Same rules as onboarding; the server checks them again (convex/auth.ts).
+  const nameValue = nameDraft ?? user?.name ?? "";
+  const nameError = !/^[a-zA-Z0-9\s-]+$/.test(nameValue.trim())
+    ? "Use letters, digits, spaces and hyphens only."
+    : nameValue.trim().length < 3 || nameValue.trim().length > 10
+      ? "Use 3 to 10 characters."
+      : null;
+  const nameChanged = nameDraft !== null && nameDraft.trim() !== (user?.name ?? "");
+
+  const handleSaveName = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!nameChanged || nameError) return;
+    setIsSavingName(true);
+    try {
+      const result = await updateDisplayNameAction(nameValue.trim());
+      if (!result.ok) {
+        showErrorToast(result.message);
+        return;
+      }
+      setNameDraft(null);
+      showSuccessToast(`You're now ${result.name} everywhere on The Web Room.`);
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to change your name");
+    } finally {
+      setIsSavingName(false);
+    }
+  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -174,11 +205,27 @@ export default function ProfileClient() {
                 </div>
                 <div className="flex flex-col w-full space-y-2">
                   <FieldLabel className="text-sm font-medium" htmlFor="username">Username</FieldLabel>
-                  <p className="text-xs text-paragraph">Your display name on the platform</p>
+                  <p className="text-xs text-paragraph">Your display name on posts and comments</p>
                   {profileReady ? (
-                    <Input id="username" type="text" name="username" autoComplete="username"
-                      value={user?.name ?? ""} disabled
-                      className="bg-white dark:bg-black disabled:cursor-not-allowed disabled:pointer-events-auto" />
+                    <form onSubmit={handleSaveName} className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Input id="username" type="text" name="username" autoComplete="nickname"
+                          value={nameValue}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          disabled={isSavingName}
+                          aria-invalid={nameChanged && !!nameError}
+                          aria-describedby={nameChanged && nameError ? "username-error" : undefined}
+                          className="bg-white dark:bg-black" />
+                        <Button type="submit" size="sm" className="h-9"
+                          disabled={!nameChanged || !!nameError || isSavingName}>
+                          {isSavingName && <Loader2 className="size-4 animate-spin" />}
+                          Save
+                        </Button>
+                      </div>
+                      {nameChanged && nameError && (
+                        <p id="username-error" className="text-xs text-destructive">{nameError}</p>
+                      )}
+                    </form>
                   ) : (
                     <Skeleton className="h-9 w-full rounded-md" />
                   )}
@@ -219,27 +266,15 @@ export default function ProfileClient() {
                 <div className="space-y-2">
                   <FieldLabel htmlFor="delete-password" className="text-sm font-medium">Password</FieldLabel>
                   <p className="text-xs text-paragraph">Enter your password to delete your account.</p>
-                  <div className="relative">
-                    <Input
-                      id="delete-password"
-                      name="delete-account-password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      disabled={isDeleting}
-                      className="bg-white dark:bg-black pr-12"
-                    />
-                    <button
-                      type="button"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      onClick={() => setShowPassword(!showPassword)}
-                      disabled={isDeleting}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center h-[34px] w-9 border-l border-[#EAEAEA] dark:border-[#1E1E1E] text-paragraph cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    id="delete-password"
+                    name="delete-account-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    disabled={isDeleting}
+                    className="bg-white dark:bg-black"
+                  />
                 </div>
               )}
 

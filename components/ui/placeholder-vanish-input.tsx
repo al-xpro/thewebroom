@@ -210,8 +210,10 @@ export function PlaceholdersAndVanishInput({
           </p>
         )}
       </div>
+      {/* Enter in the field submits; Tab doesn't stop here, so the field's ring is the only one. */}
       <Button
         type="submit"
+        tabIndex={-1}
         className={cn(
           "absolute right-2 top-1/2 -translate-y-1/2 z-20 cursor-pointer",
           "flex items-center gap-2 rounded-full px-3 sm:px-4 py-1.5 text-sm font-medium transition",
