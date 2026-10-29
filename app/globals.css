@@ -302,6 +302,19 @@ html:not(.dark) .shiki span {
   }
 }
 
+@utility divider-fade-bottom {
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--border);
+    mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent);
+    pointer-events: none;
+  }
+}
+
 @utility divider-dashed-fade-bottom {
   &::after {
     content: "";
