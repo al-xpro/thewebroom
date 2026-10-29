@@ -203,7 +203,15 @@ export const createAuth = (
     database: authComponent.adapter(ctx),
     emailAndPassword: { enabled: true, requireEmailVerification: true },
     socialProviders,
-    plugins: [convex({ authConfig })],
+    plugins: [
+      convex({
+        authConfig,
+        // Keys stored before 0.12 are EdDSA; 0.12 signs with RS256 and fails with
+        // ERR_JOSE_NOT_SUPPORTED until they're replaced. This replaces them on the first
+        // failed token request. Remove once production has rotated its keys.
+        jwksRotateOnTokenGenerationError: true,
+      }),
+    ],
     databaseHooks: {
       user: {
         create: {
