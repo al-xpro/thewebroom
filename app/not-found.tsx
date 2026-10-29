@@ -1,29 +1,35 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { AuroraText } from "@/components/ui/aurora-text";
+
+// Next.js already sends `noindex` with every 404.
+export const metadata: Metadata = {
+  title: "Page not found — The Web Room",
+};
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4">
-      <div className="text-center space-y-6 max-w-2xl">
-        <div className="space-y-2">
-          <h1 className="text-7xl font-extrabold tracking-tight sm:text-8xl">
-            404
-          </h1>
-          <p className="text-4xl font-extrabold tracking-tight md:text-5xl">
-            Page not found
-          </p>
-        </div>
-        
-        <p className="md:text-xl text-paragraph leading-relaxed text-balance mx-auto">
-          Sorry, we couldn&apos;t find the page you&apos;re looking for. <br className="hidden sm:block"/>
-           It might have been moved or deleted.
-        </p>
+    <div className="flex min-h-svh flex-col items-center justify-center px-4 py-16 text-center">
+      <p className="text-sm font-medium text-primary uppercase tracking-[0.18em]">Page not found</p>
 
-        <div className="flex items-center justify-center gap-4">
-          <Link href="/" className={buttonVariants({ size: "lg", variant: "outline" })}>
-            Back to home
-          </Link>
-        </div>
+      <h1 className="mt-4 text-[7rem] leading-none font-extrabold tracking-tighter sm:text-[10rem]">
+        <AuroraText>404</AuroraText>
+      </h1>
+
+      <p className="mt-6 max-w-md text-lg text-paragraph leading-relaxed text-balance">
+        This page has left the room. It may have moved, been unpublished, or never existed.
+      </p>
+
+      <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+        <Link href="/posts" className={buttonVariants({ className: "gap-2" })}>
+          Browse posts
+          <ArrowRight className="size-4" />
+        </Link>
+        <Link href="/" className={buttonVariants({ variant: "outline" })}>
+          Back home
+        </Link>
       </div>
     </div>
   );
