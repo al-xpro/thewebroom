@@ -9,9 +9,6 @@ import { Separator } from "@/components/ui/separator";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
-  Book,
-  BookDashed,
-  CalendarClock,
   BookType,
   Calendar,
   Check,
@@ -35,6 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { FunctionReturnType } from "convex/server";
 import { TOPICS, type Topic } from "@/convex/topics";
 
@@ -99,6 +97,10 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
   );
   const [isMetaEditing, setIsMetaEditing] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
+  // Scheduled posts keep their time; setting one turns Publish into Schedule (#60).
+  const [publishAt, setPublishAt] = useState<number | null>(
+    post.status === "scheduled" && post.publishAt ? post.publishAt : null
+  );
   const [isTopicOpen, setIsTopicOpen] = useState(false);
   const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
@@ -281,49 +283,21 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
       )}
 
       <form
-        onSubmit={form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (publishAt) void scheduleAt(publishAt);
+          else void form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)();
+        }}
         className="flex flex-col gap-8 pb-16"
       >
         <div className="flex items-center justify-between gap-5">
           <Link href="/my-posts" className="flex items-center justify-center gap-2">
-            <Button variant="outline" size="sm" className="relative z-20">
+            <Button variant="ghost" size="sm" className="relative z-20 -ml-3">
               <ArrowLeft className="h-4 w-4" />
               Posts
             </Button>
           </Link>
 
-          <div className="flex flex-wrap items-end justify-end gap-2">
-            <SchedulePicker onConfirm={scheduleAt}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={isPending || draftPending}
-                className="shrink-0"
-              >
-                <span className="flex items-center gap-2">
-                  Schedule… <CalendarClock className="size-4" />
-                </span>
-              </Button>
-            </SchedulePicker>
-            <Button
-              disabled={isPending || draftPending}
-              size="sm"
-              type="button"
-              className="shrink-0"
-              onClick={form.handleSubmit((values) => onSubmit(values, "draft"), onInvalid)}
-            >
-              {draftPending && <Loader2 className="size-4 animate-spin" />}
-              <span className="flex items-center gap-2">Draft <BookDashed className="size-4" /></span>
-            </Button>
-
-            <Button disabled={isPending || draftPending} size="sm" type="submit" className="shrink-0">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
-              <span className="flex items-center gap-2">
-                Publish <Book className="size-4" />
-              </span>
-            </Button>
-          </div>
         </div>
 
         <article className="flex flex-col gap-8">
@@ -412,15 +386,28 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
 
             <Separator className="my-4" />
 
-            <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
+            <ScrollFade orientation="horizontal">
+            <div className="flex w-max min-w-full flex-nowrap items-center gap-8 sm:gap-12 py-1 text-[11px] sm:text-sm text-paragraph">
               <div className="flex flex-col items-center gap-2 text-black dark:text-white">
                 <User className="size-4 sm:size-5" />
                 <p>{user?.name || ""}</p>
               </div>
-              <div className="flex flex-col items-center gap-2 text-black dark:text-white">
-                <Calendar className="size-4 sm:size-5" />
-                <p>{new Date().toLocaleDateString("en-US")}</p>
-              </div>
+              <SchedulePicker
+                initial={publishAt ?? undefined}
+                onConfirm={(at) => setPublishAt(at)}
+                onClear={publishAt ? () => setPublishAt(null) : undefined}
+              >
+                <button
+                  type="button"
+                  aria-label={publishAt ? `Publishes ${formatPublishAt(publishAt)}. Change` : "Schedule"}
+                  className={`flex shrink-0 flex-col items-center gap-2 cursor-pointer ${publishAt ? "text-primary" : "text-black dark:text-white"}`}
+                >
+                  <Calendar className="size-4 sm:size-5" />
+                  <span className="whitespace-nowrap">
+                    {publishAt ? formatPublishAt(publishAt) : new Date().toLocaleDateString("en-US")}
+                  </span>
+                </button>
+              </SchedulePicker>
               <Controller
                 name="topic"
                 control={form.control}
@@ -542,7 +529,24 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                 )}
               />
               <CopySlugButton slug={slugPreview} />
+              <div className="ml-auto flex shrink-0 items-center gap-1 pl-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending || draftPending}
+                  onClick={form.handleSubmit((values) => onSubmit(values, "draft"), onInvalid)}
+                >
+                  {draftPending && <Loader2 className="size-4 animate-spin" />}
+                  Draft
+                </Button>
+                <Button type="submit" size="sm" disabled={isPending || draftPending}>
+                  {isPending && <Loader2 className="size-4 animate-spin" />}
+                  {publishAt ? "Schedule" : "Publish"}
+                </Button>
+              </div>
             </div>
+            </ScrollFade>
           </header>
 
           <Controller

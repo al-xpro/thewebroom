@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { CalendarClock, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 // `datetime-local` works in the browser's time zone, which is the author's.
 export function toLocalInputValue(time: number) {
@@ -21,71 +29,129 @@ export function timeZoneName() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function timeOf(date: Date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 interface SchedulePickerProps {
-  // The button that opens the picker.
+  // What opens the picker.
   children: ReactNode;
   initial?: number;
   confirmLabel?: string;
   onConfirm: (publishAt: number) => Promise<void> | void;
+  // Shown when set: goes back to publishing right away.
+  onClear?: () => void;
 }
 
-// A date and time for a post to go out (#60).
-export function SchedulePicker({ children, initial, confirmLabel = "Schedule", onConfirm }: SchedulePickerProps) {
+// A day and a time for a post to go out (#60): a panel on medium and large screens, a
+// drawer on phones. Times are in the author's time zone.
+export function SchedulePicker({ children, initial, confirmLabel = "Set", onConfirm, onClear }: SchedulePickerProps) {
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
+  const [day, setDay] = useState<Date | undefined>();
+  const [time, setTime] = useState("09:00");
   const [pending, setPending] = useState(false);
   // Read when the picker opens; the server checks the time again.
   const [now, setNow] = useState(() => Date.now());
 
-  const publishAt = value ? new Date(value).getTime() : NaN;
+  const [hours, minutes] = time.split(":").map(Number);
+  const publishAt = day
+    ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), hours, minutes).getTime()
+    : NaN;
   const valid = Number.isFinite(publishAt) && publishAt > now + 60_000;
 
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (next) {
-          const opened = Date.now();
-          setNow(opened);
-          setValue(toLocalInputValue(initial ?? opened + 24 * 60 * 60 * 1000));
-        }
-      }}
-    >
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align="end" className="w-72 space-y-3">
-        <div className="space-y-1">
-          <label htmlFor="publish-at" className="text-sm font-medium flex items-center gap-2">
-            <CalendarClock className="size-4" /> Publish on
-          </label>
-          <Input
-            id="publish-at"
-            type="datetime-local"
-            value={value}
-            min={toLocalInputValue(now + 2 * 60_000)}
-            onChange={(e) => setValue(e.target.value)}
-          />
-          <p className="text-xs text-paragraph">Your time zone: {timeZoneName()}</p>
-          {value && !valid && <p className="text-xs text-destructive">Pick a time at least a minute from now.</p>}
-        </div>
-        <Button
-          type="button"
-          className="w-full"
-          disabled={!valid || pending}
-          onClick={async () => {
-            setPending(true);
-            try {
-              await onConfirm(publishAt);
+  const onOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) return;
+    const opened = Date.now();
+    setNow(opened);
+    const start = new Date(initial ?? opened + 24 * 60 * 60 * 1000);
+    setDay(start);
+    setTime(initial ? timeOf(start) : "09:00");
+  };
+
+  const confirm = async () => {
+    setPending(true);
+    try {
+      await onConfirm(publishAt);
+      setOpen(false);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const panel = (
+    <div className="space-y-4">
+      <Calendar
+        mode="single"
+        selected={day}
+        onSelect={setDay}
+        captionLayout="dropdown"
+        startMonth={startOfToday()}
+        endMonth={new Date(new Date().getFullYear() + 1, 11)}
+        disabled={{ before: startOfToday() }}
+        className="mx-auto p-0"
+      />
+      <div className="flex items-center justify-between gap-3 border-b border-black/10 dark:border-white/15 pb-2">
+        <label htmlFor="publish-time" className="type-meta">Time</label>
+        <input
+          id="publish-time"
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          className="bg-transparent text-sm outline-none tabular-nums"
+        />
+      </div>
+      <p className="type-meta text-xs">{timeZoneName()}</p>
+      {day && !valid && <p className="text-xs text-destructive">At least a minute from now.</p>}
+      <div className="flex gap-2">
+        {onClear && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="flex-1"
+            onClick={() => {
+              onClear();
               setOpen(false);
-            } finally {
-              setPending(false);
-            }
-          }}
-        >
+            }}
+          >
+            Now
+          </Button>
+        )}
+        <Button type="button" className="flex-1" disabled={!valid || pending} onClick={confirm}>
           {pending && <Loader2 className="size-4 animate-spin" />}
           {confirmLabel}
         </Button>
-      </PopoverContent>
-    </Popover>
+      </div>
+    </div>
+  );
+
+  if (isDesktop) {
+    return (
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>{children}</PopoverTrigger>
+        <PopoverContent align="start" className="w-auto rounded-2xl p-4">
+          {panel}
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerTrigger asChild>{children}</DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader className="sr-only">
+          <DrawerTitle>Publish date</DrawerTitle>
+        </DrawerHeader>
+        <div className="mx-auto w-full max-w-sm px-4 pb-8 pt-2">{panel}</div>
+      </DrawerContent>
+    </Drawer>
   );
 }
