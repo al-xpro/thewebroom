@@ -9,12 +9,21 @@ updates:
       prefix: chore
       include: scope
     groups:
+      # Packages that only work at matching versions move together, in their own PR.
+      auth:
+        patterns: ["better-auth", "@better-auth/*", "@convex-dev/better-auth"]
+      tiptap:
+        patterns: ["@tiptap/*"]
       minor-and-patch:
         update-types: [minor, patch]
     ignore:
       # Types must match the Node.js version that runs the site
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # @convex-dev/better-auth 0.12 supports better-auth >=1.6.11 <1.7.0. Remove this once
+      # a release supports 1.7 (its advisories need plugins this app doesn't use).
+      - dependency-name: "better-auth"
+        versions: [">=1.7.0"]
 
   - package-ecosystem: github-actions
     directory: /
