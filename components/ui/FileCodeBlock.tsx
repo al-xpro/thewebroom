@@ -45,7 +45,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
 
       const result = highlighter.codeToHtml(node.textContent || "", {
         lang,
-        themes: { light: "vercel-light", dark: "vercel-dark" },
+        themes: { light: "alxpro-light", dark: "alxpro-dark" },
         defaultColor: false,
       });
 
@@ -106,7 +106,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
 
   return (
     <NodeViewWrapper
-      className="relative rounded-lg group/codeblock max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]"
+      className="relative rounded-lg group/codeblock max-w-full mx-auto overflow-hidden border border-(--alxpro-terminal-border)"
       data-tiptap-custom="file-code-block-wrapper"
       data-language={node.attrs.language}
       data-filename={node.attrs.filename}
@@ -117,7 +117,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
       {node.attrs.showHeader !== false && (
         <div
           contentEditable={false}
-          className="flex items-center justify-between px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] transition-colors duration-200 bg-[#FAFAFA] dark:bg-black"
+          className="flex items-center justify-between px-4 py-2 border-b border-(--alxpro-terminal-border) transition-colors duration-200 bg-(--alxpro-terminal-header)"
         >
           <div className="flex w-full items-center gap-2">
             <button
@@ -156,7 +156,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
               e.stopPropagation();
               handleCopy();
             }}
-            className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            className="p-2 rounded-md transition cursor-pointer hover:bg-(--alxpro-ui-hover) outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           >
             {copied ? (
               <motion.div
@@ -166,7 +166,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
                 exit={{ scale: 0.1, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <Check className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+                <Check className="size-4 text-(--alxpro-terminal-muted)" />
               </motion.div>
             ) : (
               <motion.div
@@ -176,7 +176,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
                 exit={{ scale: 0.1, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <Copy className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+                <Copy className="size-4 text-(--alxpro-terminal-muted)" />
               </motion.div>
             )}
           </button>
@@ -187,7 +187,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
       {node.attrs.showHeader === false && (
         <div
           contentEditable={false}
-          className="absolute top-[14px] right-3 z-30 opacity-0 group-hover/codeblock:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black"
+          className="absolute top-[14px] right-3 z-30 opacity-0 group-hover/codeblock:opacity-100 transition-opacity duration-150 rounded-[10px] bg-(--alxpro-terminal-header)"
         >
           <button
             type="button"
@@ -198,7 +198,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
               e.stopPropagation();
               handleCopy();
             }}
-            className="relative p-2 rounded-md border border-[#EAEAEA] dark:border-[#1E1E1E] hover:bg-[#EAEAEA] dark:hover:bg-[#2A2A2A] transition cursor-pointer"
+            className="relative p-2 rounded-md border border-(--alxpro-terminal-border) hover:bg-(--alxpro-ui-hover) transition cursor-pointer"
           >
             {copied ? (
               <motion.div
@@ -208,7 +208,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
                 exit={{ scale: 0.1, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <Check className="size-3.5 text-[#666666] dark:text-[#A0A0A0]" />
+                <Check className="size-3.5 text-(--alxpro-terminal-muted)" />
               </motion.div>
             ) : (
               <motion.div
@@ -218,7 +218,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
                 exit={{ scale: 0.1, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <Copy className="size-3.5 text-[#666666] dark:text-[#A0A0A0]" />
+                <Copy className="size-3.5 text-(--alxpro-terminal-muted)" />
               </motion.div>
             )}
           </button>
@@ -226,7 +226,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
       )}
 
       {/* BODY */}
-      <div className="relative flex w-full overflow-x-auto transition-colors duration-200 bg-white dark:bg-[#0A0A0A]">
+      <div className="relative flex w-full overflow-x-auto transition-colors duration-200 bg-(--alxpro-terminal-background)">
         {/* LINE NUMBERS COLUMN */}
         <div contentEditable={false} className={`flex flex-col pt-5 pb-5 shrink-0 ${commonFont}`}>
           {lines.map((_: string, i: number) => {
@@ -241,7 +241,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
                   border-l-2 cursor-pointer
                   ${
                     isHighlighted
-                      ? "border-[#0068D6] bg-[#EAF5FF] dark:border-[#52A8FF] dark:bg-[#0F233D] text-[#666666] dark:text-[#A0A0A0]"
+                      ? "border-(--alxpro-ui-accent) bg-(--alxpro-ui-line-highlight) text-(--alxpro-terminal-muted)"
                       : "border-transparent bg-transparent text-paragraph"
                   }
                 `}
@@ -271,7 +271,7 @@ export default function FileCodeBlockComponent({ node, updateAttributes }: any) 
                   key={i}
                   className={`
                     w-full min-h-[20px] transition-colors duration-100
-                    ${isHighlighted ? "bg-[#EAF5FF] dark:bg-[#0F233D]" : "bg-transparent"}
+                    ${isHighlighted ? "bg-(--alxpro-ui-line-highlight)" : "bg-transparent"}
                   `}
                 />
               );

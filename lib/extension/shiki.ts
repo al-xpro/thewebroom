@@ -1,9 +1,7 @@
 import { createHighlighter } from "shiki"
-
-import vercelDark from "@/lib/theme/vercel-dark.json"
-import vercelLight from "@/lib/theme/vercel-light.json"
+import { alxproDark, alxproLight } from "alxpro-theme"
 
 export const highlighterPromise = createHighlighter({
-  themes: [vercelDark as any, vercelLight as any],
+  themes: [alxproDark, alxproLight],
   langs: ["ts", "tsx", "js", "jsx"],
 })
