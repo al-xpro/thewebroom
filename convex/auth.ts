@@ -435,37 +435,35 @@ export const banUserByAdmin = mutation({
   },
 });
 
+// Writes the display name on the better-auth user.
+async function setUserName(ctx: MutationCtx, userId: string, name: string) {
+  try {
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: "user",
+        where: [{ field: "_id", operator: "eq", value: userId }],
+        update: { name, displayUsername: name, updatedAt: Date.now() },
+      },
+    });
+  } catch {
+    // Some Better Auth configurations may not include `displayUsername`.
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: "user",
+        where: [{ field: "_id", operator: "eq", value: userId }],
+        update: { name, updatedAt: Date.now() },
+      },
+    });
+  }
+}
+
 export const completeProfileOnboarding = mutation({
   args: { name: v.string() },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     const name = sanitizeDisplayName(args.name);
 
-    try {
-      await ctx.runMutation(components.betterAuth.adapter.updateOne, {
-        input: {
-          model: "user",
-          where: [{ field: "_id", operator: "eq", value: user._id }],
-          update: {
-            name,
-            displayUsername: name,
-            updatedAt: Date.now(),
-          },
-        },
-      });
-    } catch {
-      // Some Better Auth configurations may not include `displayUsername`.
-      await ctx.runMutation(components.betterAuth.adapter.updateOne, {
-        input: {
-          model: "user",
-          where: [{ field: "_id", operator: "eq", value: user._id }],
-          update: {
-            name,
-            updatedAt: Date.now(),
-          },
-        },
-      });
-    }
+    await setUserName(ctx, user._id, name);
 
     const completion = await getOnboardingCompletion(ctx, user._id);
     if (completion) {
@@ -485,6 +483,43 @@ export const completeProfileOnboarding = mutation({
     // After profile completion, they can start creating posts
 
     return { success: true, name };
+  },
+});
+
+// Renames the member everywhere: posts and comments keep a copy of the name. Returns what
+// changed so the caller can refresh the cached pages (app/actions.ts).
+export const updateDisplayName = mutation({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    await assertUserNotBanned(ctx, user);
+    const name = sanitizeDisplayName(args.name);
+
+    await setUserName(ctx, user._id, name);
+    const completion = await getOnboardingCompletion(ctx, user._id);
+    if (completion) await ctx.db.patch(completion._id, { displayName: name });
+
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_authorId", (q) => q.eq("authorId", user._id))
+      .collect();
+    for (const post of posts) {
+      if (post.authorName !== name) await ctx.db.patch(post._id, { authorName: name });
+    }
+
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("by_authorId", (q) => q.eq("authorId", user._id))
+      .collect();
+    for (const comment of comments) {
+      if (comment.authorName !== name) await ctx.db.patch(comment._id, { authorName: name });
+    }
+
+    return {
+      name,
+      postSlugs: posts.flatMap((post) => (post.slug ? [post.slug] : [])),
+      commentPostIds: [...new Set(comments.map((comment) => comment.postId))],
+    };
   },
 });
 
