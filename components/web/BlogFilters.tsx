@@ -2,13 +2,9 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { useTransition } from "react";
+import { TOPICS } from "@/convex/topics";
 
-const FILTERS = [
-  { key: "Web Architecture", label: "Web Architecture" },
-  { key: "UI Engineering", label: "UI Engineering" },
-  { key: "AI for Developers", label: "AI for Developers" },
-  { key: "Productivity", label: "Productivity" },
-];
+const FILTERS = TOPICS.map((topic) => ({ key: topic, label: topic }));
 
 interface BlogFiltersProps {
   activeTopics: string[];

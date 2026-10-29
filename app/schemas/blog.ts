@@ -1,4 +1,5 @@
 import z from "zod";
+import { TOPICS } from "@/convex/topics";
 
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = [
@@ -30,7 +31,7 @@ const baseSchema = z.object({
     .min(20, "Subtitle must be at least 20 characters")
     .max(80, "Subtitle must be less than 80 characters"),
 
-  topic: z.enum(["Web Architecture", "UI Engineering", "AI for Developers", "Productivity"]),
+  topic: z.enum(TOPICS),
 
   minRead: z
     .number()

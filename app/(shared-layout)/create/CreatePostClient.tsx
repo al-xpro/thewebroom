@@ -36,13 +36,9 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
 import { FunctionReturnType } from "convex/server";
+import { TOPICS } from "@/convex/topics";
 
-const TOPIC_OPTIONS = [
-  "Web Architecture",
-  "UI Engineering",
-  "AI for Developers",
-  "Productivity",
-] as const;
+const TOPIC_OPTIONS = TOPICS;
 
 type PostValues = z.infer<typeof postSchema>;
 type PostFields = keyof PostValues;
