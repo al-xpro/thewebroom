@@ -1,24 +1,44 @@
 "use client";
 
+import { useMemo, useState, useTransition } from "react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
-import {
-  Trash2,
-  Eye,
-  EyeOff,
-  AlertTriangle,
-  UserX,
-  Loader2,
-} from "lucide-react";
-import { useState, useTransition } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
-import { AnimatePresence, motion } from "framer-motion";
-import Footer from "@/components/web/Footer";
+import { Loader2 } from "lucide-react";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { getStatusBadgeClassName } from "@/lib/get-status-badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
+import { HorizontalBars, StatusSplit, WeeklyColumns } from "@/components/web/admin/charts";
+import { TOPICS } from "@/convex/topics";
+import Footer from "@/components/web/Footer";
+
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+const WEEKS = 12;
+type Tab = "overview" | "posts" | "members";
+
+interface Confirm {
+  title: string;
+  body: string;
+  action: string;
+  destructive?: boolean;
+  run: () => Promise<unknown>;
+  done: string;
+}
+
+// Counts per week for the last WEEKS weeks, oldest first.
+function perWeek(times: number[], now: number) {
+  return Array.from({ length: WEEKS }, (_, i) => {
+    const end = now - (WEEKS - 1 - i) * WEEK;
+    const start = end - WEEK;
+    return {
+      label: new Date(start).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      value: times.filter((t) => t > start && t <= end).length,
+    };
+  });
+}
 
 export default function AdminPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
@@ -26,452 +46,314 @@ export default function AdminPage() {
   const isAdmin = useQuery(api.auth.getIsAdmin, isAuthenticated ? {} : "skip");
   const posts = useQuery(api.posts.getAllPostsForAdmin, isAdmin ? {} : "skip");
   const users = useQuery(api.auth.listUsersForAdmin, isAdmin ? {} : "skip");
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
-  const [visibilityTarget, setVisibilityTarget] = useState<{
-    id: string;
-    title: string;
-    nextStatus: "published" | "hidden";
-  } | null>(null);
-  const [banTarget, setBanTarget] = useState<{
-    userId: string;
-    email: string;
-    name?: string;
-  } | null>(null);
 
   const deletePost = useMutation(api.posts.deletePost);
   const updatePost = useMutation(api.posts.updatePost);
   const banUserByAdmin = useMutation(api.auth.banUserByAdmin);
 
-  // Show 404 immediately for unauthenticated users — no loading state
+  const [tab, setTab] = useState<Tab>("overview");
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
+  // Read once; the charts don't need to tick.
+  const [now] = useState(() => Date.now());
+
+  const stats = useMemo(() => {
+    if (!posts || !users) return null;
+    const statusOf = (p: { status?: string }) => p.status || "published";
+    const count = (s: string) => posts.filter((p) => statusOf(p) === s).length;
+    return {
+      published: count("published"),
+      draft: count("draft"),
+      scheduled: count("scheduled"),
+      hidden: count("hidden") + count("flagged"),
+      members: users.length,
+      banned: users.filter((u) => u.isBanned).length,
+      postsPerWeek: perWeek(
+        posts.filter((p) => statusOf(p) === "published").map((p) => p.publishAt ?? p._creationTime),
+        now
+      ),
+      membersPerWeek: perWeek(users.map((u) => u.createdAt), now),
+      topics: TOPICS.map((topic) => ({ label: topic, value: posts.filter((p) => p.topic === topic).length })),
+    };
+  }, [posts, users, now]);
+
   if (!authLoading && !isAuthenticated) notFound();
   if (isAdmin !== undefined && !isAdmin) notFound();
+  if (!posts || !users || !stats) return null;
 
-  if (!posts || isAdmin === undefined) {
-    return null;
-  }
+  const q = query.trim().toLowerCase();
+  const visiblePosts = posts.filter(
+    (p) =>
+      (statusFilter === "all" || (p.status || "published") === statusFilter) &&
+      (!q || p.title.toLowerCase().includes(q) || p.authorName.toLowerCase().includes(q))
+  );
+  const visibleUsers = users.filter(
+    (u) => !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  );
 
-  async function handleDeletePost() {
-    if (!deleteTarget) return;
+  const runConfirm = () => {
+    if (!confirm) return;
     startTransition(async () => {
       try {
-        await deletePost({ postId: deleteTarget.id as Id<"posts"> });
-        showSuccessToast("Post deleted successfully");
-        setDeleteTarget(null);
+        await confirm.run();
+        showSuccessToast(confirm.done);
       } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : "Failed to delete post");
-        setDeleteTarget(null);
+        showErrorToast(error instanceof Error ? error.message : "Something went wrong");
+      } finally {
+        setConfirm(null);
       }
     });
-  }
+  };
 
-  async function handleBanUser() {
-    if (!banTarget) return;
-    startTransition(async () => {
-      try {
-        await banUserByAdmin({
-          userId: banTarget.userId,
-          email: banTarget.email,
-          reason: "Violation of platform policies",
-        });
-        showSuccessToast(
-          banTarget.name
-            ? `${banTarget.name} has been permanently banned`
-            : `${banTarget.email} has been permanently banned`
-        );
-        setBanTarget(null);
-      } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : "Failed to ban user");
-        setBanTarget(null);
-      }
-    });
-  }
-
-  async function handleToggleVisibility() {
-    if (!visibilityTarget) return;
-    startTransition(async () => {
-      try {
-        await updatePost({
-          postId: visibilityTarget.id as Id<"posts">,
-          status: visibilityTarget.nextStatus,
-        });
-        showSuccessToast(
-          visibilityTarget.nextStatus === "published" ? "Post published" : "Post hidden"
-        );
-        setVisibilityTarget(null);
-      } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : "Failed to update post");
-        setVisibilityTarget(null);
-      }
-    });
-  }
-
-  const published = posts.filter((p) => (p.status || "published") === "published").length;
-  const hidden = posts.filter((p) => p.status === "hidden").length;
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: "overview", label: "Overview" },
+    { key: "posts", label: "Posts", count: posts.length },
+    { key: "members", label: "Members", count: users.length },
+  ];
 
   return (
     <>
-      {/* Admin Decision Modals */}
-      <AnimatePresence>
-        {banTarget && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
-            onClick={() => setBanTarget(null)}
+      {confirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+          onClick={() => !isPending && setConfirm(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm space-y-6 rounded-2xl border bg-white p-6 dark:bg-black"
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              transition={{ duration: 0.15 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-black border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md"
-            >
-              <div className="flex items-start gap-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-950 shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-semibold text-foreground">Ban user</h2>
-                  <p className="text-sm text-paragraph mt-1">
-                    Confirm permanent ban for&nbsp;
-                    <span className="font-medium text-foreground">
-                      {banTarget.name || banTarget.email}
-                    </span>
-                    . This will revoke access immediately.
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="secondary" onClick={() => setBanTarget(null)} disabled={isPending}>
-                  Cancel
-                </Button>
-                <Button variant="destructive" onClick={handleBanUser} disabled={isPending}>
-                  {isPending && <Loader2 className="size-4 animate-spin" />}
-                  <span>Confirm Ban</span>
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {visibilityTarget && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
-            onClick={() => setVisibilityTarget(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              transition={{ duration: 0.15 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-black border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md"
-            >
-              <div className="flex items-start gap-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950 shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-semibold text-foreground">
-                    {visibilityTarget.nextStatus === "hidden" ? "Hide post" : "Publish post"}
-                  </h2>
-                  <p className="text-sm text-paragraph mt-1">
-                    Confirm you want to&nbsp;
-                    <span className="font-medium text-foreground">
-                      {visibilityTarget.nextStatus === "hidden" ? "hide" : "publish"}
-                    </span>
-                    &nbsp;
-                    <span className="font-medium text-foreground">
-                      &quot;{visibilityTarget.title}&quot;
-                    </span>.
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button
-                  variant="secondary"
-                  onClick={() => setVisibilityTarget(null)}
-                  disabled={isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleToggleVisibility}
-                  disabled={isPending}
-                  variant={visibilityTarget.nextStatus === "hidden" ? "destructive" : "default"}
-                >
-                  {isPending && <Loader2 className="size-4 animate-spin" />}
-                  <span>
-                    Confirm {visibilityTarget.nextStatus === "hidden" ? "Hide" : "Publish"}
-                  </span>
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {deleteTarget && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
-            onClick={() => setDeleteTarget(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              transition={{ duration: 0.15 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-black border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md"
-            >
-              <div className="flex items-start gap-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-950 shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-semibold text-foreground">Delete post</h2>
-                  <p className="text-sm text-paragraph mt-1">
-                    Are you sure you want to delete&nbsp;
-                    <span className="font-medium text-foreground">
-                      &quot;{deleteTarget.title}&quot;
-                    </span>?
-                    This will also remove all its comments. This action cannot be undone.
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button
-                  variant="secondary"
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={isPending}
-                >
-                  Cancel
-                </Button>
-                <Button variant="destructive" onClick={handleDeletePost} disabled={isPending}>
-                  {isPending && <Loader2 className="size-4 animate-spin" />}
-                  <span>Delete Post</span>
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="space-y-1">
+              <h2 id="confirm-title" className="type-heading">{confirm.title}</h2>
+              <p className="type-meta">{confirm.body}</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setConfirm(null)} disabled={isPending}>
+                Cancel
+              </Button>
+              <Button
+                variant={confirm.destructive ? "destructive" : "default"}
+                onClick={runConfirm}
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="size-4 animate-spin" />}
+                {confirm.action}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4 pb-16">
-        <h1 className="type-display py-10">Admin</h1>
-
-        <div>
-          <dl className="relative divider-fade-top grid grid-cols-3 gap-4 py-8">
-            {[
-              { label: "Posts", value: posts.length },
-              { label: "Published", value: published },
-              { label: "Hidden", value: hidden },
-            ].map(({ label, value }) => (
-              <div key={label} className="space-y-1">
-                <dt className="type-label">{label}</dt>
-                <dd className="type-title">{value}</dd>
-              </div>
+        <div className="flex items-end justify-between gap-4 py-10">
+          <h1 className="type-display">Admin</h1>
+          <nav className="flex gap-1" aria-label="Admin sections">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => {
+                  setTab(t.key);
+                  setQuery("");
+                }}
+                aria-current={tab === t.key ? "page" : undefined}
+                className={`rounded-full px-3 py-1.5 text-sm transition-colors cursor-pointer ${
+                  tab === t.key
+                    ? "bg-black text-white dark:bg-white dark:text-black"
+                    : "text-[#666666] hover:text-black dark:text-[#A0A0A0] dark:hover:text-white"
+                }`}
+              >
+                {t.label}
+                {t.count !== undefined && <span className="ml-1.5 tabular-nums opacity-60">{t.count}</span>}
+              </button>
             ))}
-          </dl>
-
-          <section className="section-minimal">
-            <h2 className="type-label">Users</h2>
-            <div className="space-y-6">
-              {!users || users.length === 0 ? (
-                <div className="text-center py-12 text-paragraph text-sm">No users found</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-bold text-black dark:text-white">
-                          Name
-                        </th>
-                        <th className="text-left py-3 px-4 font-bold text-black dark:text-white">
-                          Email
-                        </th>
-                        <th className="text-left py-3 px-4 font-bold text-black dark:text-white">
-                          Status
-                        </th>
-                        <th className="text-left py-3 px-4 font-bold text-black dark:text-white hidden md:table-cell">
-                          Joined
-                        </th>
-                        <th className="py-3 px-4" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((user, i) => (
-                        <tr
-                          key={user._id}
-                          className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}
-                        >
-                          <td className="py-3 px-4 font-medium">{user.name || "Unnamed user"}</td>
-                          <td className="py-3 px-4">{user.email}</td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                user.isAdmin
-                                  ? "bg-[#EAF5FF] text-[#0068D6] dark:bg-[#0F233D] dark:text-[#52A8FF]"
-                                  : user.isBanned
-                                    ? "bg-[#FFEAEA] text-[#CB2A2E] dark:bg-[#3B1618] dark:text-[#FF6166]"
-                                    : "bg-[#EAFAEA] text-[#287A3A] dark:bg-[#0F2E18] dark:text-[#62C073]"
-                              }`}
-                            >
-                              {user.isAdmin ? "Admin" : user.isBanned ? "Banned" : "Active"}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 hidden md:table-cell text-black dark:text-white">
-                            {new Date(user.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center justify-end gap-2">
-                              {/* BAN ACTION */}
-                              {!user.isAdmin && !user.isBanned && (
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  aria-label={`Ban user ${user.email}`}
-                                  onClick={() =>
-                                    setBanTarget({
-                                      userId: user._id,
-                                      email: user.email,
-                                      name: user.name || undefined,
-                                    })
-                                  }
-                                  disabled={isPending}
-                                  className="h-8 px-3"
-                                >
-                                  <UserX className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Posts Table */}
-          <section className="section-minimal">
-            <h2 className="type-label">Posts</h2>
-            <div className="space-y-6">
-              {posts.length === 0 ? (
-                <div className="text-center py-12 text-paragraph text-sm">No posts yet</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-bold text-black dark:text-white">
-                          Title
-                        </th>
-                        <th className="text-left py-3 px-4 font-bold text-black dark:text-white hidden sm:table-cell">
-                          Author
-                        </th>
-                        <th className="text-left py-3 px-4 font-bold text-black dark:text-white">
-                          Status
-                        </th>
-                        <th className="text-left py-3 px-4 font-bold text-black dark:text-white hidden md:table-cell">
-                          Date
-                        </th>
-                        <th className="py-3 px-4" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {posts.map((post, i) => (
-                        <tr
-                          key={post._id}
-                          className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}
-                        >
-                          <td className="py-3 px-4 font-medium max-w-[180px]">
-                            {(post.status || "published") === "published" ? (
-                              <Link
-                                href={`/posts/${post.slug}`}
-                                className="hover:text-primary hover:underline truncate block text-primary"
-                              >
-                                {post.title}
-                              </Link>
-                            ) : (
-                              <span className="truncate block text-black dark:text-white">
-                                {post.title}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 hidden sm:table-cell text-black dark:text-white">
-                            {post.authorName}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClassName(post.status)}`}
-                            >
-                              {post.status || "published"}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 hidden md:table-cell text-black dark:text-white">
-                            {new Date(post._creationTime).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                aria-label={
-                                  post.status === "published" ? "Hide post" : "Publish post"
-                                }
-                                onClick={() =>
-                                  setVisibilityTarget({
-                                    id: post._id,
-                                    title: post.title,
-                                    nextStatus:
-                                      (post.status || "published") === "published"
-                                        ? "hidden"
-                                        : "published",
-                                  })
-                                }
-                                disabled={isPending}
-                                title={post.status === "published" ? "Hide post" : "Publish post"}
-                                className="h-8 w-8 p-0"
-                              >
-                                {(post.status || "published") === "published" ? (
-                                  <EyeOff className="h-3.5 w-3.5" />
-                                ) : (
-                                  <Eye className="h-3.5 w-3.5" />
-                                )}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                aria-label={`Delete post ${post.title}`}
-                                onClick={() => setDeleteTarget({ id: post._id, title: post.title })}
-                                disabled={isPending}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <Footer />
+          </nav>
         </div>
+
+        {tab === "overview" && (
+          <>
+            <dl className="relative divider-fade-top py-8 grid grid-cols-2 sm:grid-cols-4 gap-6">
+              {[
+                { label: "Published", value: stats.published },
+                { label: "Drafts", value: stats.draft + stats.scheduled },
+                { label: "Members", value: stats.members },
+                { label: "Hidden", value: stats.hidden },
+              ].map(({ label, value }) => (
+                <div key={label} className="space-y-1">
+                  <dt className="type-label">{label}</dt>
+                  <dd className="type-title tabular-nums">{value}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <section className="relative divider-fade-top py-8 grid gap-10 sm:grid-cols-2">
+              <WeeklyColumns title="Posts a week" data={stats.postsPerWeek} />
+              <WeeklyColumns title="New members a week" data={stats.membersPerWeek} />
+            </section>
+
+            <section className="relative divider-fade-top py-8 grid gap-10 sm:grid-cols-2">
+              <HorizontalBars title="Topics" data={stats.topics} />
+              <StatusSplit
+                title="Status"
+                parts={[
+                  { label: "published", value: stats.published, dot: "bg-[#3FA35B]" },
+                  { label: "scheduled", value: stats.scheduled, dot: "bg-primary" },
+                  { label: "draft", value: stats.draft, dot: "bg-[#A0A0A0] dark:bg-[#666666]" },
+                  { label: "hidden", value: stats.hidden, dot: "bg-destructive" },
+                ]}
+              />
+            </section>
+          </>
+        )}
+
+        {tab !== "overview" && (
+          <div className="relative divider-fade-top flex flex-wrap items-center gap-4 py-6">
+            <Input
+              placeholder={tab === "posts" ? "Search title or author" : "Search name or email"}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="max-w-xs"
+              aria-label="Search"
+            />
+            {tab === "posts" && (
+              <div className="flex gap-1">
+                {["all", "published", "scheduled", "draft", "hidden"].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatusFilter(s)}
+                    aria-pressed={statusFilter === s}
+                    className={`rounded-full px-2.5 py-1 text-xs cursor-pointer ${
+                      statusFilter === s
+                        ? "bg-black/5 text-black dark:bg-white/10 dark:text-white"
+                        : "text-[#666666] dark:text-[#A0A0A0]"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "posts" && (
+          <ul>
+            {visiblePosts.map((post) => {
+              const status = post.status || "published";
+              const isHidden = status === "hidden";
+              return (
+                <li key={post._id} className="relative divider-fade-top flex items-center gap-4 py-4">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="type-heading text-base truncate">{post.title}</p>
+                    <p className="type-meta truncate">
+                      {post.authorName} · {new Date(post.publishAt ?? post._creationTime).toLocaleDateString("en-US")}
+                    </p>
+                  </div>
+                  <StatusBadge status={status} />
+                  <div className="flex shrink-0 items-center">
+                    {status === "published" && (
+                      <Link href={`/posts/${post.slug}`} className="px-2 py-1 text-xs text-[#666666] hover:text-black dark:text-[#A0A0A0] dark:hover:text-white">
+                        View
+                      </Link>
+                    )}
+                    {(status === "published" || isHidden) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setConfirm({
+                            title: isHidden ? "Show this post?" : "Hide this post?",
+                            body: `"${post.title}". The author gets an e-mail.`,
+                            action: isHidden ? "Show" : "Hide",
+                            done: isHidden ? "Post shown" : "Post hidden",
+                            run: () =>
+                              updatePost({
+                                postId: post._id as Id<"posts">,
+                                status: isHidden ? "published" : "hidden",
+                              }),
+                          })
+                        }
+                      >
+                        {isHidden ? "Show" : "Hide"}
+                      </Button>
+                    )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        setConfirm({
+                          title: "Delete this post?",
+                          body: `"${post.title}" is deleted for good.`,
+                          action: "Delete",
+                          destructive: true,
+                          done: "Post deleted",
+                          run: () => deletePost({ postId: post._id as Id<"posts"> }),
+                        })
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+            {visiblePosts.length === 0 && <li className="type-meta py-10 text-center">Nothing matches.</li>}
+          </ul>
+        )}
+
+        {tab === "members" && (
+          <ul>
+            {visibleUsers.map((user) => (
+              <li key={user._id} className="relative divider-fade-top flex items-center gap-4 py-4">
+                <span
+                  aria-hidden
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black/5 text-xs font-medium dark:bg-white/10"
+                >
+                  {(user.name || user.email).slice(0, 1).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="type-heading text-base truncate">{user.name || "—"}</p>
+                  <p className="type-meta truncate">
+                    {user.email} · joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-US") : "—"}
+                  </p>
+                </div>
+                <StatusBadge status={user.isAdmin ? "admin" : user.isBanned ? "banned" : "active"} />
+                <div className="w-16 shrink-0 text-right">
+                  {!user.isAdmin && !user.isBanned && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        setConfirm({
+                          title: "Ban this member?",
+                          body: `${user.name || user.email} can't sign in or post again.`,
+                          action: "Ban",
+                          destructive: true,
+                          done: `${user.name || user.email} is banned`,
+                          run: () =>
+                            banUserByAdmin({
+                              userId: user._id,
+                              email: user.email,
+                              reason: "Violation of platform policies",
+                            }),
+                        })
+                      }
+                    >
+                      Ban
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+            {visibleUsers.length === 0 && <li className="type-meta py-10 text-center">Nothing matches.</li>}
+          </ul>
+        )}
+
+        <Footer />
       </div>
     </>
   );
