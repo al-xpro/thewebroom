@@ -254,6 +254,12 @@ export const createAuth = (
   return betterAuth({
     logger: { disabled: optionsOnly },
     baseURL: siteUrl,
+    // Other origins allowed to call auth, comma-separated, wildcards allowed. Set on the
+    // dev deployment for Vercel previews: https://the-web-room-*-alxpro.vercel.app
+    trustedOrigins: (process.env.TRUSTED_ORIGINS ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     database: authComponent.adapter(ctx),
     emailAndPassword: { enabled: true, requireEmailVerification: true },
     emailVerification: {

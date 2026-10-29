@@ -24,6 +24,13 @@ updates:
       # a release supports 1.7 (its advisories need plugins this app doesn't use).
       - dependency-name: "better-auth"
         versions: [">=1.7.0"]
+      # From 27.1, jsdom's dependencies (@exodus/bytes, @asamuzakjp/css-color 7) require()
+      # ESM-only packages, which Vercel's runtime refuses, and every post page fails (#82).
+      # Pinned at 27.0.1; retry when a release loads there.
+      - dependency-name: "jsdom"
+        versions: [">27.0.1"]
+      - dependency-name: "@types/jsdom"
+        versions: [">27.0.0"]
 
   - package-ecosystem: github-actions
     directory: /
