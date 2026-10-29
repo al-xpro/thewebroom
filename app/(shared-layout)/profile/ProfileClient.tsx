@@ -19,6 +19,7 @@ import { TOPICS } from "@/convex/topics";
 import { TopicFollowPicker } from "@/components/web/TopicFollowPicker";
 import { useTopicFollows } from "@/hooks/use-topic-follows";
 import Github from "@thesvg/react/github";
+import { AvatarCropper } from "@/components/web/AvatarCropper";
 
 export default function ProfileClient() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -35,6 +36,8 @@ export default function ProfileClient() {
   const [open, setOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  // The photo being framed before it's uploaded.
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const uploadAvatar = useAction(api.avatars.uploadAvatar);
   const removeAvatar = useMutation(api.avatars.removeAvatar);
   const [isSavingName, setIsSavingName] = useState(false);
@@ -113,21 +116,26 @@ export default function ProfileClient() {
     }
   };
 
-  // Checked here for a quick answer; the server checks the real type and size again (#95).
-  const handleAvatarFile = async (file: File | undefined) => {
+  // Checked here for a quick answer; the cropped square is checked again on the server (#95).
+  const handleAvatarFile = (file: File | undefined) => {
     if (!file) return;
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       showErrorToast("Use a PNG, JPEG or WebP image");
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      showErrorToast("Use an image of 2 MB or less");
+    if (file.size > 10 * 1024 * 1024) {
+      showErrorToast("Use an image of 10 MB or less");
       return;
     }
+    setCropFile(file);
+  };
+
+  const uploadCropped = async (blob: Blob) => {
     setIsSavingAvatar(true);
     try {
-      await uploadAvatar({ bytes: await file.arrayBuffer() });
+      await uploadAvatar({ bytes: await blob.arrayBuffer() });
       showSuccessToast("Photo updated");
+      setCropFile(null);
     } catch (error) {
       showErrorToast((error as { data?: string }).data ?? "Failed to upload the photo");
     } finally {
@@ -212,6 +220,9 @@ export default function ProfileClient() {
 
   return (
     <>
+      {cropFile && (
+        <AvatarCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={uploadCropped} />
+      )}
       <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4">
         <div className="w-full">
           <div className="flex items-center justify-between gap-4 py-10">
@@ -247,7 +258,7 @@ export default function ProfileClient() {
                           className="sr-only"
                           disabled={isSavingAvatar}
                           onChange={(e) => {
-                            void handleAvatarFile(e.target.files?.[0]);
+                            handleAvatarFile(e.target.files?.[0]);
                             e.target.value = "";
                           }}
                         />
