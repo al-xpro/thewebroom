@@ -5,7 +5,8 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Eye, EyeOff, LogOut } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Loader2, LogOut } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { api } from "@/convex/_generated/api";
@@ -21,7 +22,6 @@ export default function ProfileClient() {
   const searchParams = useSearchParams();
   const deleteReauthToken = (searchParams.get("deleteReauthToken") ?? "").trim();
 
-  const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -219,27 +219,15 @@ export default function ProfileClient() {
                 <div className="space-y-2">
                   <FieldLabel htmlFor="delete-password" className="text-sm font-medium">Password</FieldLabel>
                   <p className="text-xs text-paragraph">Enter your password to delete your account.</p>
-                  <div className="relative">
-                    <Input
-                      id="delete-password"
-                      name="delete-account-password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      disabled={isDeleting}
-                      className="bg-white dark:bg-black pr-12"
-                    />
-                    <button
-                      type="button"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      onClick={() => setShowPassword(!showPassword)}
-                      disabled={isDeleting}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center h-[34px] w-9 border-l border-[#EAEAEA] dark:border-[#1E1E1E] text-paragraph cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    id="delete-password"
+                    name="delete-account-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    disabled={isDeleting}
+                    className="bg-white dark:bg-black"
+                  />
                 </div>
               )}
 

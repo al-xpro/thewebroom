@@ -24,6 +24,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { safeNextPath, withNext } from "@/lib/next-path";
+import { PasswordInput } from "@/components/ui/password-input";
 
 type SignUpFields = keyof z.infer<typeof signUpSchema>;
 
@@ -216,10 +217,9 @@ export default function SignUpClient() {
               render={({ field }) => (
                 <Field>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Input
+                  <PasswordInput
                     aria-invalid={!!visibleErrors.password}
                     placeholder="********"
-                    type="password"
                     id="password"
                     required
                     {...field}
@@ -248,9 +248,8 @@ export default function SignUpClient() {
               render={({ field }) => (
                 <Field>
                   <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-                  <Input
+                  <PasswordInput
                     id="confirm-password"
-                    type="password"
                     placeholder="********"
                     required
                     {...field}

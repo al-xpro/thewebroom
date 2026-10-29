@@ -7,12 +7,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import z from "zod";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const resetPasswordSchema = z
   .object({
@@ -166,8 +166,7 @@ export default function ResetPasswordClient() {
             render={({ field }) => (
               <Field>
                 <FieldLabel htmlFor="new-password">New Password</FieldLabel>
-                <Input
-                  type="password"
+                <PasswordInput
                   id="new-password"
                   placeholder="********"
                   aria-invalid={!!visibleErrors.newPassword}
@@ -191,8 +190,7 @@ export default function ResetPasswordClient() {
             render={({ field }) => (
               <Field>
                 <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-                <Input
-                  type="password"
+                <PasswordInput
                   id="confirm-password"
                   placeholder="********"
                   autoComplete="new-password"
