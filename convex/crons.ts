@@ -1,0 +1,12 @@
+import { cronJobs } from "convex/server";
+import { internal } from "./_generated/api";
+
+const crons = cronJobs();
+
+crons.daily(
+  "clean up old rate-limit records",
+  { hourUTC: 3, minuteUTC: 0 },
+  internal.rateLimiting.cleanupOldRateLimitRecords
+);
+
+export default crons;

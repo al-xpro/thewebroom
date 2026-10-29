@@ -17,12 +17,13 @@ async function EditPostContent({ params }: { params: Promise<{ slug: string }> }
 
   const [{ slug }, token] = await Promise.all([params, getToken().catch(() => null)]);
 
-  const post = await fetchQuery(api.posts.getPostBySlug, { slug });
-  if (!post) notFound();
-
   if (!token) {
     notFound();
   }
+
+  // With the token, getPostBySlug also returns the viewer's own drafts and hidden posts.
+  const post = await fetchQuery(api.posts.getPostBySlug, { slug }, { token });
+  if (!post) notFound();
 
   // Fetch the current user with the token so we can check ownership
   const currentUser = await fetchQuery(api.auth.getCurrentUser, {}, { token });

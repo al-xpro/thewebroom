@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query, type MutationCtx } from "./_generated/server";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { Doc, Id } from "./_generated/dataModel";
 import { components, internal } from "./_generated/api";
@@ -13,6 +13,32 @@ type Topic =
 type BetterAuthUserContact = {
   email?: string | null;
 };
+
+type PostStatus = NonNullable<Doc<"posts">["status"]>;
+
+// Legacy rows have no status and count as published.
+function isPublished(post: Doc<"posts">) {
+  return post.status === undefined || post.status === "published";
+}
+
+// Moderation states belong to admins: authors only move posts between draft and published.
+function isModerationStatus(status: PostStatus | undefined) {
+  return status === "hidden" || status === "flagged";
+}
+
+// A non-published post is visible only to its author and to admins.
+async function canViewPost(ctx: QueryCtx, post: Doc<"posts">) {
+  if (isPublished(post)) return true;
+  const viewer = await authComponent.safeGetAuthUser(ctx);
+  if (!viewer) return false;
+  return post.authorId === viewer._id.toString() || isAdminUserRecord(viewer);
+}
+
+async function withImageUrl(ctx: QueryCtx, post: Doc<"posts">) {
+  const imageUrl =
+    post.imageStorageId !== undefined ? await ctx.storage.getUrl(post.imageStorageId) : null;
+  return { ...post, imageUrl };
+}
 
 // Utility function to generate URL-safe slug
 function generateSlug(title: string): string {
@@ -107,6 +133,10 @@ export const createPost = mutation({
 
     await assertUserNotBanned(ctx, { _id: user._id, email: user.email });
 
+    if (isModerationStatus(args.status) && !isAdminUserRecord(user)) {
+      throw new ConvexError("Only moderators can hide or flag a post");
+    }
+
     // Check rate limit for post creation (applies to both draft and publish on create page)
     const now = Date.now();
     const POST_RATE_LIMIT = 2;
@@ -183,22 +213,30 @@ export const createPost = mutation({
   },
 });
 
-export const getPosts = query({
+export const getMyPosts = query({
   args: {},
   handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return [];
+
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_authorId", (q) => q.eq("authorId", user._id.toString()))
+      .order("desc")
+      .collect();
+
+    return await Promise.all(posts.map((post) => withImageUrl(ctx, post)));
+  },
+});
+
+export const getAllPostsForAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user || !isAdminUserRecord(user)) throw new ConvexError("Not authorized");
+
     const posts = await ctx.db.query("posts").order("desc").collect();
-
-    return await Promise.all(
-      posts.map(async (post) => {
-        const resolvedImageUrl =
-          post.imageStorageId !== undefined ? await ctx.storage.getUrl(post.imageStorageId) : null;
-
-        return {
-          ...post,
-          imageUrl: resolvedImageUrl,
-        };
-      })
-    );
+    return await Promise.all(posts.map((post) => withImageUrl(ctx, post)));
   },
 });
 
@@ -235,21 +273,6 @@ export const generateImageUploadUrl = mutation({
   },
 });
 
-export const getPostById = query({
-  args: { postId: v.id("posts") },
-  handler: async (ctx, args) => {
-    const post = await ctx.db.get(args.postId);
-    if (!post) return null;
-
-    const resolvedImageUrl =
-      post?.imageStorageId !== undefined ? await ctx.storage.getUrl(post.imageStorageId) : null;
-    return {
-      ...post,
-      imageUrl: resolvedImageUrl,
-    };
-  },
-});
-
 export const getPostBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
@@ -258,12 +281,9 @@ export const getPostBySlug = query({
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
 
-    if (!post) return null;
+    if (!post || !(await canViewPost(ctx, post))) return null;
 
-    const resolvedImageUrl =
-      post.imageStorageId !== undefined ? await ctx.storage.getUrl(post.imageStorageId) : null;
-
-    return { ...post, imageUrl: resolvedImageUrl };
+    return await withImageUrl(ctx, post);
   },
 });
 
@@ -309,6 +329,13 @@ export const updatePost = mutation({
       throw new ConvexError("Not authorized to update this post");
     }
 
+    if (!isAdmin && isModerationStatus(args.status)) {
+      throw new ConvexError("Only moderators can hide or flag a post");
+    }
+    // An author may still edit a hidden or flagged post to fix it, but only an admin
+    // republishes it, so the author's status change is ignored while it's under moderation.
+    const status = !isAdmin && isModerationStatus(post.status) ? undefined : args.status;
+
     const patch: Partial<Doc<"posts">> = {};
     // Inside updatePost handler, after the authorization check:
     if (args.title !== undefined) {
@@ -325,7 +352,7 @@ export const updatePost = mutation({
     if (args.subtitle !== undefined) patch.subtitle = args.subtitle;
     if (args.contentHtml !== undefined) patch.contentHtml = args.contentHtml;
     if (args.topic !== undefined) patch.topic = args.topic as Topic;
-    if (args.status !== undefined) patch.status = args.status;
+    if (status !== undefined) patch.status = status;
     if (args.minRead !== undefined) {
       patch.minRead = args.minRead;
     }
@@ -335,7 +362,7 @@ export const updatePost = mutation({
 
     await ctx.db.patch(args.postId, patch);
 
-    const nextStatus = args.status ?? post.status;
+    const nextStatus = status ?? post.status;
     const becameHidden = nextStatus === "hidden" && post.status !== "hidden";
     const becamePublished = nextStatus === "published" && post.status === "hidden";
     if (isAdmin && (becameHidden || becamePublished)) {
@@ -438,61 +465,6 @@ export const deletePost = mutation({
     await ctx.db.delete(args.postId);
 
     return { success: true };
-  },
-});
-
-interface searchResults {
-  _id: string;
-  title: string;
-  subtitle: string;
-  body: string;
-}
-
-export const searchPosts = query({
-  args: {
-    term: v.string(),
-    limit: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const limit = args.limit;
-
-    const results: searchResults[] = [];
-
-    const seen = new Set();
-
-    const pushDocs = async (docs: Array<Doc<"posts">>) => {
-      for (const doc of docs) {
-        if (seen.has(doc._id)) continue;
-
-        seen.add(doc._id);
-
-        results.push({
-          _id: doc._id,
-          title: doc.title,
-          subtitle: doc.subtitle,
-          body: doc.subtitle || doc.body,
-        });
-        if (results.length >= limit) break;
-      }
-    };
-
-    const titleMatches = await ctx.db
-      .query("posts")
-      .withSearchIndex("search_title", (q) => q.search("title", args.term))
-      .take(limit);
-
-    await pushDocs(titleMatches);
-
-    if (results.length < limit) {
-      const bodyMatches = await ctx.db
-        .query("posts")
-        .withSearchIndex("search_body", (q) => q.search("body", args.term))
-        .take(limit);
-
-      await pushDocs(bodyMatches);
-    }
-
-    return results;
   },
 });
 

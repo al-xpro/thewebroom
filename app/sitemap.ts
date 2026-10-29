@@ -1,10 +1,15 @@
 import { MetadataRoute } from "next";
-
-export const dynamic = "force-dynamic";
+import { cacheLife, cacheTag } from "next/cache";
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://thewebroom.vercel.app";
 
+// Cached instead of `dynamic = "force-dynamic"`, which Cache Components rejects. Publishing
+// a post invalidates the `blog` tag, so the sitemap refreshes with it.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("blog");
+
   try {
     const res = await fetch(`${process.env.CONVEX_SITE_URL}/published-posts`);
     const posts: { slug: string; createdAt: number }[] = res.ok ? await res.json() : [];

@@ -57,7 +57,7 @@ const securityHeaders = [
 
       `img-src 'self' https: data: blob:`,
 
-      `connect-src 'self' ${convexOrigins} https://avatar.vercel.sh https://api.ipify.org`,
+      `connect-src 'self' ${convexOrigins} https://avatar.vercel.sh`,
 
       `frame-src https://vercel.live`,
       `frame-ancestors 'none'`,

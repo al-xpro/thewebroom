@@ -21,8 +21,8 @@ export default function Home() {
             <AuroraText>The Web Room</AuroraText>
           </h1>
           <p className="text-lg text-paragraph leading-relaxed text-justify">
-            &quot;A home for developers building on the Vercel stack. We cover Next.js from routing to
-            deployment, UI engineering with React, TypeScript and Tailwind CSS, the Vercel AI
+            &quot;A home for developers building on the Vercel stack. We cover Next.js from routing
+            to deployment, UI engineering with React, TypeScript and Tailwind CSS, the Vercel AI
             ecosystem, and the mindset shift that makes it all sustainable. Let&apos;s get started
             together!&quot;
           </p>
@@ -93,50 +93,55 @@ export async function LoadHomePostList() {
   cacheLife("seconds");
   cacheTag("blog");
 
+  // Only the fetch is guarded: JSX built inside try/catch wouldn't have its render errors
+  // caught there anyway (react-hooks/error-boundaries).
+  let limitedPosts: Awaited<ReturnType<typeof fetchPublishedPosts>> = [];
   try {
-    const data = await fetchQuery(api.posts.getPublishedPosts);
-    const limitedPosts = data?.slice(0, 3) ?? [];
-
-    if (limitedPosts.length === 0) {
-      return <p className="text-sm text-paragraph py-4">No posts yet. Check back soon.</p>;
-    }
-
-    return (
-      <div className="grid gap-6 grid-rows-3">
-        {limitedPosts.map((post) => (
-          <Link key={post._id} href={`/posts/${post.slug}`} className="group block">
-            <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 md:gap-12">
-              <div
-                className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0
-                -translate-x-10 transition-all duration-200 ease-out
-                group-hover:opacity-100 group-hover:translate-x-0"
-              >
-                <ArrowRight className="h-5 w-5 text-black dark:text-white" />
-              </div>
-              <div
-                className="flex w-full flex-row min-w-0 items-start justify-between
-                transition-transform duration-300 ease-out
-                md:group-hover:translate-x-10"
-              >
-                <div className="flex flex-col flex-1 min-w-0">
-                  <h1 className="text-xl font-bold line-clamp-1 break-all">{post.title}</h1>
-                  <p className="text-paragraph line-clamp-1 break-all">{post.subtitle}</p>
-                </div>
-              </div>
-              <div className="flex flex-row sm:flex-col sm:min-w-[120px] sm:max-w-[140px] w-full sm:w-1/3 items-center justify-start sm:justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
-                  {post.topic}
-                </span>
-                <p className="text-sm text-paragraph whitespace-nowrap">{post.minRead} min read</p>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    );
+    limitedPosts = (await fetchPublishedPosts()).slice(0, 3);
   } catch (error) {
     // fetchQuery can fail at build time if Convex is unreachable.
     console.error("[LoadHomePostList] fetchQuery failed:", error);
+  }
+
+  if (limitedPosts.length === 0) {
     return <p className="text-sm text-paragraph py-4">No posts yet. Check back soon.</p>;
   }
+
+  return (
+    <div className="grid gap-6 grid-rows-3">
+      {limitedPosts.map((post) => (
+        <Link key={post._id} href={`/posts/${post.slug}`} className="group block">
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 md:gap-12">
+            <div
+              className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0
+                -translate-x-10 transition-all duration-200 ease-out
+                group-hover:opacity-100 group-hover:translate-x-0"
+            >
+              <ArrowRight className="h-5 w-5 text-black dark:text-white" />
+            </div>
+            <div
+              className="flex w-full flex-row min-w-0 items-start justify-between
+                transition-transform duration-300 ease-out
+                md:group-hover:translate-x-10"
+            >
+              <div className="flex flex-col flex-1 min-w-0">
+                <h1 className="text-xl font-bold line-clamp-1 break-all">{post.title}</h1>
+                <p className="text-paragraph line-clamp-1 break-all">{post.subtitle}</p>
+              </div>
+            </div>
+            <div className="flex flex-row sm:flex-col sm:min-w-[120px] sm:max-w-[140px] w-full sm:w-1/3 items-center justify-start sm:justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
+                {post.topic}
+              </span>
+              <p className="text-sm text-paragraph whitespace-nowrap">{post.minRead} min read</p>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+async function fetchPublishedPosts() {
+  return (await fetchQuery(api.posts.getPublishedPosts)) ?? [];
 }

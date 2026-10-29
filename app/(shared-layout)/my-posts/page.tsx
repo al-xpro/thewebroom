@@ -29,7 +29,7 @@ export default function MyPostsPage() {
   const router = useRouter();
 
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
-  const posts = useQuery(api.posts.getPosts, isAuthenticated ? undefined : "skip");
+  const posts = useQuery(api.posts.getMyPosts, isAuthenticated ? {} : "skip");
 
   // Delete modal state
   const [pendingDelete, setPendingDelete] = useState<{ _id: string; title: string } | null>(null);
@@ -71,7 +71,7 @@ export default function MyPostsPage() {
   if (isLoading || !isAuthenticated) return null;
 
   const postsReady = posts !== undefined && user != null;
-  const userPosts = postsReady ? posts.filter((post) => post.authorId === user._id) : [];
+  const userPosts = postsReady ? posts : [];
 
   return (
     <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4">
