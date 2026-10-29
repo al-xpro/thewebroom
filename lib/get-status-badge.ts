@@ -5,6 +5,10 @@ export const getStatusBadgeClassName = (status: string | undefined) => {
     return "bg-[#EAFAEA] text-[#287A3A] dark:bg-[#0F2E18] dark:text-[#62C073]";
   }
 
+  if (normalizedStatus === "scheduled") {
+    return "bg-[#F3E8FF] text-[#781FBB] dark:bg-[#2A0F45] dark:text-[#BF7AF0]";
+  }
+
   if (normalizedStatus === "draft") {
     return "bg-[#EEF2FF] text-[#3657C8] dark:bg-[#162042] dark:text-[#90A8FF]";
   }

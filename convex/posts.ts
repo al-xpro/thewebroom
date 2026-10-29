@@ -239,7 +239,11 @@ export const getPublishedPosts = query({
     // Filter to published-only in JS — no unsafe TypeScript cast needed.
     // A post is "published" if status is explicitly "published" OR
     // if the status field was never set (legacy posts before status existed).
-    const publishedPosts = posts.filter((p) => p.status === "published" || p.status === undefined);
+    // Newest first by the time they went out: a scheduled post publishes after its draft
+    // was created (#60).
+    const publishedPosts = posts
+      .filter((p) => p.status === "published" || p.status === undefined)
+      .sort((a, b) => (b.publishAt ?? b._creationTime) - (a.publishAt ?? a._creationTime));
 
     return await Promise.all(
       publishedPosts.map(async (post) => {

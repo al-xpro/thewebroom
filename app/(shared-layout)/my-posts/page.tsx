@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -14,6 +14,9 @@ import {
   ClockFading,
   BookType,
   Info,
+  CalendarClock,
+  CalendarRange,
+  Undo2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,6 +26,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { deletePostAction } from "@/app/actions";
 import { getStatusBadgeClassName } from "@/lib/get-status-badge";
+import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
+import { SpreadScheduleDialog } from "@/components/web/SpreadScheduleDialog";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export default function MyPostsPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -34,6 +40,33 @@ export default function MyPostsPage() {
   // Delete modal state
   const [pendingDelete, setPendingDelete] = useState<{ _id: string; title: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Scheduling (#60): drafts picked for "Spread over a period", in the order picked.
+  const [picked, setPicked] = useState<Id<"posts">[]>([]);
+  const [spreading, setSpreading] = useState(false);
+  const schedulePost = useMutation(api.scheduledPosts.schedulePost);
+  const unschedulePost = useMutation(api.scheduledPosts.unschedulePost);
+
+  const togglePicked = (postId: Id<"posts">) =>
+    setPicked((prev) => (prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]));
+
+  const reschedule = async (postId: Id<"posts">, publishAt: number) => {
+    try {
+      await schedulePost({ postId, publishAt });
+      showSuccessToast(`Scheduled for ${formatPublishAt(publishAt)}`);
+    } catch (error) {
+      showErrorToast((error as { data?: string }).data ?? "Failed to schedule the post");
+    }
+  };
+
+  const moveToDraft = async (postId: Id<"posts">) => {
+    try {
+      await unschedulePost({ postId });
+      showSuccessToast("Moved back to drafts");
+    } catch (error) {
+      showErrorToast((error as { data?: string }).data ?? "Failed to move the post to drafts");
+    }
+  };
 
   // Lock scroll when modal is open
   useEffect(() => {
@@ -113,6 +146,20 @@ export default function MyPostsPage() {
         </div>
       )}
 
+      {spreading && (
+        <SpreadScheduleDialog
+          drafts={picked.flatMap((id) => {
+            const post = posts?.find((p) => p._id === id);
+            return post ? [{ _id: post._id, title: post.title }] : [];
+          })}
+          onClose={() => setSpreading(false)}
+          onScheduled={() => {
+            setSpreading(false);
+            setPicked([]);
+          }}
+        />
+      )}
+
       <div className="w-full space-y-6">
         <div className="flex flex-col items-start justify-center">
           <h1 className="text-4xl font-extrabold text-primary mt-6">My Posts</h1>
@@ -171,7 +218,23 @@ export default function MyPostsPage() {
               </Skeleton>
             ))}
           </div>
-        ) : userPosts.length === 0 ? (
+        ) : null}
+
+        {postsReady && userPosts.some((post) => post.status === "draft") && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm">
+            <p className="text-paragraph">
+              {picked.length === 0
+                ? "Pick drafts to publish them one by one over a period."
+                : `${picked.length} draft${picked.length !== 1 ? "s" : ""} picked`}
+            </p>
+            <Button size="sm" disabled={picked.length === 0} onClick={() => setSpreading(true)}>
+              <CalendarRange className="size-4" />
+              Spread over a period
+            </Button>
+          </div>
+        )}
+
+        {!postsReady ? null : userPosts.length === 0 ? (
           <Card className="text-center py-52 sm:py-[106px]">
             <CardContent className="space-y-4">
               <p className="text-lg font-medium">No posts yet.</p>
@@ -208,7 +271,11 @@ export default function MyPostsPage() {
                         <div className="flex w-full items-center justify-start gap-4">
                           <div className="flex gap-1 items-center text-black dark:text-white">
                             <Calendar className="size-4" />
-                            <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
+                            <p>
+                              {post.status === "scheduled" && post.publishAt
+                                ? `Goes out ${formatPublishAt(post.publishAt)}`
+                                : new Date(post.publishAt ?? post._creationTime ?? 0).toLocaleDateString("en-US")}
+                            </p>
                           </div>
                           <div className="flex gap-1 items-center">
                             <BookType className="size-4 text-black dark:text-white" />
@@ -259,6 +326,35 @@ export default function MyPostsPage() {
                       <Pencil className="size-3" />
                       Edit
                     </Link>
+                    {(post.status === "draft" || post.status === "scheduled") && (
+                      <SchedulePicker
+                        initial={post.publishAt}
+                        confirmLabel={post.status === "scheduled" ? "Reschedule" : "Schedule"}
+                        onConfirm={(publishAt) => reschedule(post._id, publishAt)}
+                      >
+                        <Button variant="secondary" size="sm" className="h-7">
+                          <CalendarClock className="size-3" />
+                          {post.status === "scheduled" ? "Reschedule" : "Schedule"}
+                        </Button>
+                      </SchedulePicker>
+                    )}
+                    {post.status === "scheduled" && (
+                      <Button variant="secondary" size="sm" className="h-7" onClick={() => moveToDraft(post._id)}>
+                        <Undo2 className="size-3" />
+                        Move to draft
+                      </Button>
+                    )}
+                    {post.status === "draft" && (
+                      <label className="ml-auto inline-flex items-center gap-2 text-xs text-paragraph cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={picked.includes(post._id)}
+                          onChange={() => togglePicked(post._id)}
+                          className="size-4 accent-[var(--primary)] cursor-pointer"
+                        />
+                        Pick{picked.includes(post._id) ? ` #${picked.indexOf(post._id) + 1}` : ""}
+                      </label>
+                    )}
                     <Button
                       variant="destructive"
                       size="sm"

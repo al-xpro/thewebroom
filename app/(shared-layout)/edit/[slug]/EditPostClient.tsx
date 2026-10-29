@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Book,
   BookDashed,
+  CalendarClock,
   BookType,
   Calendar,
   Check,
@@ -31,8 +32,9 @@ import Link from "next/link";
 import { generateSlug } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
 import { FunctionReturnType } from "convex/server";
 import { TOPICS, type Topic } from "@/convex/topics";
 
@@ -133,6 +135,27 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
   const clamp = (value: number, min: number, max: number) => {
     return Math.min(Math.max(value, min), max);
   };
+
+  const schedulePost = useMutation(api.scheduledPosts.schedulePost);
+
+  // Saves the changes as a draft, then schedules the post (#60).
+  async function scheduleAt(publishAt: number) {
+    await form.handleSubmit(async (values) => {
+      setDraftPending(true);
+      try {
+        if (!post.slug) throw new Error("Post slug is missing");
+        await updatePostAction(post._id, post.slug, values, post.imageStorageId, "draft");
+        await schedulePost({ postId: post._id, publishAt });
+        showSuccessToast(`Scheduled for ${formatPublishAt(publishAt)}`);
+        router.push("/my-posts");
+      } catch (error) {
+        const data = (error as { data?: string }).data;
+        showErrorToast(data ?? (error instanceof Error ? error.message : "Failed to schedule the post"));
+      } finally {
+        setDraftPending(false);
+      }
+    }, onInvalid)();
+  }
 
   async function onSubmit(values: EditPostValues, status: "published" | "draft" = "published") {
     if (status === "draft") {
@@ -270,6 +293,19 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
           </Link>
 
           <div className="flex flex-wrap items-end justify-end gap-2">
+            <SchedulePicker onConfirm={scheduleAt}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isPending || draftPending}
+                className="shrink-0"
+              >
+                <span className="flex items-center gap-2">
+                  Schedule… <CalendarClock className="size-4" />
+                </span>
+              </Button>
+            </SchedulePicker>
             <Button
               disabled={isPending || draftPending}
               size="sm"
