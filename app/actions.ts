@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { getToken } from "@/lib/auth-server";
 import { updateTag } from "next/cache";
 import { Id } from "@/convex/_generated/dataModel";
+import { ConvexError } from "convex/values";
 
 // Returns the slug instead of calling redirect() so the client can
 // show the success toast before navigating. redirect() throws internally,
@@ -121,4 +122,24 @@ export async function updatePostAction(
   }
 
   return response;
+}
+
+// Renames the member, then refreshes every cached page that shows the old name.
+export async function updateDisplayNameAction(name: string) {
+  const token = await getToken();
+  if (!token) throw new Error("Not authenticated");
+
+  // Returned, not thrown: production hides the message of an error thrown from an action.
+  let result;
+  try {
+    result = await fetchMutation(api.auth.updateDisplayName, { name }, { token });
+  } catch (error) {
+    return { ok: false as const, message: error instanceof ConvexError ? String(error.data) : "Failed to change your name" };
+  }
+
+  updateTag("blog");
+  for (const slug of result.postSlugs) updateTag(`post-${slug}`);
+  for (const postId of result.commentPostIds) updateTag(`comments-${postId}`);
+
+  return { ok: true as const, name: result.name };
 }
