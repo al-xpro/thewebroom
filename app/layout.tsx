@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: "The Web Room",
   description: "A blog about building for the web: frontend, backend, design and the tools behind them.",
   category: "Blog",
+  alternates: { types: { "application/rss+xml": "/feed.xml" } },
   authors: [{ name: "The Community at The Web Room" }],
 };
 

@@ -54,6 +54,8 @@ export async function generateMetadata({ params }: PostSlugRouteProps): Promise<
 
     return {
       ...fallbackMetadata,
+      // The same post as Markdown, for agents.
+      alternates: { types: { "text/markdown": `/agents/posts/${slug}` } },
       title: post.title,
       description,
       authors: [{ name: post.authorName }],
