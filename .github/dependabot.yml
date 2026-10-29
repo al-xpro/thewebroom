@@ -24,6 +24,12 @@ updates:
       # a release supports 1.7 (its advisories need plugins this app doesn't use).
       - dependency-name: "better-auth"
         versions: [">=1.7.0"]
+      # jsdom 30's @asamuzakjp/css-color require()s an ESM-only package, which Vercel's
+      # runtime refuses, and every post page fails (#82). Retry when a release loads there.
+      - dependency-name: "jsdom"
+        versions: [">=28.0.0"]
+      - dependency-name: "@types/jsdom"
+        versions: [">=28.0.0"]
 
   - package-ecosystem: github-actions
     directory: /
