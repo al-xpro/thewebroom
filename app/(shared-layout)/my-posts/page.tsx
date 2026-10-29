@@ -3,24 +3,11 @@
 import { useEffect, useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Loader2,
-  Trash2,
-  BookText,
-  Pencil,
-  Calendar,
-  ClockFading,
-  BookType,
-  Info,
-  CalendarClock,
-  CalendarRange,
-  Undo2,
-} from "lucide-react";
+import { Loader2, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { FadeImage } from "@/components/ui/fade-image";
 import Footer from "@/components/web/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
@@ -111,17 +98,10 @@ export default function MyPostsPage() {
       {/* ── Delete confirmation modal ── */}
       {pendingDelete && (
         <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 min-w-[320px]">
-          <div className="bg-white dark:bg-[#111] rounded-2xl shadow-2xl max-w-sm w-full p-8 flex flex-col gap-6">
+          <div className="bg-white dark:bg-black border rounded-2xl max-w-sm w-full p-6 flex flex-col gap-6">
             <div className="space-y-1">
-              <h2 className="text-xl font-extrabold text-destructive">Delete post?</h2>
-              <p className="text-sm text-paragraph leading-relaxed">
-                This will permanently delete&nbsp;
-                <span className="font-semibold text-black dark:text-white">
-                  &quot;{pendingDelete.title}&quot;.
-                </span>
-                <br />
-                This action cannot be undone.
-              </p>
+              <h2 className="type-heading">Delete post?</h2>
+              <p className="type-meta">&quot;{pendingDelete.title}&quot; is deleted for good.</p>
             </div>
             <div className="flex gap-3">
               <Button
@@ -160,214 +140,125 @@ export default function MyPostsPage() {
         />
       )}
 
-      <div className="w-full space-y-6">
-        <div className="flex flex-col items-start justify-center">
-          <h1 className="text-4xl font-extrabold text-primary mt-6">My Posts</h1>
-          <div className="text-paragraph text-xl pt-4">
-            {!postsReady ? (
-              <Skeleton className="h-4 w-56 mt-3" />
-            ) : userPosts.length === 0 ? (
-              "You haven't created any posts yet."
-            ) : (
-              `You have created ${userPosts.length} post${userPosts.length !== 1 ? "s" : ""}.`
-            )}
-          </div>
+      <div className="w-full">
+        <div className="flex items-baseline justify-between gap-4 py-10">
+          <h1 className="type-display">My posts</h1>
+          {postsReady && userPosts.length > 0 && <p className="type-meta">{userPosts.length}</p>}
         </div>
 
-        {!postsReady ? (
-          <div className="grid gap-6">
-            {[1, 2].map((i) => (
-              <Skeleton
-                key={i}
-                className="overflow-hidden flex flex-col sm:flex-row w-full h-full px-3 sm:px-4 py-5 rounded-xl"
-              >
-                <div className="relative w-full h-56 sm:w-1/3 flex-shrink-0">
-                  <div className="flex w-full h-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-md" />
-                </div>
-                <div className="flex flex-col w-full h-full px-2 gap-2">
-                  <div className="flex flex-col w-full h-full sm:px-8 pt-6 sm:pt-12 pb-3 sm:py-4 gap-4">
-                    <div className="flex flex-col flex-1 gap-3">
-                      <div className="h-8 w-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
-                      <div className="h-4 w-full bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <div className="flex w-full items-center justify-start gap-4">
-                        {[1, 2].map((j) => (
-                          <div key={j} className="flex gap-2">
-                            <div className="h-5 w-5 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-full" />
-                            <div className="h-5 w-16 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex w-full items-center justify-start gap-4">
-                      {[1, 2].map((j) => (
-                        <div key={j} className="flex gap-2">
-                          <div className="h-5 w-5 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded-full" />
-                          <div className="h-5 w-16 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-4 sm:px-8 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
-                    {[1, 2, 3].map((j) => (
-                      <div key={j} className="h-7 w-18 bg-[#EAEAEA] dark:bg-[#1E1E1E] rounded" />
-                    ))}
-                  </div>
-                </div>
-              </Skeleton>
-            ))}
-          </div>
-        ) : null}
-
         {postsReady && userPosts.some((post) => post.status === "draft") && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm">
-            <p className="text-paragraph">
-              {picked.length === 0
-                ? "Pick drafts to publish them one by one over a period."
-                : `${picked.length} draft${picked.length !== 1 ? "s" : ""} picked`}
+          <div className="relative divider-fade-top flex items-center justify-between gap-3 py-4">
+            <p className="type-meta">
+              {picked.length === 0 ? "Pick drafts to spread them out." : `${picked.length} picked`}
             </p>
-            <Button size="sm" disabled={picked.length === 0} onClick={() => setSpreading(true)}>
+            <Button size="sm" variant="outline" disabled={picked.length === 0} onClick={() => setSpreading(true)}>
               <CalendarRange className="size-4" />
-              Spread over a period
+              Spread
             </Button>
           </div>
         )}
 
-        {!postsReady ? null : userPosts.length === 0 ? (
-          <Card className="text-center py-52 sm:py-[106px]">
-            <CardContent className="space-y-4">
-              <p className="text-lg font-medium">No posts yet.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-6">
-            {userPosts.map((post, i) => (
-              <Card
-                key={post._id}
-                className="overflow-hidden flex flex-col sm:flex-row px-3 sm:px-4"
-              >
-                <div className="relative w-full h-48 sm:h-auto sm:w-1/3 flex-shrink-0">
-                  <Image
-                    src={post.imageUrl ?? ""}
-                    alt="post image"
-                    fill
-                    sizes="(max-width: 640px) 100vw, 33vw"
-                    priority={i === 0}
-                    loading={i === 0 ? "eager" : "lazy"}
-                    fetchPriority="high"
-                    className="object-cover rounded-md"
-                  />
+        {!postsReady ? (
+          <div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="relative divider-fade-top flex gap-4 py-6">
+                <Skeleton className="size-20 sm:size-24 rounded-md" />
+                <div className="flex-1 space-y-3">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-4 w-1/2" />
                 </div>
-
-                <div className="flex flex-col flex-1 min-w-0">
-                  <CardContent className="flex-1 pt-6 pb-4 px-4">
-                    <div className="space-y-2">
-                      <h2 className="text-xl font-bold text-black dark:text-white truncate">
-                        {post.title}
-                      </h2>
-                      <p className="text-sm text-paragraph truncate">{post.subtitle}</p>
-                      <div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-paragraph">
-                        <div className="flex w-full items-center justify-start gap-4">
-                          <div className="flex gap-1 items-center text-black dark:text-white">
-                            <Calendar className="size-4" />
-                            <p>
-                              {post.status === "scheduled" && post.publishAt
-                                ? `Goes out ${formatPublishAt(post.publishAt)}`
-                                : new Date(post.publishAt ?? post._creationTime ?? 0).toLocaleDateString("en-US")}
-                            </p>
-                          </div>
-                          <div className="flex gap-1 items-center">
-                            <BookType className="size-4 text-black dark:text-white" />
-                            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                              {post.topic}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex w-full items-center justify-start gap-4">
-                          <div className="flex gap-1 items-center text-black dark:text-white">
-                            <ClockFading className="size-4" />
-                            <p>{post.minRead} min read</p>
-                          </div>
-                          <div className="flex gap-1 items-center text-black dark:text-white">
-                            <Info className="size-4" />
-                            {(() => {
-                              const normalizedStatus = post.status || "published";
-
-                              return (
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClassName(post.status)}`}
-                                >
-                                  {normalizedStatus}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="flex flex-wrap gap-2 pt-4 px-2.5 sm:px-6 border-t border-[#D9D9D9] dark:border-[#3A3A3A]">
-                    {(post.status || "published") === "published" && (
-                      <Link
-                        href={`/posts/${post.slug}`}
-                        className={buttonVariants({ variant: "secondary", size: "sm" })}
-                      >
-                        <BookText className="size-3" />
-                        View
-                      </Link>
-                    )}
-                    <Link
-                      href={`/edit/${post.slug}`}
-                      className={buttonVariants({ variant: "secondary", size: "sm" })}
-                    >
-                      <Pencil className="size-3" />
-                      Edit
-                    </Link>
-                    {(post.status === "draft" || post.status === "scheduled") && (
-                      <SchedulePicker
-                        initial={post.publishAt}
-                        confirmLabel={post.status === "scheduled" ? "Reschedule" : "Schedule"}
-                        onConfirm={(publishAt) => reschedule(post._id, publishAt)}
-                      >
-                        <Button variant="secondary" size="sm" className="h-7">
-                          <CalendarClock className="size-3" />
-                          {post.status === "scheduled" ? "Reschedule" : "Schedule"}
-                        </Button>
-                      </SchedulePicker>
-                    )}
-                    {post.status === "scheduled" && (
-                      <Button variant="secondary" size="sm" className="h-7" onClick={() => moveToDraft(post._id)}>
-                        <Undo2 className="size-3" />
-                        Move to draft
-                      </Button>
-                    )}
-                    {post.status === "draft" && (
-                      <label className="ml-auto inline-flex items-center gap-2 text-xs text-paragraph cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={picked.includes(post._id)}
-                          onChange={() => togglePicked(post._id)}
-                          className="size-4 accent-[var(--primary)] cursor-pointer"
-                        />
-                        Pick{picked.includes(post._id) ? ` #${picked.indexOf(post._id) + 1}` : ""}
-                      </label>
-                    )}
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setPendingDelete({ _id: post._id, title: post.title })}
-                      className="h-7"
-                    >
-                      <Trash2 className="size-3" />
-                      Delete
-                    </Button>
-                  </CardFooter>
-                </div>
-              </Card>
+              </div>
             ))}
+          </div>
+        ) : userPosts.length === 0 ? (
+          <div className="relative divider-fade-top py-20 flex flex-col items-center gap-4">
+            <p className="type-meta">No posts yet.</p>
+            <Link href="/create" className={buttonVariants({ size: "sm" })}>
+              Write
+            </Link>
+          </div>
+        ) : (
+          <div>
+            {userPosts.map((post, i) => {
+              const status = post.status || "published";
+              const date =
+                status === "scheduled" && post.publishAt
+                  ? `Goes out ${formatPublishAt(post.publishAt)}`
+                  : new Date(post.publishAt ?? post._creationTime ?? 0).toLocaleDateString("en-US");
+              return (
+                <article key={post._id} className="relative divider-fade-top flex gap-4 sm:gap-6 py-6">
+                  <div className="relative size-20 sm:size-24 shrink-0 overflow-hidden rounded-md bg-[#EDEDED] dark:bg-[#0A0A0A]">
+                    {post.imageUrl && (
+                      <FadeImage
+                        src={post.imageUrl}
+                        alt=""
+                        fill
+                        sizes="96px"
+                        priority={i === 0}
+                        className="object-cover"
+                      />
+                    )}
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="type-heading truncate">{post.title}</h2>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClassName(post.status)}`}>
+                        {status}
+                      </span>
+                    </div>
+                    <p className="type-meta truncate">
+                      {date} · {post.topic} · {post.minRead} min
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-1 -ml-3 pt-1">
+                      {status === "published" && (
+                        <Link href={`/posts/${post.slug}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                          View
+                        </Link>
+                      )}
+                      <Link href={`/edit/${post.slug}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                        Edit
+                      </Link>
+                      {(status === "draft" || status === "scheduled") && (
+                        <SchedulePicker
+                          initial={post.publishAt}
+                          confirmLabel={status === "scheduled" ? "Reschedule" : "Schedule"}
+                          onConfirm={(publishAt) => reschedule(post._id, publishAt)}
+                        >
+                          <Button variant="ghost" size="sm">
+                            {status === "scheduled" ? "Reschedule" : "Schedule"}
+                          </Button>
+                        </SchedulePicker>
+                      )}
+                      {status === "scheduled" && (
+                        <Button variant="ghost" size="sm" onClick={() => moveToDraft(post._id)}>
+                          Draft
+                        </Button>
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setPendingDelete({ _id: post._id, title: post.title })}
+                      >
+                        Delete
+                      </Button>
+                      {status === "draft" && (
+                        <label className="ml-auto inline-flex items-center gap-2 type-meta cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={picked.includes(post._id)}
+                            onChange={() => togglePicked(post._id)}
+                            className="size-4 accent-[var(--primary)] cursor-pointer"
+                          />
+                          Pick{picked.includes(post._id) ? ` #${picked.indexOf(post._id) + 1}` : ""}
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
 

@@ -3,15 +3,11 @@
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Trash2,
   Eye,
   EyeOff,
-  CheckCircle,
-  EyeOffIcon,
   AlertTriangle,
-  LibraryBig,
   UserX,
   Loader2,
 } from "lucide-react";
@@ -269,38 +265,25 @@ export default function AdminPage() {
       </AnimatePresence>
 
       <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4 pb-16">
-        <div className="text-left mb-10">
-          <h1 className="text-4xl font-extrabold text-primary mt-6">Admin Dashboard</h1>
-          <p className="text-paragraph text-xl pt-4">Manage all posts and content</p>
-        </div>
+        <h1 className="type-display py-10">Admin</h1>
 
-        <div className="space-y-6">
-          {/* Stats */}
-          <div className="grid gap-4 grid-rows-3 sm:grid-rows-1 grid-cols-1 sm:grid-cols-3">
+        <div>
+          <dl className="relative divider-fade-top grid grid-cols-3 gap-4 py-8">
             {[
-              { label: "Total Posts", value: posts.length, icon: LibraryBig },
-              { label: "Published", value: published, icon: CheckCircle },
-              { label: "Hidden", value: hidden, icon: EyeOffIcon },
-            ].map(({ label, value, icon: Icon }) => (
-              <Card key={label}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-medium text-paragraph flex items-center gap-2">
-                    <Icon className="w-3.5 h-3.5" />
-                    {label}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold text-black dark:text-white">{value}</p>
-                </CardContent>
-              </Card>
+              { label: "Posts", value: posts.length },
+              { label: "Published", value: published },
+              { label: "Hidden", value: hidden },
+            ].map(({ label, value }) => (
+              <div key={label} className="space-y-1">
+                <dt className="type-label">{label}</dt>
+                <dd className="type-title">{value}</dd>
+              </div>
             ))}
-          </div>
+          </dl>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Users</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
+          <section className="section-minimal">
+            <h2 className="type-label">Users</h2>
+            <div className="space-y-6">
               {!users || users.length === 0 ? (
                 <div className="text-center py-12 text-paragraph text-sm">No users found</div>
               ) : (
@@ -376,15 +359,13 @@ export default function AdminPage() {
                   </table>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
           {/* Posts Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">All Posts</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
+          <section className="section-minimal">
+            <h2 className="type-label">Posts</h2>
+            <div className="space-y-6">
               {posts.length === 0 ? (
                 <div className="text-center py-12 text-paragraph text-sm">No posts yet</div>
               ) : (
@@ -486,8 +467,8 @@ export default function AdminPage() {
                   </table>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
           <Footer />
         </div>

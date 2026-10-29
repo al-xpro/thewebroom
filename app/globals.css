@@ -357,3 +357,8 @@ html:not(.dark) .shiki span {
     opacity: 1;
   }
 }
+
+/* A page section without a card: a faded divider above, even spacing inside. */
+@utility section-minimal {
+  @apply relative py-8 space-y-6 divider-fade-top;
+}

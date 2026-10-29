@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -213,28 +212,21 @@ export default function ProfileClient() {
   return (
     <>
       <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4">
-        <div className="w-full space-y-6">
-          <div className="flex flex-col w-full">
-            <div className="flex items-center justify-between mt-6 gap-4">
-              <h1 className="text-4xl font-extrabold text-primary">Account Settings</h1>
-              <Button variant="outline" size="sm" onClick={handleLogout} disabled={isLoggingOut} className="cursor-pointer">
-                {isLoggingOut && <Loader2 className="size-4 animate-spin" />}
-                <span className="flex gap-2 items-center"><LogOut className="size-4" /> Logout</span>
-              </Button>
-            </div>
-            <p className="text-paragraph text-xl pt-4">Manage your account settings</p>
+        <div className="w-full">
+          <div className="flex items-center justify-between gap-4 py-10">
+            <h1 className="type-display">Account</h1>
+            <Button variant="ghost" size="sm" onClick={handleLogout} disabled={isLoggingOut}>
+              {isLoggingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+              Log out
+            </Button>
           </div>
 
-          <Card className="space-y-3">
-            <CardHeader>
-              <CardTitle className="text-black dark:text-white">Profile Information</CardTitle>
-              <CardDescription>Your account details and profile information.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
+          <section className="section-minimal">
+            <h2 className="type-label">Profile</h2>
+            <div className="space-y-6">
               <div className="flex w-full gap-5">
                 <div className="flex flex-col w-full space-y-2">
-                  <FieldLabel className="text-sm font-medium" htmlFor="avatar">Avatar</FieldLabel>
-                  <p className="text-xs text-paragraph">PNG, JPEG or WebP, up to 2 MB</p>
+                  <FieldLabel className="text-sm font-medium" htmlFor="avatar">Photo</FieldLabel>
                   {profileReady ? (
                     <div className="flex items-center gap-3">
                       <Avatar className="size-10 shrink-0">
@@ -270,8 +262,7 @@ export default function ProfileClient() {
                   )}
                 </div>
                 <div className="flex flex-col w-full space-y-2">
-                  <FieldLabel className="text-sm font-medium" htmlFor="username">Username</FieldLabel>
-                  <p className="text-xs text-paragraph">Your display name on posts and comments</p>
+                  <FieldLabel className="text-sm font-medium" htmlFor="username">Name</FieldLabel>
                   {profileReady ? (
                     <form onSubmit={handleSaveName} className="flex flex-col gap-2">
                       <div className="flex gap-2">
@@ -299,8 +290,7 @@ export default function ProfileClient() {
               </div>
 
               <div className="space-y-2">
-                <FieldLabel className="text-sm font-medium" htmlFor="email">Email Address</FieldLabel>
-                <p className="text-xs text-paragraph">Your registered email address</p>
+                <FieldLabel className="text-sm font-medium" htmlFor="email">Email</FieldLabel>
                 {profileReady ? (
                   <Input id="email" type="email" name="email" autoComplete="email"
                     value={user?.email ?? ""} disabled
@@ -309,15 +299,12 @@ export default function ProfileClient() {
                   <Skeleton className="h-9 w-full rounded-md" />
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          <Card className="space-y-3">
-            <CardHeader>
-              <CardTitle className="text-black dark:text-white">Topics you follow</CardTitle>
-              <CardDescription>Posts on these topics show up first for you.</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <section className="section-minimal">
+            <h2 className="type-label">Topics</h2>
+            <div className="space-y-6">
               {topicFollows.canFollow ? (
                 <TopicFollowPicker
                   selected={TOPICS.filter(topicFollows.isFollowing)}
@@ -326,15 +313,13 @@ export default function ProfileClient() {
               ) : (
                 <Skeleton className="h-9 w-full rounded-full" />
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          <Card className="border-[#DA2E34] dark:border-[#D93036]">
-            <CardHeader>
-              <CardTitle className="text-[#DA2E34] dark:text-[#D93036]">Delete Account</CardTitle>
-              <CardDescription>This action is permanent. All your posts and comments will be deleted.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <section className="section-minimal">
+            <h2 className="type-label text-destructive">Delete account</h2>
+            <p className="type-meta -mt-3">Permanent. Your posts and comments go too.</p>
+            <div className="space-y-6">
               {/* Show skeleton while the deleteGuard query is still loading */}
               {!guardReady && (
                 <div className="space-y-3">
@@ -348,13 +333,12 @@ export default function ProfileClient() {
               {guardReady && deleteGuard?.hasCredentialPassword && (
                 <div className="space-y-2">
                   <FieldLabel htmlFor="delete-password" className="text-sm font-medium">Password</FieldLabel>
-                  <p className="text-xs text-paragraph">Enter your password to delete your account.</p>
                   <PasswordInput
                     id="delete-password"
                     name="delete-account-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder="Password"
                     disabled={isDeleting}
                     className="bg-white dark:bg-black"
                   />
@@ -364,10 +348,7 @@ export default function ProfileClient() {
               {/* GitHub reauth flow */}
               {guardReady && !deleteGuard?.hasCredentialPassword && (
                 <div className="space-y-2">
-                  <FieldLabel htmlFor="github-reauth" className="text-sm font-medium">Reauthentication</FieldLabel>
-                  <p className="text-xs text-paragraph">
-                    You need to reauthenticate with GitHub to delete your account.
-                  </p>
+                  <FieldLabel htmlFor="github-reauth" className="text-sm font-medium">Confirm with GitHub</FieldLabel>
                   <input id="github-reauth" hidden readOnly />
                   <Button
                     variant="secondary"
@@ -387,7 +368,7 @@ export default function ProfileClient() {
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="size-4">
                         <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" fill="currentColor" />
                       </svg>
-                      Reauthenticate
+                      GitHub
                     </span>
                   </Button>
                 </div>
@@ -400,10 +381,10 @@ export default function ProfileClient() {
                 className="w-full"
               >
                 {isDeleting && <Loader2 className="size-4 animate-spin" />}
-                <span>Delete Account</span>
+                <span>Delete</span>
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
           <Footer />
         </div>
