@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -55,11 +55,12 @@ export default function AdminPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [confirm, setConfirm] = useState<Confirm | null>(null);
-  // Read once; the charts don't need to tick.
-  const [now] = useState(() => Date.now());
+  // Read once after mounting (the page is prerendered); the charts don't need to tick.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => setNow(Date.now()), []);
 
   const stats = useMemo(() => {
-    if (!posts || !users) return null;
+    if (!posts || !users || now === null) return null;
     const statusOf = (p: { status?: string }) => p.status || "published";
     const count = (s: string) => posts.filter((p) => statusOf(p) === s).length;
     return {

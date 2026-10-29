@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import Footer from "@/components/web/Footer";
 
@@ -19,7 +19,9 @@ export default function ConceptsLayout({ children }: { children: ReactNode }) {
         <span className="type-meta text-xs">Made-up data</span>
       </div>
       {children}
-      <Footer />
+      <Suspense fallback={null}>
+        <Footer />
+      </Suspense>
     </div>
   );
 }
