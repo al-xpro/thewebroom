@@ -23,6 +23,7 @@ import z from "zod";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
+import { safeNextPath, withNext } from "@/lib/next-path";
 
 type SignUpFields = keyof z.infer<typeof signUpSchema>;
 
@@ -34,6 +35,7 @@ export default function SignUpClient() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const next = safeNextPath(searchParams.get("next"));
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
@@ -79,13 +81,13 @@ export default function SignUpClient() {
         email: data.email,
         name: pendingName,
         password: data.password,
-        callbackURL: `/auth/verify-email?verified=1&email=${emailParam}`,
+        callbackURL: withNext(`/auth/verify-email?verified=1&email=${emailParam}`, next),
         fetchOptions: {
           onSuccess: () => {
             showSuccessToast("Account created! Check your email to verify.");
             // No session exists until the address is verified, so the waiting room gets
             // the address from the URL.
-            router.push(`/auth/verify-email?email=${emailParam}`);
+            router.push(withNext(`/auth/verify-email?email=${emailParam}`, next));
           },
           onError: (error) => {
             const isExisting = error.error.code === "USER_ALREADY_EXISTS";
@@ -120,8 +122,8 @@ export default function SignUpClient() {
     startTransition(async () => {
       await authClient.signIn.social({
         provider,
-        callbackURL: "/onboarding/post-auth",
-        newUserCallbackURL: "/onboarding/complete-profile?force=1",
+        callbackURL: withNext("/onboarding/post-auth", next),
+        newUserCallbackURL: withNext("/onboarding/complete-profile?force=1", next),
         requestSignUp: true,
         fetchOptions: {
           onError: (error) => {
@@ -158,7 +160,7 @@ export default function SignUpClient() {
             {existingAccount && (
               <p role="alert" className="text-sm text-destructive">
                 An account with this e-mail already exists.{" "}
-                <Link href="/auth/login" className="underline">
+                <Link href={withNext("/auth/login", next)} className="underline">
                   Sign in
                 </Link>{" "}
                 or{" "}
@@ -292,7 +294,7 @@ export default function SignUpClient() {
               Sign up with GitHub
             </Button>
             <FieldDescription className="px-6 text-center">
-              Already have an account? <Link href="/auth/login">Log in</Link>
+              Already have an account? <Link href={withNext("/auth/login", next)}>Log in</Link>
             </FieldDescription>
           </Field>
         </FieldGroup>
