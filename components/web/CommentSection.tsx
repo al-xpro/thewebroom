@@ -36,6 +36,7 @@ const COMMENT_MAX = 300;
 type Comment = {
   _id: Id<"comments">;
   _creationTime: number;
+  authorAvatarUrl?: string | null;
   body: string;
   authorId: string;
   authorName: string;
@@ -180,7 +181,7 @@ function CommentRow({
     <div className="flex gap-4">
       <Avatar className="size-10 shrink-0">
         <AvatarImage
-          src={`https://avatar.vercel.sh/${comment.authorName}`}
+          src={comment.authorAvatarUrl ?? `https://avatar.vercel.sh/${comment.authorName}`}
           alt={comment.authorName}
         />
         <AvatarFallback>{comment.authorName.slice(0, 2).toUpperCase()}</AvatarFallback>

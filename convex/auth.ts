@@ -325,11 +325,19 @@ export const getCurrentUser = query({
     const banByUserId = await getActiveBanByUserId(ctx, user._id);
     const banByEmail = await getActiveBanByEmail(ctx, user.email);
     const ban = banByUserId ?? banByEmail;
+    // Uploaded photo first (#95), then the one from GitHub; the UI falls back to a generated one.
+    const avatar = await ctx.db
+      .query("avatars")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .first();
+    const uploadedUrl = avatar ? await ctx.storage.getUrl(avatar.storageId) : null;
     return {
       ...user,
       onboardingCompleted: Boolean(completion),
       isBanned: Boolean(ban),
       banReason: ban?.reason ?? null,
+      avatarUrl: uploadedUrl ?? user.image ?? null,
+      hasUploadedAvatar: Boolean(uploadedUrl),
     };
   },
 });
@@ -845,6 +853,15 @@ export const deleteAccountCascade = mutation({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .collect();
     for (const g of grants) await ctx.db.delete(g._id);
+
+    const avatars = await ctx.db
+      .query("avatars")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const avatar of avatars) {
+      await ctx.storage.delete(avatar.storageId);
+      await ctx.db.delete(avatar._id);
+    }
 
     const posts = await ctx.db
       .query("posts")

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,9 @@ export default function ProfileClient() {
   const [confirmText, setConfirmText] = useState("");
   const [open, setOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const uploadAvatar = useAction(api.avatars.uploadAvatar);
+  const removeAvatar = useMutation(api.avatars.removeAvatar);
   const [isSavingName, setIsSavingName] = useState(false);
 
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
@@ -107,6 +110,40 @@ export default function ProfileClient() {
       showErrorToast(error instanceof Error ? error.message : "Failed to change your name");
     } finally {
       setIsSavingName(false);
+    }
+  };
+
+  // Checked here for a quick answer; the server checks the real type and size again (#95).
+  const handleAvatarFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      showErrorToast("Use a PNG, JPEG or WebP image");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      showErrorToast("Use an image of 2 MB or less");
+      return;
+    }
+    setIsSavingAvatar(true);
+    try {
+      await uploadAvatar({ bytes: await file.arrayBuffer() });
+      showSuccessToast("Photo updated");
+    } catch (error) {
+      showErrorToast((error as { data?: string }).data ?? "Failed to upload the photo");
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setIsSavingAvatar(true);
+    try {
+      await removeAvatar();
+      showSuccessToast("Photo removed");
+    } catch (error) {
+      showErrorToast((error as { data?: string }).data ?? "Failed to remove the photo");
+    } finally {
+      setIsSavingAvatar(false);
     }
   };
 
@@ -197,12 +234,37 @@ export default function ProfileClient() {
               <div className="flex w-full gap-5">
                 <div className="flex flex-col w-full space-y-2">
                   <FieldLabel className="text-sm font-medium" htmlFor="avatar">Avatar</FieldLabel>
-                  <p className="text-xs text-paragraph">Your profile picture</p>
-                  <input id="avatar" hidden readOnly />
+                  <p className="text-xs text-paragraph">PNG, JPEG or WebP, up to 2 MB</p>
                   {profileReady ? (
-                    <Avatar className="size-10 shrink-0">
-                      <AvatarImage src={`https://avatar.vercel.sh/${user?.name}`} alt={user?.name ?? "User avatar"} />
-                    </Avatar>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-10 shrink-0">
+                        <AvatarImage
+                          src={user?.avatarUrl ?? `https://avatar.vercel.sh/${user?.name}`}
+                          alt={user?.name ?? "User avatar"}
+                          className="object-cover"
+                        />
+                      </Avatar>
+                      <label className={`inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm ${isSavingAvatar ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-accent"}`}>
+                        {isSavingAvatar && <Loader2 className="size-4 animate-spin" />}
+                        Upload
+                        <input
+                          id="avatar"
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="sr-only"
+                          disabled={isSavingAvatar}
+                          onChange={(e) => {
+                            void handleAvatarFile(e.target.files?.[0]);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {user?.hasUploadedAvatar && (
+                        <Button type="button" variant="ghost" size="sm" disabled={isSavingAvatar} onClick={handleRemoveAvatar}>
+                          Remove
+                        </Button>
+                      )}
+                    </div>
                   ) : (
                     <Skeleton className="size-10 rounded-full" />
                   )}

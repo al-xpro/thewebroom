@@ -106,6 +106,7 @@ function useReadingProgress() {
 
 export function DockNavigation() {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const currentUser = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
   const pathname = usePathname();
   const isEditorRoute = pathname?.startsWith("/create") || pathname?.startsWith("/edit/");
   const isPostRoute =
@@ -644,7 +645,12 @@ export function DockNavigation() {
                         <DockItem key={item.label} index={getIndex()} onHover={handleItemHover}>
                           <Link href={item.href} aria-label={item.label}>
                             <DockIconWrapper>
-                              <item.icon className="size-5" />
+                              {item.href === "/profile" && currentUser?.avatarUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={currentUser.avatarUrl} alt="" className="size-6 rounded-full object-cover" />
+                              ) : (
+                                <item.icon className="size-5" />
+                              )}
                             </DockIconWrapper>
                           </Link>
                         </DockItem>

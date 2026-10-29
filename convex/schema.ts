@@ -51,6 +51,13 @@ export default defineSchema({
     followCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
 
+  // Uploaded profile photos (#95): one per member, stored by convex/avatars.ts.
+  avatars: defineTable({
+    userId: v.string(),
+    storageId: v.id("_storage"),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
   // Who follows what (#59). Topics now; people (#28) use the same table.
   follows: defineTable({
     followerId: v.string(),
