@@ -31,13 +31,13 @@ import {
   MessageSquareQuote,
   TableIcon,
   StickyNote,
+  Pilcrow,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { FileCodeBlock } from "@/lib/extension/file-code-block";
 import { TerminalCodeBlock } from "@/lib/extension/terminal-code-block";
 import { Badge } from "@/lib/extension/badge";
-import { BiParagraph } from "react-icons/bi";
 import { Caption } from "@/lib/extension/caption";
 import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
 import { TableDeleteExtension } from "@/lib/extension/table-delete";
@@ -548,7 +548,7 @@ export function RichTextEditor({
                 size="sm"
                 title="Paragraph"
               >
-                <BiParagraph className="h-4 w-4" />
+                <Pilcrow className="h-4 w-4" />
               </Button>
               <Button
                 type="button"

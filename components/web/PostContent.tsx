@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Copy, Check, Terminal } from "lucide-react";
-import { SiNextdotjs, SiReact } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { LogoTypescript } from "../ui/LogoTypescript";
-import { LogoJavascript } from "../ui/LogoJavascript";
+import { FileIcon } from "@/components/ui/file-icon";
 
 // ─── Copy button ──────────────────────────────────────────────────────────────
 
@@ -175,20 +173,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
     if (data.ssrDark !== null) setDarkHtml(data.ssrDark);
   }, [data.ssrLight, data.ssrDark]);
 
-  const getFileIcon = (lang: string) => {
-    switch (lang) {
-      case "ts":
-        return <LogoTypescript className="size-4" />;
-      case "tsx":
-        return <SiNextdotjs className="size-4 scale-110" />;
-      case "js":
-        return <LogoJavascript className="size-4" />;
-      case "jsx":
-        return <SiReact className="size-4 scale-130" />;
-      default:
-        return null;
-    }
-  };
+  const getFileIcon = (lang: string) => <FileIcon lang={lang} />;
 
   const languages = ["ts", "tsx", "js", "jsx"];
 
