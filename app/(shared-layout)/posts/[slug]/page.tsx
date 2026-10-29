@@ -87,7 +87,7 @@ export default function PostSlugRoute({ params }: PostSlugRouteProps) {
             className="relative flex items-center justify-start z-20"
           >
             <ArrowLeft className="h-4 w-4" />
-            All posts
+            Posts
           </Button>
         </Link>
 

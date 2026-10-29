@@ -154,10 +154,7 @@ export default function SignUpClient() {
       >
         <FieldGroup>
           <div className="flex flex-col items-center gap-1 text-center">
-            <h1 className="text-2xl font-bold">Create your account</h1>
-            <p className="text-paragraph text-sm">
-              Create account first, then choose your profile name.
-            </p>
+            <h1 className="type-title">Sign up</h1>
             {existingAccount && (
               <p role="alert" className="text-sm text-destructive">
                 An account with this e-mail already exists.{" "}
@@ -189,7 +186,7 @@ export default function SignUpClient() {
                   <FieldLabel htmlFor="email">Email</FieldLabel>
                   <Input
                     aria-invalid={!!visibleErrors.email}
-                    placeholder="Email address"
+                    placeholder="you@example.com"
                     type="email"
                     autoComplete="email"
                     id="email"
@@ -207,7 +204,6 @@ export default function SignUpClient() {
                 </Field>
               )}
             />
-            <FieldDescription>This will be your primary login.</FieldDescription>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -235,10 +231,7 @@ export default function SignUpClient() {
                 </Field>
               )}
             />
-            <FieldDescription>
-              Must be at least 8 characters long and include a number, an uppercase letter and a
-              special character.
-            </FieldDescription>
+            <FieldDescription>8+ characters, a number, an uppercase letter and a symbol.</FieldDescription>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -247,7 +240,7 @@ export default function SignUpClient() {
               control={form.control}
               render={({ field }) => (
                 <Field>
-                  <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
+                  <FieldLabel htmlFor="confirm-password">Confirm</FieldLabel>
                   <PasswordInput
                     id="confirm-password"
                     placeholder="********"
@@ -265,17 +258,16 @@ export default function SignUpClient() {
                 </Field>
               )}
             />
-            <FieldDescription>Please confirm your password.</FieldDescription>
           </div>
 
           <Field>
             <Button disabled={isPending} className="cursor-pointer">
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              <span>Create Account</span>
+              <span>Sign up</span>
             </Button>
           </Field>
 
-          <FieldSeparator>Or continue with</FieldSeparator>
+          <FieldSeparator>or</FieldSeparator>
           <Field>
             <Button
               variant="outline"
@@ -290,10 +282,10 @@ export default function SignUpClient() {
                   fill="currentColor"
                 />
               </svg>
-              Sign up with GitHub
+              GitHub
             </Button>
             <FieldDescription className="px-6 text-center">
-              Already have an account? <Link href={withNext("/auth/login", next)}>Log in</Link>
+              <Link href={withNext("/auth/login", next)}>Log in</Link>
             </FieldDescription>
           </Field>
         </FieldGroup>

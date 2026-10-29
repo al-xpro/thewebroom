@@ -162,11 +162,7 @@ export default function LoginClient() {
       >
         <FieldGroup>
           <div className="flex flex-col items-center gap-1 text-center">
-            <h1 className="text-2xl font-bold">Login to your account</h1>
-            <p className="text-paragraph text-sm text-paragraph">
-              Enter your email below to login&nbsp;
-              <span className="whitespace-nowrap">to your account.</span>
-            </p>
+            <h1 className="type-title">Log in</h1>
             {(searchParams.get("banned") === "1" || blockedMessage) && (
               <p className="text-sm text-destructive">
                 {blockedMessage ||
@@ -188,7 +184,7 @@ export default function LoginClient() {
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   aria-invalid={!!visibleErrors.email}
-                  placeholder="Email address"
+                  placeholder="you@example.com"
                   type="email"
                   id="email"
                   required
@@ -237,10 +233,10 @@ export default function LoginClient() {
           <Field>
             <Button disabled={isPending} className="cursor-pointer">
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              <span>Login</span>
+              <span>Log in</span>
             </Button>
           </Field>
-          <FieldSeparator className="text-paragraph">Or continue with</FieldSeparator>
+          <FieldSeparator className="text-paragraph">or</FieldSeparator>
           <Field>
             <Button
               variant="outline"
@@ -255,10 +251,9 @@ export default function LoginClient() {
                   fill="currentColor"
                 />
               </svg>
-              Login with GitHub
+              GitHub
             </Button>
             <FieldDescription className="text-center">
-              Don&apos;t have an account?&nbsp;
               <Link href={withNext("/auth/sign-up", next)} className="underline underline-offset-4 text-paragraph">
                 Sign up
               </Link>

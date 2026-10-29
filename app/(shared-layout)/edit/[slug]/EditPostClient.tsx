@@ -288,7 +288,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
           <Link href="/my-posts" className="flex items-center justify-center gap-2">
             <Button variant="outline" size="sm" className="relative z-20">
               <ArrowLeft className="h-4 w-4" />
-              My Posts
+              Posts
             </Button>
           </Link>
 
@@ -314,13 +314,13 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
               onClick={form.handleSubmit((values) => onSubmit(values, "draft"), onInvalid)}
             >
               {draftPending && <Loader2 className="size-4 animate-spin" />}
-              <span className="flex items-center gap-2">Save as Draft <BookDashed className="size-4" /></span>
+              <span className="flex items-center gap-2">Draft <BookDashed className="size-4" /></span>
             </Button>
 
             <Button disabled={isPending || draftPending} size="sm" type="submit" className="shrink-0">
               {isPending && <Loader2 className="size-4 animate-spin" />}
               <span className="flex items-center gap-2">
-                Save & Publish <Book className="size-4" />
+                Publish <Book className="size-4" />
               </span>
             </Button>
           </div>

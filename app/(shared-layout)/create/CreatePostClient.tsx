@@ -18,7 +18,6 @@ import {
   ClockFading,
   Copy,
   Loader2,
-  Pen,
   Upload,
   User,
 } from "lucide-react";
@@ -356,18 +355,10 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
           aria-labelledby="auth-dialog-title"
           className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
         >
-          <div className="relative flex w-full max-w-md flex-col items-center gap-6 rounded-2xl bg-[#EDEDED] p-8 text-center dark:bg-[#0A0A0A]">
-            <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
-              <Pen className="size-7 text-primary" />
-            </div>
+          <div className="relative flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border bg-white p-6 text-center dark:bg-black">
             <div className="space-y-2">
-              <h2 id="auth-dialog-title" className="text-2xl font-extrabold text-black dark:text-white">
-                Ready to share it?
-              </h2>
-              <p className="text-sm leading-relaxed text-paragraph">
-                Publishing and drafts are for signed-in members. Log in or create an account:
-                your post is saved in this browser and will be here when you come back.
-              </p>
+              <h2 id="auth-dialog-title" className="type-title">Sign in to publish</h2>
+              <p className="type-meta">Your post stays here.</p>
             </div>
             <div className="flex w-full flex-col gap-3">
               <Link
@@ -386,7 +377,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                   variant: "outline",
                 })}
               >
-                Create account
+                Sign up
               </Link>
               <Button
                 type="button"
@@ -395,7 +386,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                 autoFocus
                 onClick={() => setShowAuthModal(false)}
               >
-                Keep writing
+                Not now
               </Button>
             </div>
           </div>
@@ -422,7 +413,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
           <Link href="/posts" className="flex items-center justify-center gap-2">
             <Button variant="outline" size="sm" className="relative z-20">
               <ArrowLeft className="h-4 w-4" />
-              All posts
+              Posts
             </Button>
           </Link>
 
@@ -449,7 +440,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
             >
               {draftPending && <Loader2 className="size-4 animate-spin" />}
               <span className="flex items-center gap-2">
-                Save as Draft <BookDashed className="size-4" />
+                Draft <BookDashed className="size-4" />
               </span>
             </Button>
 
@@ -461,7 +452,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
             >
               {isPending && <Loader2 className="size-4 animate-spin" />}
               <span className="flex items-center gap-2">
-                Publish Post <Book className="size-4" />
+                Publish <Book className="size-4" />
               </span>
             </Button>
           </div>
