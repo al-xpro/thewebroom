@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "alxpro-theme/css";
 
 @source "../lib/extension/badge.ts";
 @source "../lib/extension/callout.ts";
