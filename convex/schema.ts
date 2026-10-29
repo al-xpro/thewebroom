@@ -44,7 +44,19 @@ export default defineSchema({
     postCount: v.optional(v.number()),
     commentWindowStart: v.optional(v.number()),
     commentCount: v.optional(v.number()),
+    followWindowStart: v.optional(v.number()),
+    followCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
+
+  // Who follows what (#59). Topics now; people (#28) use the same table.
+  follows: defineTable({
+    followerId: v.string(),
+    targetType: v.union(v.literal("topic"), v.literal("user")),
+    targetId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_follower", ["followerId", "targetType", "targetId"])
+    .index("by_target", ["targetType", "targetId"]),
 
   accountCreationLimits: defineTable({
     ipAddress: v.string(),
