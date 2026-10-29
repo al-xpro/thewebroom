@@ -11,38 +11,18 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer>
-      <div className="flex flex-col gap-3 sm:gap-2 w-full h-full py-4 relative divider-fade-top mb-8">
-        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-2 sm:gap-x-4 gap-y-2 text-sm text-[#666666] dark:text-[#A0A0A0]">
-          <Link href="/privacy-policy" className="text-primary hover:underline">
-            Privacy Policy
-          </Link>
-          <Link href="/terms-and-conditions" className="text-primary hover:underline">
-            Terms & Conditions
-          </Link>
-          <a
-            href="mailto:alxpro.dev@gmail.com?subject=Re: The Web Room"
-            className="text-primary hover:underline"
-          >
-            Contact Support 
-          </a>
-        </div>
-        <div className="flex flex-col sm:flex-row w-full items-center sm:justify-between gap-2">
-          <p className="text-left text-sm leading-normal text-[#666666] dark:text-[#A0A0A0]">
-            © {currentYear} The Web Room. All rights reserved.
-          </p>
-          <p className="text-left text-sm leading-normal text-[#666666] dark:text-[#A0A0A0]">
-            Designed and Developed by&nbsp;
-            <Link
-              href="https://alxpro.com"
-              target="_blank"
-              className="text-primary hover:underline"
-            >
-              AlxPro
-            </Link>
-          </p>
-        </div>
-      </div>
+    <footer className="relative divider-fade-top mb-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 type-meta">
+      <p>© {currentYear} The Web Room</p>
+      <nav className="flex gap-4">
+        <Link href="/privacy-policy" className="hover:text-black dark:hover:text-white">Privacy</Link>
+        <Link href="/terms-and-conditions" className="hover:text-black dark:hover:text-white">Terms</Link>
+        <a href="mailto:alxpro.dev@gmail.com?subject=Re: The Web Room" className="hover:text-black dark:hover:text-white">
+          Contact
+        </a>
+        <Link href="https://alxpro.com" target="_blank" className="hover:text-black dark:hover:text-white">
+          AlxPro
+        </Link>
+      </nav>
     </footer>
   );
 }

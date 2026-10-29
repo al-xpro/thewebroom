@@ -95,7 +95,7 @@ body::-webkit-scrollbar {
   --destructive: #CB2A2E;
   --border: #EAEAEA;
   --input: oklch(0.92 0.004 286.32);
-  --ring: #ffc7bb;
+  --ring: #FF3400;
   --chart-1: oklch(0.82 0.13 41);
   --chart-2: oklch(0.69 0.22 41);
   --chart-3: oklch(0.66 0.23 41);
@@ -136,7 +136,7 @@ body::-webkit-scrollbar {
   --destructive: #FF6166;
   --border: #1E1E1E;
   --input: oklch(1 0 0 / 15%);
-  --ring: #660900;
+  --ring: #FF3400;
   --chart-1: oklch(0.82 0.13 41);
   --chart-2: oklch(0.69 0.22 41);
   --chart-3: oklch(0.66 0.23 41);
@@ -176,7 +176,7 @@ body::-webkit-scrollbar {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply text-foreground bg-white dark:bg-black font-sans;
+    @apply text-foreground bg-white dark:bg-black font-sans font-light;
   }
 }
 
@@ -312,5 +312,35 @@ html:not(.dark) .shiki span {
     background: repeating-linear-gradient(to right, var(--border) 0 4px, transparent 4px 8px);
     mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent);
     pointer-events: none;
+  }
+}
+
+/* ── Minimal type scale ─────────────────────────────────────────────────────
+   Light body text; medium and semibold titles. Use these instead of one-off sizes. */
+@utility type-display {
+  @apply text-4xl md:text-5xl font-semibold tracking-tight text-black dark:text-white;
+}
+@utility type-title {
+  @apply text-2xl md:text-3xl font-semibold tracking-tight text-black dark:text-white;
+}
+@utility type-heading {
+  @apply text-lg font-medium tracking-tight text-black dark:text-white;
+}
+@utility type-body {
+  @apply text-base font-light leading-relaxed text-[#666666] dark:text-[#A0A0A0];
+}
+@utility type-meta {
+  @apply text-sm font-light text-[#666666] dark:text-[#A0A0A0];
+}
+@utility type-label {
+  @apply text-xs font-medium uppercase tracking-[0.18em] text-primary;
+}
+
+/* Images fade in once loaded: set data-loaded="true" on load (components/ui/fade-image.tsx). */
+@utility fade-in-image {
+  opacity: 0;
+  transition: opacity 600ms ease;
+  &[data-loaded="true"] {
+    opacity: 1;
   }
 }

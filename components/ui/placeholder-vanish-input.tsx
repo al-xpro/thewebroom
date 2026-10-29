@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Send } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "./button";
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -197,7 +197,7 @@ export function PlaceholdersAndVanishInput({
         pattern={EMAIL_REGEX.source}
         onChange={(e) => !animating && setValue(e.target.value)}
         className={cn(
-          "w-full h-full bg-transparent pl-4 pr-32 text-sm sm:text-base text-black dark:text-white outline-none truncate",
+          "w-full h-full bg-transparent pl-4 pr-14 text-sm sm:text-base text-black dark:text-white outline-none truncate",
           animating && "text-transparent dark:text-transparent"
         )}
       />
@@ -214,6 +214,7 @@ export function PlaceholdersAndVanishInput({
       <Button
         type="submit"
         tabIndex={-1}
+        aria-label="Subscribe"
         className={cn(
           "absolute right-2 top-1/2 -translate-y-1/2 z-20 cursor-pointer",
           "flex items-center gap-2 rounded-full px-3 sm:px-4 py-1.5 text-sm font-medium transition",
@@ -221,14 +222,7 @@ export function PlaceholdersAndVanishInput({
         )}
         variant="default"
       >
-        {submitted ? (
-          "Thank you!"
-        ) : (
-          <>
-            Subscribe
-            <Send className="w-4 h-4" />
-          </>
-        )}
+        {submitted ? "Thanks" : <ArrowRight className="size-4" />}
       </Button>
     </form>
   );
