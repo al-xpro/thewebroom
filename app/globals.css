@@ -346,7 +346,7 @@ html:not(.dark) .shiki span {
   @apply text-sm font-light text-[#666666] dark:text-[#A0A0A0];
 }
 @utility type-label {
-  @apply text-xs font-medium uppercase tracking-[0.18em] text-primary;
+  @apply text-xs font-medium uppercase tracking-[0.18em] text-[#666666] dark:text-[#A0A0A0];
 }
 
 /* Images fade in once loaded: set data-loaded="true" on load (components/ui/fade-image.tsx). */

@@ -12,7 +12,7 @@ import Footer from "@/components/web/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { deletePostAction } from "@/app/actions";
-import { getStatusBadgeClassName } from "@/lib/get-status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
 import { SpreadScheduleDialog } from "@/components/web/SpreadScheduleDialog";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -203,9 +203,7 @@ export default function MyPostsPage() {
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <div className="flex items-start justify-between gap-3">
                       <h2 className="type-heading truncate">{post.title}</h2>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClassName(post.status)}`}>
-                        {status}
-                      </span>
+                      <StatusBadge status={status} />
                     </div>
                     <p className="type-meta truncate">
                       {date} · {post.topic} · {post.minRead} min

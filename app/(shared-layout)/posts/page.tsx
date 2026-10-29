@@ -26,7 +26,7 @@ export default function BlogPage({ searchParams }: BlogPageProps) {
     <div className="flex flex-col pt-20 max-w-3xl mx-auto px-4">
       <section className="relative flex flex-col items-start gap-5 py-10 divider-fade-bottom">
         <h1 className="type-display">Posts</h1>
-        <Suspense fallback={<FiltersSkeleton />}>
+        <Suspense fallback={<BlogFilters activeTopics={[]} />}>
           <DynamicContent searchParams={searchParams} />
         </Suspense>
       </section>
@@ -81,18 +81,6 @@ async function FilteredPosts({ activeTopics }: { activeTopics: string[] }) {
   return <PaginatedPosts key={activeTopics.join(",")} posts={filtered} />;
 }
 
-function FiltersSkeleton() {
-  return (
-    <div className="flex gap-2 flex-wrap">
-      {[...Array(4)].map((_, i) => (
-        <div
-          key={i}
-          className="h-9 w-28 rounded-full bg-[#EDEDED] dark:bg-[#202020] animate-pulse"
-        />
-      ))}
-    </div>
-  );
-}
 
 function SkeletonLoadingUi() {
   return (
