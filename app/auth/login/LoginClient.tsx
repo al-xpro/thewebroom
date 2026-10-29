@@ -22,6 +22,7 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSearchParams } from "next/navigation";
+import { safeNextPath, withNext } from "@/lib/next-path";
 
 type LoginFields = keyof z.infer<typeof loginSchema>;
 
@@ -30,6 +31,7 @@ export default function LoginClient() {
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<LoginFields, string>>>({});
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const next = safeNextPath(searchParams.get("next"));
   const justVerified = searchParams.get("verified") === "1";
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
   const assertEmailNotBanned = useMutation(api.auth.assertEmailNotBanned);
@@ -86,15 +88,20 @@ export default function LoginClient() {
       await authClient.signIn.email({
         email: data.email,
         password: data.password,
-        callbackURL: "/onboarding/post-auth",
+        callbackURL: withNext("/onboarding/post-auth", next),
         fetchOptions: {
           onSuccess: async () => {
             showSuccessToast("Logged in successfully");
             await new Promise((resolve) => setTimeout(resolve, 300));
-            window.location.href = "/onboarding/post-auth";
+            window.location.href = withNext("/onboarding/post-auth", next);
           },
           onError: (error) => {
-            showErrorToast(error.error.message);
+            // better-auth sends a new verification link on this error (sendOnSignIn).
+            showErrorToast(
+              error.error.code === "EMAIL_NOT_VERIFIED"
+                ? "Verify your e-mail first: we've sent you a new link."
+                : error.error.message
+            );
           },
         },
       });
@@ -124,8 +131,8 @@ export default function LoginClient() {
       await authClient.signIn.social({
         provider,
         requestSignUp: false,
-        callbackURL: "/onboarding/post-auth",
-        newUserCallbackURL: "/onboarding/complete-profile?force=1",
+        callbackURL: withNext("/onboarding/post-auth", next),
+        newUserCallbackURL: withNext("/onboarding/complete-profile?force=1", next),
         fetchOptions: {
           onError: (error) => {
             const message = error.error.message || `Failed to login with ${provider}`;
@@ -252,7 +259,7 @@ export default function LoginClient() {
             </Button>
             <FieldDescription className="text-center">
               Don&apos;t have an account?&nbsp;
-              <Link href="/auth/sign-up" className="underline underline-offset-4 text-paragraph">
+              <Link href={withNext("/auth/sign-up", next)} className="underline underline-offset-4 text-paragraph">
                 Sign up
               </Link>
             </FieldDescription>

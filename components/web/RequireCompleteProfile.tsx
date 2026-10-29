@@ -2,14 +2,17 @@
 
 import { useEffect } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { isOnboardingComplete } from "@/lib/onboarding";
 import { authClient } from "@/lib/auth-client";
+import { safeNextPath, withNext } from "@/lib/next-path";
 
 export default function RequireCompleteProfile() {
   const router = useRouter();
   const pathname = usePathname();
+  // Where the member was headed before signing in, kept through onboarding.
+  const next = safeNextPath(useSearchParams().get("next"));
   const { isAuthenticated, isLoading } = useConvexAuth();
   // Always fetch the user query - don't skip if not authenticated
   // We need this data to determine routing for authenticated pages
@@ -56,21 +59,23 @@ export default function RequireCompleteProfile() {
     }
 
     if (isAuthRoute) {
-      router.replace(onboardingComplete ? "/" : "/onboarding/complete-profile");
+      router.replace(
+        onboardingComplete ? (next ?? "/") : withNext("/onboarding/complete-profile", next)
+      );
       return;
     }
 
     if (isOnboardingRoute) {
       if (onboardingComplete) {
-        router.replace("/");
+        router.replace(next ?? "/");
       }
       return;
     }
 
     if (!onboardingComplete) {
-      router.replace("/onboarding/complete-profile");
+      router.replace(withNext("/onboarding/complete-profile", pathname));
     }
-  }, [isAuthenticated, isLoading, pathname, router, user]);
+  }, [isAuthenticated, isLoading, next, pathname, router, user]);
 
   return null;
 }

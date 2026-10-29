@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import z from "zod";
+import { safeNextPath } from "@/lib/next-path";
 
 const completeProfileSchema = z.object({
   name: z
@@ -28,6 +29,7 @@ export default function CompleteProfileClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const force = searchParams.get("force") === "1";
+  const next = safeNextPath(searchParams.get("next"));
 
   const { isAuthenticated, isLoading } = useConvexAuth();
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
@@ -62,14 +64,14 @@ export default function CompleteProfileClient() {
     }
 
     if (user && isOnboardingComplete(user) && !force) {
-      router.replace("/");
+      router.replace(next ?? "/");
       return;
     }
 
     if (!force && user && isOnboardingComplete(user) && user?.displayUsername) {
       form.setValue("name", user.displayUsername, { shouldValidate: true });
     }
-  }, [form, force, isAuthenticated, isLoading, router, user]);
+  }, [form, force, isAuthenticated, isLoading, next, router, user]);
 
   function onInvalid(fieldErrors: typeof form.formState.errors) {
     const messages: Partial<Record<CompleteProfileFields, string>> = {};
@@ -98,7 +100,7 @@ export default function CompleteProfileClient() {
       try {
         await completeProfileOnboarding({ name: values.name });
         showSuccessToast("Profile completed successfully");
-        router.replace("/");
+        router.replace(next ?? "/");
       } catch (error) {
         showErrorToast(error instanceof Error ? error.message : "Failed to update profile");
       }

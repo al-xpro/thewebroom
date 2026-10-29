@@ -12,7 +12,7 @@ import {
 import { betterAuth } from "better-auth";
 import { ConvexError, v } from "convex/values";
 import { verifyPassword } from "better-auth/crypto";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import authConfig from "./auth.config";
 import { verifyClientIp } from "../lib/auth-proxy-signature";
 
@@ -126,6 +126,10 @@ export async function assertUserNotBanned(
 export const authComponent = createClient<DataModel>(components.betterAuth);
 
 const ACCOUNT_CREATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+// Saying "this account exists" lets anyone test addresses, so each IP gets a few tries.
+const EXISTING_ACCOUNT_SIGN_UP_LIMIT = 5;
+const EXISTING_ACCOUNT_SIGN_UP_WINDOW_MS = 60 * 60 * 1000;
+const EMAIL_VERIFICATION_TTL_SECONDS = 60 * 60;
 
 // Runs inside the transaction that decides a sign-up: the ban check and the per-IP limit
 // can't be skipped by calling better-auth directly, unlike checks made in the browser.
@@ -156,24 +160,47 @@ export const registerSignUp = internalMutation({
   },
 });
 
-// Called by better-auth before it creates any user (e-mail or GitHub sign-up).
-async function assertSignUpAllowed(
-  ctx: GenericCtx<DataModel>,
-  email: string,
-  headers: Headers | undefined
-) {
+export const registerExistingAccountSignUp = internalMutation({
+  args: { ipAddress: v.string() },
+  handler: async (ctx, args): Promise<{ allowed: boolean }> => {
+    const now = Date.now();
+    const recent = await ctx.db
+      .query("existingAccountSignUps")
+      .withIndex("by_ipAddress", (q) => q.eq("ipAddress", args.ipAddress))
+      .collect();
+    const inWindow = recent.filter(
+      (attempt) => attempt.attemptedAt > now - EXISTING_ACCOUNT_SIGN_UP_WINDOW_MS
+    );
+    if (inWindow.length >= EXISTING_ACCOUNT_SIGN_UP_LIMIT) return { allowed: false };
+
+    await ctx.db.insert("existingAccountSignUps", { ipAddress: args.ipAddress, attemptedAt: now });
+    return { allowed: true };
+  },
+});
+
+// Only the website's auth route signs the client IP, so a missing or invalid signature
+// means the request bypassed it.
+async function requireSignedClientIp(headers: Headers | undefined) {
   const secret = process.env.AUTH_PROXY_SECRET;
   if (!secret) {
     console.error("[Auth][SignUp] AUTH_PROXY_SECRET is not set: refusing sign-ups.");
     throw new APIError("FORBIDDEN", { message: "Sign-ups are temporarily unavailable." });
   }
 
-  // Only the website's auth route signs the client IP, so a missing or invalid signature
-  // means the request bypassed it.
   const ipAddress = headers ? await verifyClientIp(secret, headers) : null;
   if (!ipAddress) {
     throw new APIError("FORBIDDEN", { message: "Sign up on the website." });
   }
+  return ipAddress;
+}
+
+// Called by better-auth before it creates any user (e-mail or GitHub sign-up).
+async function assertSignUpAllowed(
+  ctx: GenericCtx<DataModel>,
+  email: string,
+  headers: Headers | undefined
+) {
+  const ipAddress = await requireSignedClientIp(headers);
 
   if (!("runMutation" in ctx)) {
     throw new APIError("FORBIDDEN", { message: "Sign up on the website." });
@@ -182,6 +209,33 @@ async function assertSignUpAllowed(
   if (!result.allowed) {
     throw new APIError("FORBIDDEN", { message: result.message });
   }
+}
+
+// better-auth answers a sign-up for an existing address with a fake success whenever
+// e-mail verification is required, and swallows errors from onExistingUserSignUp. This
+// runs first and says so instead (#65), within a per-IP limit.
+async function assertNotExistingAccount(
+  ctx: GenericCtx<DataModel>,
+  email: string,
+  findUserByEmail: (email: string) => Promise<unknown>,
+  headers: Headers | undefined
+) {
+  if (!(await findUserByEmail(normalizeEmail(email)))) return;
+
+  const ipAddress = await requireSignedClientIp(headers);
+  if (!("runMutation" in ctx)) {
+    throw new APIError("FORBIDDEN", { message: "Sign up on the website." });
+  }
+  const result = await ctx.runMutation(internal.auth.registerExistingAccountSignUp, { ipAddress });
+  if (!result.allowed) {
+    throw new APIError("TOO_MANY_REQUESTS", {
+      message: "Too many sign-up attempts. Try again in an hour.",
+    });
+  }
+  throw new APIError("UNPROCESSABLE_ENTITY", {
+    code: "USER_ALREADY_EXISTS",
+    message: "An account with this e-mail already exists.",
+  });
 }
 
 export const createAuth = (
@@ -208,6 +262,21 @@ export const createAuth = (
       .filter(Boolean),
     database: authComponent.adapter(ctx),
     emailAndPassword: { enabled: true, requireEmailVerification: true },
+    emailVerification: {
+      sendOnSignUp: true,
+      // Signing in with an unverified address sends a new link, which also covers links
+      // from the old flow that no longer work.
+      sendOnSignIn: true,
+      autoSignInAfterVerification: true,
+      expiresIn: EMAIL_VERIFICATION_TTL_SECONDS,
+      sendVerificationEmail: async ({ user, url }) => {
+        if (!("scheduler" in ctx)) throw new Error("Verification e-mails need a scheduler");
+        await ctx.scheduler.runAfter(0, internal.emails.deliverEmailVerificationEmail, {
+          email: user.email,
+          verificationLink: url,
+        });
+      },
+    },
     socialProviders,
     plugins: [
       convex({
@@ -218,6 +287,17 @@ export const createAuth = (
         jwksRotateOnTokenGenerationError: true,
       }),
     ],
+    hooks: {
+      before: createAuthMiddleware(async (authCtx) => {
+        if (authCtx.path !== "/sign-up/email" || typeof authCtx.body?.email !== "string") return;
+        await assertNotExistingAccount(
+          ctx,
+          authCtx.body.email,
+          (email) => authCtx.context.internalAdapter.findUserByEmail(email),
+          authCtx.request?.headers ?? authCtx.headers
+        );
+      }),
+    },
     databaseHooks: {
       user: {
         create: {
@@ -709,109 +789,6 @@ export const checkDeletePassword = query({
       password: args.password.trim(),
     });
     return { matches };
-  },
-});
-
-export const sendVerificationEmail = mutation({
-  args: { email: v.string() },
-  handler: async (ctx, args): Promise<{ success: boolean; sent: boolean; error?: string }> => {
-    const userEmail = normalizeEmail(args.email);
- 
-    const userRecord = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
-      model: "user",
-      where: [{ field: "email", operator: "eq", value: userEmail }],
-    })) as { _id: string; email: string; emailVerified?: boolean } | null;
- 
-    // Unknown and already-verified addresses get the same answer, so the result doesn't
-    // reveal which e-mails have a verified account. Sign-up calls this even for existing
-    // accounts, because better-auth reports success for them too.
-    if (!userRecord || userRecord.emailVerified) return { success: true, sent: false };
- 
-    const now = Date.now();
-    const TTL_MS = 15 * 60 * 1000;
- 
-    // Clean up existing unused tokens for this user
-    const existing = await ctx.db
-      .query("emailVerificationTokens")
-      .withIndex("by_userId", (q) => q.eq("userId", userRecord._id))
-      .collect();
-    for (const t of existing) await ctx.db.delete(t._id);
- 
-    // Generate cryptographically secure token — never store the raw value
-    const rawToken = generateSecureToken(32); // crypto.getRandomValues based
-    const tokenHash = await sha256Hex(rawToken);
- 
-    await ctx.db.insert("emailVerificationTokens", {
-      userId: userRecord._id,
-      tokenHash,           // only the hash is persisted
-      email: userEmail,
-      expiresAt: now + TTL_MS,
-    });
- 
-    const verificationLink = `${
-      process.env.SITE_URL ?? "http://localhost:3000"
-    }/auth/verify-email?token=${rawToken}`; // raw token travels in the link
- 
-    try {
-      await ctx.scheduler.runAfter(0, internal.emails.deliverEmailVerificationEmail, {
-        email: userEmail,
-        verificationLink,
-      });
-      return { success: true, sent: true };
-    } catch (error) {
-      console.error("[Email Verification] Send error:", error);
-      return { success: true, sent: false, error: String(error) };
-    }
-  },
-});
- 
-export const verifyEmail = mutation({
-  args: { token: v.string() },
-  handler: async (ctx, args) => {
-    // Hash the incoming token and look up by hash — never store raw tokens
-    const tokenHash = await sha256Hex(args.token.trim());
- 
-    const tokenRecord = await ctx.db
-      .query("emailVerificationTokens")
-      .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
-      .first();
- 
-    if (!tokenRecord) {
-      throw new ConvexError("Invalid verification link");
-    }
- 
-    if (tokenRecord.expiresAt < Date.now()) {
-      await ctx.db.delete(tokenRecord._id);
-      throw new ConvexError("Verification link has expired. Please request a new one.");
-    }
- 
-    if (tokenRecord.usedAt) {
-      throw new ConvexError("This verification link has already been used.");
-    }
- 
-    const user = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
-      model: "user",
-      where: [{ field: "_id", operator: "eq", value: tokenRecord.userId }],
-    })) as { _id: string; emailVerified?: boolean } | null;
- 
-    if (!user) throw new ConvexError("User not found");
- 
-    if (user.emailVerified) {
-      await ctx.db.patch(tokenRecord._id, { usedAt: Date.now() });
-      return { success: true, already: true };
-    }
- 
-    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
-      input: {
-        model: "user",
-        where: [{ field: "_id", operator: "eq", value: tokenRecord.userId }],
-        update: { emailVerified: true, updatedAt: Date.now() },
-      },
-    });
- 
-    await ctx.db.patch(tokenRecord._id, { usedAt: Date.now() });
- 
-    return { success: true, verified: true };
   },
 });
 

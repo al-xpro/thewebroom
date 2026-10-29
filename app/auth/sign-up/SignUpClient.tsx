@@ -20,9 +20,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
+import { safeNextPath, withNext } from "@/lib/next-path";
 
 type SignUpFields = keyof z.infer<typeof signUpSchema>;
 
@@ -30,11 +31,12 @@ export default function SignUpClient() {
   const [isPending, startTransition] = useTransition();
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<SignUpFields, string>>>({});
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+  const [existingAccount, setExistingAccount] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const next = safeNextPath(searchParams.get("next"));
   const authProviderStatus = useQuery(api.auth.getAuthProviderStatus);
-  const sendVerificationEmail = useMutation(api.auth.sendVerificationEmail);
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
@@ -71,33 +73,26 @@ export default function SignUpClient() {
     const pendingName = createPendingName();
 
     startTransition(async () => {
-      // Bans and the per-IP account limit are enforced by the server when the account is
-      // created (convex/auth.ts); a refusal comes back through onError below.
+      // Bans, the per-IP account limit and existing accounts are checked by the server
+      // (convex/auth.ts); a refusal comes back through onError below. better-auth sends the
+      // verification e-mail; its link signs the member in and returns to `callbackURL`.
+      const emailParam = encodeURIComponent(data.email);
       await authClient.signUp.email({
         email: data.email,
         name: pendingName,
         password: data.password,
+        callbackURL: withNext(`/auth/verify-email?verified=1&email=${emailParam}`, next),
         fetchOptions: {
-          onSuccess: async () => {
+          onSuccess: () => {
             showSuccessToast("Account created! Check your email to verify.");
-
-            // Token is generated and stored server-side — just pass the email
-            try {
-              await sendVerificationEmail({ email: data.email });
-            } catch (err) {
-              console.error("[SignUp][SendVerificationEmail]", err);
-              // Don't block navigation — user can resend from the waiting room
-            }
-
-            // Pass email as URL param so the waiting room can display it
-            // without requiring an active session (requireEmailVerification: true
-            // means no session exists until the email is verified)
-            router.push(
-              `/auth/verify-email?email=${encodeURIComponent(data.email)}`
-            );
+            // No session exists until the address is verified, so the waiting room gets
+            // the address from the URL.
+            router.push(withNext(`/auth/verify-email?email=${emailParam}`, next));
           },
           onError: (error) => {
-            setBlockedMessage(error.error.message);
+            const isExisting = error.error.code === "USER_ALREADY_EXISTS";
+            setExistingAccount(isExisting);
+            setBlockedMessage(isExisting ? null : error.error.message);
             setVisibleErrors({});
           },
         },
@@ -127,8 +122,8 @@ export default function SignUpClient() {
     startTransition(async () => {
       await authClient.signIn.social({
         provider,
-        callbackURL: "/onboarding/post-auth",
-        newUserCallbackURL: "/onboarding/complete-profile?force=1",
+        callbackURL: withNext("/onboarding/post-auth", next),
+        newUserCallbackURL: withNext("/onboarding/complete-profile?force=1", next),
         requestSignUp: true,
         fetchOptions: {
           onError: (error) => {
@@ -162,6 +157,19 @@ export default function SignUpClient() {
             <p className="text-paragraph text-sm">
               Create account first, then choose your profile name.
             </p>
+            {existingAccount && (
+              <p role="alert" className="text-sm text-destructive">
+                An account with this e-mail already exists.{" "}
+                <Link href={withNext("/auth/login", next)} className="underline">
+                  Sign in
+                </Link>{" "}
+                or{" "}
+                <Link href="/auth/forgot-password" className="underline">
+                  reset your password
+                </Link>
+                .
+              </p>
+            )}
             {(searchParams.get("banned") === "1" || blockedMessage) && (
               <p className="text-sm text-destructive">
                 {blockedMessage ||
@@ -189,6 +197,7 @@ export default function SignUpClient() {
                     onChange={(e) => {
                       field.onChange(e);
                       clearError("email");
+                      setExistingAccount(false);
                     }}
                   />
                   {visibleErrors.email && (
@@ -285,7 +294,7 @@ export default function SignUpClient() {
               Sign up with GitHub
             </Button>
             <FieldDescription className="px-6 text-center">
-              Already have an account? <Link href="/auth/login">Log in</Link>
+              Already have an account? <Link href={withNext("/auth/login", next)}>Log in</Link>
             </FieldDescription>
           </Field>
         </FieldGroup>

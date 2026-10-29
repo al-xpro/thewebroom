@@ -1,22 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { isOnboardingComplete } from "@/lib/onboarding";
 import { authClient } from "@/lib/auth-client";
 import { Loader2 } from "lucide-react";
+import { safeNextPath, withNext } from "@/lib/next-path";
 
-export default function PostAuthPage() {
+function PostAuthRedirect() {
   const router = useRouter();
+  const next = safeNextPath(useSearchParams().get("next"));
   const { isAuthenticated, isLoading } = useConvexAuth();
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
 
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
-      router.replace("/auth/login");
+      router.replace(withNext("/auth/login", next));
       return;
     }
 
@@ -45,16 +47,32 @@ export default function PostAuthPage() {
     }
 
     if (!isOnboardingComplete(user)) {
-      router.replace("/onboarding/complete-profile");
+      router.replace(withNext("/onboarding/complete-profile", next));
       return;
     }
 
-    router.replace("/");
-  }, [isAuthenticated, isLoading, router, user]);
+    router.replace(next ?? "/");
+  }, [isAuthenticated, isLoading, next, router, user]);
 
   return (
     <div className="flex w-full h-full items-center justify-center">
       <Loader2 className="size-6 animate-spin text-paragraph" />
     </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div className="flex w-full h-full items-center justify-center">
+      <Loader2 className="size-6 animate-spin text-paragraph" />
+    </div>
+  );
+}
+
+export default function PostAuthPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <PostAuthRedirect />
+    </Suspense>
   );
 }
