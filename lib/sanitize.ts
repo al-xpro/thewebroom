@@ -35,25 +35,3 @@ export function sanitizeComment(dirty: string): string {
     return "";
   }
 }
-
-export function sanitizeAttribute(text: string): string {
-  if (!text || typeof text !== "string") return "";
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-export function stripHtmlTags(html: string): string {
-  if (!html || typeof html !== "string") return "";
-  return html.replace(/<[^>]*>/g, "");
-}
-
-export function extractTextPreview(html: string, maxLength = 155): string {
-  if (!html || typeof html !== "string") return "";
-  const text = stripHtmlTags(html);
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength).trim() + "...";
-}
