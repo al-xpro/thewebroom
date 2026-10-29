@@ -16,7 +16,7 @@ export default function Home() {
           <AuroraText>The Web Room</AuroraText>
         </h1>
         <p className="type-body text-lg max-w-xl">
-          Notes on building for the web: frontend, backend, design and the tools in between.
+          A blog about building for the web: frontend, backend, design and the tools behind them.
         </p>
       </section>
 

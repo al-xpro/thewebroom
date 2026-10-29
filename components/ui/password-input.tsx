@@ -19,7 +19,7 @@ function PasswordInput({
       <Input
         type={visible ? "text" : "password"}
         disabled={disabled}
-        className={cn("pr-12", className)}
+        className={cn("pr-9", className)}
         {...props}
       />
       <button
@@ -28,7 +28,7 @@ function PasswordInput({
         aria-pressed={visible}
         onClick={() => setVisible((v) => !v)}
         disabled={disabled}
-        className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center h-[34px] w-9 border-l border-[#EAEAEA] dark:border-[#1E1E1E] text-paragraph cursor-pointer disabled:cursor-not-allowed"
+        className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center size-8 text-paragraph hover:text-black dark:hover:text-white cursor-pointer disabled:cursor-not-allowed"
       >
         {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </button>

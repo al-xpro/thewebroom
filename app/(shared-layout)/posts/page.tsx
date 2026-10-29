@@ -12,7 +12,7 @@ import { connection } from "next/server";
 
 export const metadata: Metadata = {
   title: "The Web Room",
-  description: "Read our latest articles and insights.",
+  description: "Every post on The Web Room, newest first.",
   category: "Blog",
   authors: [{ name: "The Community at The Web Room" }],
 };

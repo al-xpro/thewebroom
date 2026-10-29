@@ -14,7 +14,7 @@ const raleway = Raleway({
 
 export const metadata: Metadata = {
   title: "The Web Room",
-  description: "A place where you can learn web development and be a part of a community.",
+  description: "A blog about building for the web: frontend, backend, design and the tools behind them.",
   category: "Blog",
   authors: [{ name: "The Community at The Web Room" }],
 };

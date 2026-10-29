@@ -51,6 +51,12 @@ export default defineSchema({
     followCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
 
+  // Newsletter sign-ups: one row per address.
+  newsletterSubscribers: defineTable({
+    email: v.string(),
+    createdAt: v.number(),
+  }).index("by_email", ["email"]),
+
   // Uploaded profile photos (#95): one per member, stored by convex/avatars.ts.
   avatars: defineTable({
     userId: v.string(),

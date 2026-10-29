@@ -362,3 +362,25 @@ html:not(.dark) .shiki span {
 @utility section-minimal {
   @apply relative py-8 space-y-6 divider-fade-top;
 }
+
+/* Fields are a bottom line that fades at both ends; it turns orange on focus and red
+   when invalid. Works on inputs and on wrappers such as the newsletter form. */
+@utility input-underline {
+  --underline: var(--border);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: linear-gradient(to right, transparent, var(--underline) 12%, var(--underline) 88%, transparent);
+  background-size: 100% 1px;
+  background-position: bottom;
+  background-repeat: no-repeat;
+  outline: none;
+  &:focus-visible,
+  &:focus-within {
+    --underline: var(--primary);
+  }
+  &[aria-invalid="true"] {
+    --underline: var(--destructive);
+  }
+}
