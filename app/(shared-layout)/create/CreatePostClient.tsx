@@ -14,13 +14,11 @@ import {
   ClockFading,
   Copy,
   Loader2,
-  Upload,
   User,
 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import { createBlogAction } from "@/app/actions";
-import { FadeImage } from "@/components/ui/fade-image";
 import Link from "next/link";
 import Footer from "@/components/web/Footer";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
@@ -43,6 +41,7 @@ import {
 } from "@/lib/post-draft";
 import { withNext } from "@/lib/next-path";
 import { TOPICS } from "@/convex/topics";
+import { CoverImageField } from "@/components/web/CoverImageField";
 
 const TOPIC_OPTIONS = TOPICS;
 
@@ -661,76 +660,17 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
             control={form.control}
             render={({ field }) => (
               <section className="flex flex-col gap-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="image"
-                  className="hidden"
-                  onChange={(e) => {
-                    field.onChange(e.target.files?.[0]);
+                <CoverImageField
+                  previewUrl={previewUrl}
+                  onPick={(file) => {
+                    field.onChange(file);
+                    clearError("image");
+                  }}
+                  onRemove={() => {
+                    field.onChange(undefined);
                     clearError("image");
                   }}
                 />
-
-                <div
-                  className={cn(
-                    "relative mb-2 h-[280px] w-full overflow-hidden rounded-md shadow-sm sm:h-[380px]",
-                    previewUrl
-                      ? "bg-[#FAFAFA] dark:bg-[#0A0A0A]"
-                      : "border border-dashed border-[#EAEAEA] bg-white dark:border-[#1E1E1E] dark:bg-black hover:bg-[#FAFAFA] dark:hover:bg-[#0A0A0A]"
-                  )}
-                >
-                  {previewUrl ? (
-                    <div className="relative flex w-full h-full p-6 border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black rounded-md">
-                      <FadeImage
-                        src={previewUrl}
-                        alt="Featured image preview"
-                        width={700}
-                        height={500}
-                        loading="eager"
-                        className="object-cover rounded-md"
-                      />
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                      <Upload className="size-6" />
-                      <div className="space-y-1">
-                        <p className="text-base font-semibold text-black dark:text-white">
-                          Upload a featured image
-                        </p>
-                        <p className="text-xs text-paragraph">
-                          PNG, JPG, WebP, AVIF or TIFF up to 1MB
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  <label
-                    htmlFor="image"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) {
-                        field.onChange(file);
-                        clearError("image");
-                      }
-                    }}
-                    className={`absolute inset-0 cursor-pointer ${field.value ? "max-w-fit mx-auto" : ""}`}
-                  >
-                    <div className="relative left-0 top-full px-10 mx-auto">
-                      {field.value && (
-                        <span className="relative bottom-12 flex items-center justify-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-4 py-2 text-xs font-medium text-black dark:text-white">
-                          <Upload className="size-3.5" />
-                          <p className="flex-1 min-w-0 truncate">{field.value.name}</p>
-                          <p className="min-w-0 truncate">
-                            {`${(field.value.size / 1024 / 1024).toFixed(2)}MB`}
-                          </p>
-                        </span>
-                      )}
-                    </div>
-                  </label>
-                </div>
-
                 <EditorialError message={visibleErrors.image} />
               </section>
             )}

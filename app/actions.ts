@@ -79,12 +79,13 @@ export async function updatePostAction(
   slug: string,
   values: z.infer<typeof editPostSchema>,
   existingImageStorageId: Id<"_storage"> | undefined,
-  status: "published" | "draft" = "published"
+  status: "published" | "draft" = "published",
+  removeImage = false
 ) {
   const token = await getToken();
   if (!token) throw new Error("Not authenticated");
 
-  let imageStorageId: Id<"_storage"> | undefined = existingImageStorageId;
+  let imageStorageId: Id<"_storage"> | undefined = removeImage ? undefined : existingImageStorageId;
 
   if (values.image) {
     const imageUrl = await fetchMutation(api.posts.generateImageUploadUrl, {}, { token });
@@ -108,6 +109,7 @@ export async function updatePostAction(
       minRead: values.minRead,
       contentHtml: values.contentHtml,
       imageStorageId,
+      removeImage: removeImage && !values.image,
       topic: values.topic,
       status,
     },

@@ -15,14 +15,12 @@ import {
   ClockFading,
   Copy,
   Loader2,
-  Upload,
   User,
 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import Footer from "@/components/web/Footer";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import { FadeImage } from "@/components/ui/fade-image";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { updatePostAction } from "@/app/actions";
 import Link from "next/link";
@@ -35,6 +33,7 @@ import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { FunctionReturnType } from "convex/server";
 import { TOPICS, type Topic } from "@/convex/topics";
+import { CoverImageField } from "@/components/web/CoverImageField";
 
 const TOPIC_OPTIONS = TOPICS;
 
@@ -96,6 +95,8 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
     (post as { imageUrl?: string }).imageUrl ?? null
   );
   const [isMetaEditing, setIsMetaEditing] = useState(false);
+  // The author removed the cover image; saving deletes it.
+  const [removeImage, setRemoveImage] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
   // Scheduled posts keep their time; setting one turns Publish into Schedule (#60).
   const [publishAt, setPublishAt] = useState<number | null>(
@@ -146,7 +147,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
       setDraftPending(true);
       try {
         if (!post.slug) throw new Error("Post slug is missing");
-        await updatePostAction(post._id, post.slug, values, post.imageStorageId, "draft");
+        await updatePostAction(post._id, post.slug, values, post.imageStorageId, "draft", removeImage);
         await schedulePost({ postId: post._id, publishAt });
         showSuccessToast(`Scheduled for ${formatPublishAt(publishAt)}`);
         router.push("/my-posts");
@@ -168,7 +169,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
 
     try {
       if (!post.slug) throw new Error("Post slug is missing");
-      const response = await updatePostAction(post._id, post.slug, values, post.imageStorageId, status);
+      const response = await updatePostAction(post._id, post.slug, values, post.imageStorageId, status, removeImage);
       const nextSlug = response.slug ?? post.slug;
 
       if (status === "draft") {
@@ -222,7 +223,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
 
   useEffect(() => {
     if (!imageFile) {
-      setPreviewUrl((post as { imageUrl?: string }).imageUrl ?? null);
+      setPreviewUrl(removeImage ? null : ((post as { imageUrl?: string }).imageUrl ?? null));
       return;
     }
 
@@ -230,7 +231,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
     setPreviewUrl(objectUrl);
 
     return () => URL.revokeObjectURL(objectUrl);
-  }, [imageFile, post]);
+  }, [imageFile, post, removeImage]);
 
   useEffect(() => {
     const handleDragEnter = (e: DragEvent) => {
@@ -554,82 +555,19 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
             control={form.control}
             render={({ field }) => (
               <section className="flex flex-col gap-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="image"
-                  className="hidden"
-                  onChange={(e) => {
-                    field.onChange(e.target.files?.[0]);
+                <CoverImageField
+                  previewUrl={previewUrl}
+                  onPick={(file) => {
+                    field.onChange(file);
+                    setRemoveImage(false);
+                    clearError("image");
+                  }}
+                  onRemove={() => {
+                    field.onChange(undefined);
+                    setRemoveImage(true);
                     clearError("image");
                   }}
                 />
-
-                <div
-                  className={cn(
-                    "relative mb-2 h-[280px] w-full overflow-hidden rounded-md shadow-sm sm:h-[380px]",
-                    previewUrl
-                      ? "bg-[#FAFAFA] dark:bg-[#0A0A0A]"
-                      : "border border-dashed border-[#EAEAEA] bg-white dark:border-[#1E1E1E] dark:bg-black hover:bg-[#FAFAFA] dark:hover:bg-[#0A0A0A]"
-                  )}
-                >
-                  {previewUrl && (
-                    <div className="relative flex w-full h-full p-6 border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black rounded-md">
-                      <FadeImage
-                        src={previewUrl}
-                        alt="Featured image preview"
-                        fill
-                        sizes="100%"
-                        loading="eager"
-                        className="object-cover rounded-4xl p-6"
-                      />
-                    </div>
-                  )}
-
-                  {/* This label now covers 100% of the area */}
-                  <label
-                    htmlFor="image"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) {
-                        field.onChange(file);
-                        clearError("image");
-                      }
-                    }}
-                    className="absolute inset-0 cursor-pointer flex flex-col items-center justify-end pb-12"
-                  >
-                    {/* Badge logic positioned at the bottom center */}
-                    <div className="px-10 w-full flex justify-center">
-                      {field.value instanceof File ? (
-                        <span className="flex items-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-4 py-2 text-xs font-medium text-black dark:text-white shadow-xl">
-                          <Upload className="size-3.5" />
-                          <p className="max-w-[200px] truncate">{field.value.name}</p>
-                          <p className="shrink-0">
-                            {`${(field.value.size / 1024 / 1024).toFixed(2)}MB`}
-                          </p>
-                        </span>
-                      ) : previewUrl ? (
-                        <span className="flex items-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-6 py-2 text-xs font-medium text-black dark:text-white shadow-xl">
-                          <Upload className="size-3.5" />
-                          <p>Click or drag to replace</p>
-                        </span>
-                      ) : (
-                        /* Empty state icon when no image exists at all */
-                        <div className="flex flex-col items-center gap-3 text-center mb-24">
-                          <Upload className="size-6 text-paragraph" />
-                          <div className="space-y-1">
-                            <p className="text-base font-semibold text-black dark:text-white">
-                              Upload a featured image
-                            </p>
-                            <p className="text-xs text-paragraph">PNG, JPG, WebP up to 1MB</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </label>
-                </div>
                 <EditorialError message={visibleErrors.image} />
               </section>
             )}

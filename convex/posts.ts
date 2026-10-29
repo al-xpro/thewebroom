@@ -291,6 +291,8 @@ export const updatePost = mutation({
     minRead: v.optional(v.number()),
     contentHtml: v.optional(v.string()),
     imageStorageId: v.optional(v.id("_storage")),
+    // Clears the cover image (and deletes its file) when no new one is given.
+    removeImage: v.optional(v.boolean()),
     topic: v.optional(
       topicValidator
     ),
@@ -345,6 +347,10 @@ export const updatePost = mutation({
     if (status !== undefined) patch.status = status;
     if (args.minRead !== undefined) {
       patch.minRead = args.minRead;
+    }
+    if (args.removeImage && args.imageStorageId === undefined && post.imageStorageId) {
+      await ctx.storage.delete(post.imageStorageId);
+      patch.imageStorageId = undefined;
     }
     if (args.imageStorageId !== undefined) {
       patch.imageStorageId = args.imageStorageId;
