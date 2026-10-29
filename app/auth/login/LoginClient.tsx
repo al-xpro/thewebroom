@@ -94,7 +94,12 @@ export default function LoginClient() {
             window.location.href = "/onboarding/post-auth";
           },
           onError: (error) => {
-            showErrorToast(error.error.message);
+            // better-auth sends a new verification link on this error (sendOnSignIn).
+            showErrorToast(
+              error.error.code === "EMAIL_NOT_VERIFIED"
+                ? "Verify your e-mail first: we've sent you a new link."
+                : error.error.message
+            );
           },
         },
       });

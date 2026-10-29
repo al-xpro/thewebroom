@@ -43,3 +43,14 @@ export const migrateOtpToHashOnly = internalMutation({
     return { migrated, skipped, deleted };
   },
 });
+
+// #65 moved e-mail verification to better-auth. Run once per deployment, then remove the
+// emailVerificationTokens table from the schema.
+export const deleteEmailVerificationTokens = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const tokens = await ctx.db.query("emailVerificationTokens").collect();
+    for (const token of tokens) await ctx.db.delete(token._id);
+    return { deleted: tokens.length };
+  },
+});
