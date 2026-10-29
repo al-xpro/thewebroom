@@ -25,7 +25,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import { createBlogAction } from "@/app/actions";
-import Image from "next/image";
+import { FadeImage } from "@/components/ui/fade-image";
 import Link from "next/link";
 import Footer from "@/components/web/Footer";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
@@ -700,7 +700,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                 >
                   {previewUrl ? (
                     <div className="relative flex w-full h-full p-6 border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black rounded-md">
-                      <Image
+                      <FadeImage
                         src={previewUrl}
                         alt="Featured image preview"
                         width={700}

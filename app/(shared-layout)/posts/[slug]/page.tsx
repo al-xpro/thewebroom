@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { fetchQuery, preloadQuery } from "convex/nextjs";
 import { ArrowLeft, BookType, Calendar, ClockFading, User } from "lucide-react";
 import { Metadata } from "next";
-import Image from "next/image";
+import { FadeImage } from "@/components/ui/fade-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
@@ -117,10 +117,10 @@ async function PostBody({ params }: PostSlugRouteProps) {
   return (
     <>
       <header className="flex flex-col w-full gap-4">
-        <h1 className="text-balance text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl">
+        <h1 className="type-display text-balance">
           {post.title}
         </h1>
-        <p className="text-lg text-paragraph leading-relaxed">{post.subtitle}</p>
+        <p className="type-body text-lg">{post.subtitle}</p>
         <Separator className="my-4" />
         <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
           <div className="flex flex-col items-center gap-2 text-black dark:text-white">
@@ -137,15 +137,15 @@ async function PostBody({ params }: PostSlugRouteProps) {
           </div>
           <div className="flex flex-col items-center gap-2 text-black dark:text-white">
             <ClockFading className="size-4 sm:size-5" />
-            <p>{post.minRead} min read</p>
+            <p>{post.minRead} min</p>
           </div>
           <CopyPostButton />
         </div>
       </header>
 
       <div className="flex flex-col w-full">
-        <div className="relative mb-8 h-[280px] w-full overflow-hidden rounded-xl shadow-sm sm:h-[380px]">
-          <Image
+        <div className="relative mb-8 h-[280px] w-full overflow-hidden rounded-xl bg-[#EDEDED] dark:bg-[#0A0A0A] sm:h-[380px]">
+          <FadeImage
             src={post.imageUrl ?? ""}
             alt="post image"
             fill

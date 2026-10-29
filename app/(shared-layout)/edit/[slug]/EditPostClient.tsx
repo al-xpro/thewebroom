@@ -25,7 +25,7 @@ import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import Footer from "@/components/web/Footer";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import Image from "next/image";
+import { FadeImage } from "@/components/ui/fade-image";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { updatePostAction } from "@/app/actions";
 import Link from "next/link";
@@ -571,7 +571,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                 >
                   {previewUrl && (
                     <div className="relative flex w-full h-full p-6 border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black rounded-md">
-                      <Image
+                      <FadeImage
                         src={previewUrl}
                         alt="Featured image preview"
                         fill
