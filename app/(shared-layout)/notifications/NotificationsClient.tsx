@@ -25,6 +25,7 @@ const TEXT = {
   follower: "followed you",
   post: "published",
   published: "Your scheduled post is out:",
+  helpful: "found this helpful:",
 } as const;
 
 // Only what involves the member, newest first; unread is a dot, not a badge count.

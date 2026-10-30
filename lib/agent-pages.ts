@@ -4,7 +4,7 @@
 
 export type AgentView = { href: string; label: string; description: string };
 
-const PERSONAL = ["/profile", "/my-posts", "/notifications", "/following", "/admin", "/edit", "/auth", "/onboarding"];
+const PERSONAL = ["/profile", "/my-posts", "/notifications", "/following", "/reading-list", "/admin", "/edit", "/auth", "/onboarding"];
 
 export function agentViewFor(pathname: string | null): AgentView | null {
   const path = (pathname ?? "/").replace(/\/$/, "") || "/";

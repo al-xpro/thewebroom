@@ -14,6 +14,7 @@ import { deletePostAction, publishPostAction } from "@/app/actions";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatPublishAt } from "@/components/web/SchedulePicker";
 import { ScheduleDialog } from "@/components/web/ScheduleDialog";
+import { SeriesDialog } from "@/components/web/SeriesDialog";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   AlertDialog,
@@ -60,6 +61,13 @@ export default function MyPostsPage() {
   const [publishing, setPublishing] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("all");
   const unschedulePost = useMutation(api.scheduledPosts.unschedulePost);
+  // Series: the author's series by id, and the post being added to one.
+  const mySeries = useQuery(api.reading.mySeries, isAuthenticated ? {} : "skip");
+  const seriesTitles = new Map((mySeries ?? []).map((s) => [s.id as string, s.title]));
+  const seriesSizes = new Map((mySeries ?? []).map((s) => [s.id as string, s.parts.length]));
+  const [seriesFor, setSeriesFor] = useState<{ _id: Id<"posts">; title: string; seriesId?: Id<"series"> } | null>(null);
+  const moveInSeries = useMutation(api.reading.moveInSeries);
+  const removeFromSeries = useMutation(api.reading.removeFromSeries);
 
   const togglePicked = (postId: Id<"posts">) =>
     setPicked((prev) => (prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]));
@@ -145,6 +153,8 @@ export default function MyPostsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SeriesDialog post={seriesFor} onClose={() => setSeriesFor(null)} />
 
       {scheduling && (
         <ScheduleDialog
@@ -256,6 +266,14 @@ export default function MyPostsPage() {
                     <span>{post.topic}</span>
                     <span aria-hidden>·</span>
                     <span>{post.minRead ?? 1} min</span>
+                    {post.seriesId && seriesTitles.has(post.seriesId) && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span>
+                          {seriesTitles.get(post.seriesId)}, part {post.seriesPart}
+                        </span>
+                      </>
+                    )}
                     {post.aiAssisted && (
                       <>
                         <span aria-hidden>·</span>
@@ -307,6 +325,29 @@ export default function MyPostsPage() {
                       )}
                       {status === "scheduled" && (
                         <DropdownMenuItem onSelect={() => void unschedule(post._id)}>Back to drafts</DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => setSeriesFor({ _id: post._id, title: post.title, seriesId: post.seriesId })}
+                      >
+                        {post.seriesId ? "Move to another series…" : "Add to a series…"}
+                      </DropdownMenuItem>
+                      {post.seriesId && (
+                        <>
+                          {(post.seriesPart ?? 1) > 1 && (
+                            <DropdownMenuItem onSelect={() => void moveInSeries({ postId: post._id, direction: "up" })}>
+                              Earlier in the series
+                            </DropdownMenuItem>
+                          )}
+                          {(post.seriesPart ?? 1) < (seriesSizes.get(post.seriesId) ?? 0) && (
+                            <DropdownMenuItem onSelect={() => void moveInSeries({ postId: post._id, direction: "down" })}>
+                              Later in the series
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onSelect={() => void removeFromSeries({ postId: post._id })}>
+                            Remove from the series
+                          </DropdownMenuItem>
+                        </>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
