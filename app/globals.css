@@ -393,9 +393,11 @@ html:not(.dark) .shiki span {
   /* The page colour (main is white or black), so the edge covers blend in. */
   --table-fade: #ffffff;
   display: block;
+  /* As wide as its content: centred when that's narrower than the column, scrolling when
+     it's wider. */
   width: max-content;
-  min-width: 100%;
   max-width: 100%;
+  margin-inline: auto;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   border-collapse: collapse;
