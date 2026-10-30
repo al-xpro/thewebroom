@@ -129,7 +129,7 @@ async function PostBody({ params }: PostSlugRouteProps) {
           </div>
           <div className="flex flex-col items-center gap-2 text-black dark:text-white">
             <Calendar className="size-4 sm:size-5" />
-            <p>{new Date(post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
+            <p>{new Date(post.publishAt ?? post._creationTime ?? 0).toLocaleDateString("en-US")}</p>
           </div>
           <div className="flex flex-col items-center gap-2">
             <BookType className="size-4 sm:size-5 text-black dark:text-white" />

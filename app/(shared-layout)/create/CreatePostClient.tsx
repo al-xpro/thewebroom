@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Book,
   BookDashed,
+  CalendarClock,
   BookType,
   Calendar,
   Check,
@@ -28,13 +29,14 @@ import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/web/Footer";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { generateSlug } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
+import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
 import { FunctionReturnType } from "convex/server";
 import {
   clearSavedPost,
@@ -208,6 +210,30 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
       return;
     }
     void form.handleSubmit((values) => onSubmit(values, status), onInvalid)();
+  }
+
+  const schedulePost = useMutation(api.scheduledPosts.schedulePost);
+
+  // Saves the post as a draft, then schedules it (#60).
+  async function scheduleAt(publishAt: number) {
+    await form.handleSubmit(async (values) => {
+      setDraftPending(true);
+      try {
+        const { id } = await createBlogAction(values, "draft");
+        try {
+          await schedulePost({ postId: id, publishAt });
+          showSuccessToast(`Scheduled for ${formatPublishAt(publishAt)}`);
+        } catch (error) {
+          showErrorToast(`Saved as a draft, but not scheduled: ${(error as { data?: string }).data ?? "try again from My posts"}`);
+        }
+        router.push("/my-posts");
+      } catch (error) {
+        if (isRedirectError(error)) throw error;
+        showErrorToast(error instanceof Error ? error.message : "Failed to save the draft");
+      } finally {
+        setDraftPending(false);
+      }
+    }, onInvalid)();
   }
 
   async function onSubmit(values: PostValues, status: "published" | "draft" = "published") {
@@ -396,6 +422,19 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
           </Link>
 
           <div className="flex flex-wrap items-end justify-end gap-2">
+            <SchedulePicker onConfirm={scheduleAt}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isPending || draftPending}
+                className="shrink-0"
+              >
+                <span className="flex items-center gap-2">
+                  Schedule… <CalendarClock className="size-4" />
+                </span>
+              </Button>
+            </SchedulePicker>
             <Button
               disabled={isPending || draftPending}
               size="sm"

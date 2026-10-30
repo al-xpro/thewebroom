@@ -54,7 +54,7 @@ export async function createBlogAction(
 
   updateTag("blog");
 
-  return { slug: response.slug };
+  return { slug: response.slug, id: response.id };
 }
 
 export async function deletePostAction(postId: string) {

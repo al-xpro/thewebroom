@@ -22,6 +22,8 @@ import type * as passwordReset from "../passwordReset.js";
 import type * as posts from "../posts.js";
 import type * as presence from "../presence.js";
 import type * as rateLimiting from "../rateLimiting.js";
+import type * as revalidate from "../revalidate.js";
+import type * as scheduledPosts from "../scheduledPosts.js";
 import type * as topics from "../topics.js";
 
 import type {
@@ -45,6 +47,8 @@ declare const fullApi: ApiFromModules<{
   posts: typeof posts;
   presence: typeof presence;
   rateLimiting: typeof rateLimiting;
+  revalidate: typeof revalidate;
+  scheduledPosts: typeof scheduledPosts;
   topics: typeof topics;
 }>;
 

@@ -11,7 +11,7 @@ export const PROXY_SIGNATURE_HEADER = "x-twr-proxy-sig";
 // A signature older than this is refused, so a captured one can't be replayed later.
 export const PROXY_SIGNATURE_MAX_AGE_MS = 60_000;
 
-async function hmacHex(secret: string, message: string): Promise<string> {
+export async function hmacHex(secret: string, message: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -23,7 +23,7 @@ async function hmacHex(secret: string, message: string): Promise<string> {
   return Array.from(new Uint8Array(signature), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function constantTimeEqual(a: string, b: string): boolean {
+export function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
