@@ -1,6 +1,6 @@
 import { highlighterPromise } from "@/lib/extension/shiki";
 
-const LANGUAGES = ["ts", "tsx", "js", "jsx"];
+const LANGUAGES = ["ts", "tsx", "js", "jsx", "json"];
 
 export async function injectShikiIntoHtml(html: string): Promise<string> {
   const hl = await highlighterPromise;

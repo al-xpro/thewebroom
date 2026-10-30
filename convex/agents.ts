@@ -153,6 +153,23 @@ export const myTokens = query({
   },
 });
 
+// When the member can create their next token: one a day, counting revoked ones. Null
+// when they can now (or are signed out).
+export const nextTokenAt = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.safeGetAuthUser(ctx).catch(() => null);
+    if (!user) return null;
+    const latest = await ctx.db
+      .query("agentTokens")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .first();
+    const next = latest ? latest.createdAt + AGENT_LIMITS.tokenIntervalHours * HOUR_MS : 0;
+    return next > Date.now() ? next : null;
+  },
+});
+
 // The token is made on the server (app/mcp/actions.ts) with a strong random source; this
 // stores its hash. A member who calls this directly can only make a token for themselves.
 export const createToken = mutation({
@@ -166,6 +183,15 @@ export const createToken = mutation({
     if (!/^twr_[A-Za-z0-9_-]{40,}$/.test(token)) throw new ConvexError("Invalid token");
 
     const now = Date.now();
+    const latest = await ctx.db
+      .query("agentTokens")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .first();
+    if (latest && now - latest.createdAt < AGENT_LIMITS.tokenIntervalHours * HOUR_MS) {
+      const hours = Math.ceil((latest.createdAt + AGENT_LIMITS.tokenIntervalHours * HOUR_MS - now) / HOUR_MS);
+      throw new ConvexError(`You can create one token a day. Try again in ${hours} ${hours === 1 ? "hour" : "hours"}.`);
+    }
     const active = (
       await ctx.db
         .query("agentTokens")

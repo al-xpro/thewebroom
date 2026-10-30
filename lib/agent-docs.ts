@@ -74,7 +74,7 @@ export const MCP_TOOLS = [
 ] as const;
 
 export const MCP_LIMITS = [
-  { label: "Tokens", value: `${L.tokensPerAccount} per account, each valid ${L.tokenLifetimeDays} days` },
+  { label: "Tokens", value: `1 new token a day, ${L.tokensPerAccount} active at most, each valid ${L.tokenLifetimeDays} days` },
   { label: "Requests", value: `${L.requestsPerHour} an hour per token` },
   { label: "New drafts", value: `${L.draftsPerDay} a day per account` },
   { label: "Draft changes", value: `${L.draftUpdatesPerDay} a day per account` },
@@ -92,20 +92,155 @@ export const MCP_FORMATTING = [
   { name: "Not supported", detail: "Images inside the body, raw HTML, scripts, embeds." },
 ];
 
-export const MCP_CLIENTS = [
+// A block in the setup guide: a command for the terminal, or a file to create or edit.
+export type GuideBlock =
+  | { kind: "terminal"; label: string; code: string }
+  | { kind: "file"; filename: string; lang: "json" | "ts" | "text"; code: string };
+
+export type GuideStep = { text: string; block?: GuideBlock };
+
+export type McpClient = { id: string; name: string; intro: string; steps: GuideStep[]; check: string };
+
+const TOKEN = "twr_your_token";
+const json = (value: unknown) => JSON.stringify(value, null, 2);
+
+export const MCP_CLIENTS: McpClient[] = [
   {
+    id: "claude-code",
     name: "Claude Code",
-    language: "bash",
-    code: `claude mcp add --transport http thewebroom ${MCP_URL} --header "Authorization: Bearer <token>"`,
+    intro: "One command adds the server for every project on this computer.",
+    steps: [
+      {
+        text: "Keep the token in your shell, so it isn't pasted into commands you share:",
+        block: { kind: "terminal", label: "shell", code: `export THEWEBROOM_TOKEN=${TOKEN}` },
+      },
+      {
+        text: "Add the server. `--scope user` makes it available in every project; leave it out for this project only.",
+        block: {
+          kind: "terminal",
+          label: "claude",
+          code: `claude mcp add --transport http --scope user thewebroom ${MCP_URL} \\\n  --header "Authorization: Bearer $THEWEBROOM_TOKEN"`,
+        },
+      },
+      {
+        text: "Check it's connected:",
+        block: { kind: "terminal", label: "claude", code: "claude mcp list" },
+      },
+    ],
+    check: "The list shows “thewebroom … ✓ Connected”. In a session, /mcp lists its 9 tools.",
   },
   {
-    name: "Cursor, VS Code and others",
-    language: "json",
-    code: JSON.stringify(
-      { mcpServers: { thewebroom: { url: MCP_URL, headers: { Authorization: "Bearer <token>" } } } },
-      null,
-      2
-    ),
+    id: "cursor",
+    name: "Cursor",
+    intro: "Add the server to Cursor's MCP file: in your home folder for every project, or in .cursor/ for one.",
+    steps: [
+      {
+        text: "Create or open ~/.cursor/mcp.json and add:",
+        block: {
+          kind: "file",
+          filename: "~/.cursor/mcp.json",
+          lang: "json",
+          code: json({ mcpServers: { thewebroom: { url: MCP_URL, headers: { Authorization: `Bearer ${TOKEN}` } } } }),
+        },
+      },
+      { text: "Save, then open Cursor Settings → MCP and turn thewebroom on if it's off." },
+    ],
+    check: "thewebroom shows a green dot and 9 tools. Ask in Agent mode.",
+  },
+  {
+    id: "vscode",
+    name: "VS Code",
+    intro: "GitHub Copilot's agent mode reads .vscode/mcp.json. VS Code asks for the token once and keeps it in its secret storage.",
+    steps: [
+      {
+        text: "Create .vscode/mcp.json in your project:",
+        block: {
+          kind: "file",
+          filename: ".vscode/mcp.json",
+          lang: "json",
+          code: json({
+            inputs: [{ type: "promptString", id: "thewebroom-token", description: "The Web Room token", password: true }],
+            servers: {
+              thewebroom: { type: "http", url: MCP_URL, headers: { Authorization: "Bearer ${input:thewebroom-token}" } },
+            },
+          }),
+        },
+      },
+      { text: "Click Start above the server in the file and paste your token when asked." },
+    ],
+    check: "In Chat, switch to Agent mode and open the tools menu: thewebroom lists 9 tools.",
+  },
+  {
+    id: "claude-desktop",
+    name: "Claude Desktop",
+    intro: "Claude Desktop runs the server through mcp-remote, which sends your token as a header. It needs Node.js 18 or newer.",
+    steps: [
+      {
+        text: "Open Settings → Developer → Edit Config. The file is ~/Library/Application Support/Claude/claude_desktop_config.json on macOS and %APPDATA%\\Claude\\claude_desktop_config.json on Windows. Add:",
+        block: {
+          kind: "file",
+          filename: "claude_desktop_config.json",
+          lang: "json",
+          code: json({
+            mcpServers: {
+              thewebroom: {
+                command: "npx",
+                args: ["-y", "mcp-remote", MCP_URL, "--header", "Authorization:${AUTH_HEADER}"],
+                env: { AUTH_HEADER: `Bearer ${TOKEN}` },
+              },
+            },
+          }),
+        },
+      },
+      { text: "Quit Claude Desktop completely and open it again." },
+    ],
+    check: "The tools icon under the message box lists thewebroom.",
+  },
+  {
+    id: "other",
+    name: "Other clients",
+    intro: "Any client that speaks MCP over Streamable HTTP works: the endpoint, plus one header.",
+    steps: [
+      {
+        text: `URL ${MCP_URL}, header Authorization: Bearer <token>. Test it from a terminal:`,
+        block: {
+          kind: "terminal",
+          label: "curl",
+          code: `curl -s ${MCP_URL} \\\n  -H "Authorization: Bearer $THEWEBROOM_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -H "Accept: application/json, text/event-stream" \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`,
+        },
+      },
+    ],
+    check: "The answer lists the 9 tools. A 401 means the token is wrong, revoked or expired.",
+  },
+];
+
+export type McpExample = { prompt: string; tools: string[]; result: string };
+
+export const MCP_EXAMPLES: McpExample[] = [
+  {
+    prompt: "Read the rules on The Web Room, then turn NOTES.md into a draft about how we cut our build time in half.",
+    tools: ["get_rules", "list_topics", "create_draft"],
+    result: "A draft in My posts, marked AI-assisted, with a link to open it in the editor.",
+  },
+  {
+    prompt: "Write a draft about the bug we fixed on this branch. Use the diff, keep the code short, and say why it happened.",
+    tools: ["get_rules", "create_draft"],
+    result: "A draft built from your code, in your account; nothing is published.",
+  },
+  {
+    prompt: "Search The Web Room for posts about caching in server components and tell me whether my draft adds something new.",
+    tools: ["search_posts", "read_post", "list_drafts", "read_draft"],
+    result: "An answer in your agent, with links to the posts it read.",
+  },
+  {
+    prompt: "Open my draft “Streaming forms with server actions”, tighten the intro and add a table comparing the two approaches.",
+    tools: ["list_drafts", "read_draft", "update_draft"],
+    result: "The same draft, changed. Open it in the editor to review before publishing.",
+  },
+  {
+    prompt: "Move my latest draft to the Performance topic and give it a subtitle under 80 characters.",
+    tools: ["list_drafts", "update_draft"],
+    result: "Topic and subtitle changed; the body is untouched.",
   },
 ];
 
@@ -114,7 +249,24 @@ export const MCP_EXAMPLE = `create_draft({
   subtitle: "What changed when we stopped waiting for the whole response",
   topic: "Web Architecture",
   markdown: "## The problem\\n\\nOur checkout form waited for..."
-})`;
+})
+
+→ Draft saved (id k57…). Review and publish it at ${SITE_URL}/edit/streaming-forms-with-server-actions.`;
+
+// What happens on the site once an agent has written a draft.
+export const MCP_IN_EDITOR = [
+  { title: "My posts", text: "The draft is there, marked AI-assisted, with its topic and reading time." },
+  { title: "The editor", text: "Open it to read every line. Add a cover image: agents can't upload one." },
+  { title: "Agent in the editor", text: "Ask the editor's own agent to proofread, rewrite or shorten a part, or add a table or a code block." },
+  { title: "Publish", text: "Publish now or schedule it. Only you can; agents never publish." },
+];
+
+export const MCP_TROUBLESHOOTING = [
+  { problem: "401 Unauthorized", fix: "The token is wrong, revoked or expired. Check the header reads “Authorization: Bearer twr_…”, or create a new token." },
+  { problem: "429 Too many requests", fix: `More than ${L.requestsPerHour} requests in an hour. Wait, or ask the agent to do fewer steps.` },
+  { problem: "No tools in the client", fix: "Restart the client after editing its config, and check the URL ends with /api/mcp." },
+  { problem: "Draft too short to publish", fix: `Publishing needs ${L.bodyMin.toLocaleString("en")} characters. Ask the agent to expand it, or finish it in the editor.` },
+];
 
 export function rulesMarkdown() {
   const sections = RULES.map(
@@ -124,10 +276,23 @@ export function rulesMarkdown() {
   return `# Rules\n\nThe rules members and their agents follow on The Web Room (${SITE_URL}/rules).\n\n${sections}\n`;
 }
 
+function guideBlockMarkdown(block: GuideBlock) {
+  return block.kind === "terminal"
+    ? `\`\`\`bash\n${block.code}\n\`\`\``
+    : `\`${block.filename}\`\n\n\`\`\`${block.lang}\n${block.code}\n\`\`\``;
+}
+
 export function mcpMarkdown() {
+  const clients = MCP_CLIENTS.map(
+    (client) =>
+      `### ${client.name}\n\n${client.intro}\n\n${client.steps
+        .map((step, i) => `${i + 1}. ${step.text}${step.block ? `\n\n${guideBlockMarkdown(step.block)}` : ""}`)
+        .join("\n\n")}\n\nCheck: ${client.check}`
+  ).join("\n\n");
+
   return `# The Web Room MCP server
 
-Connect your own agent (Claude Code, Cursor, any MCP client) to write drafts for your account. A person always publishes.
+Connect your own agent (Claude Code, Cursor, VS Code, Claude Desktop, any MCP client) to write drafts for your account. A person always publishes.
 
 - Endpoint: ${MCP_URL} (Streamable HTTP, JSON responses)
 - Auth: \`Authorization: Bearer <token>\`. Create a token at ${SITE_URL}/mcp while signed in; it's shown once.
@@ -135,11 +300,23 @@ Connect your own agent (Claude Code, Cursor, any MCP client) to write drafts for
 
 ## Connect
 
-${MCP_CLIENTS.map((client) => `${client.name}:\n\n\`\`\`${client.language}\n${client.code}\n\`\`\``).join("\n\n")}
+${clients}
 
 ## Tools
 
 ${MCP_TOOLS.map((tool) => `- \`${tool.name}\`: ${tool.text}`).join("\n")}
+
+## Examples
+
+${MCP_EXAMPLES.map((example) => `- “${example.prompt}” → ${example.tools.join(", ")}. ${example.result}`).join("\n")}
+
+\`\`\`ts
+${MCP_EXAMPLE}
+\`\`\`
+
+## After a draft
+
+${MCP_IN_EDITOR.map((item) => `- ${item.title}: ${item.text}`).join("\n")}
 
 ## Limits
 
@@ -149,11 +326,9 @@ ${MCP_LIMITS.map((limit) => `- ${limit.label}: ${limit.value}`).join("\n")}
 
 ${MCP_FORMATTING.map((item) => `- ${item.name}: ${item.detail}`).join("\n")}
 
-## Example
+## Troubleshooting
 
-\`\`\`ts
-${MCP_EXAMPLE}
-\`\`\`
+${MCP_TROUBLESHOOTING.map((item) => `- ${item.problem}: ${item.fix}`).join("\n")}
 
 ${rulesMarkdown().replace(/^# Rules/, "## Rules").replace(/^## (?!Rules)/gm, "### ")}`;
 }
