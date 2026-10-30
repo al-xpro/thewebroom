@@ -385,26 +385,61 @@ html:not(.dark) .shiki span {
   }
 }
 
-/* Tables in posts and the editor: full width, compact, and never scrolling sideways —
-   long cells wrap instead. Rows are separated by thin lines; nothing else. */
+/* Tables in posts and the editor. Columns get room to breathe (a minimum width per cell),
+   so a wide table scrolls sideways instead of squeezing its text; a soft shadow at the left
+   and right edge shows there's more to scroll, and only while there is (the "local"
+   backgrounds cover the shadows once an edge is reached). Row lines fade out at both ends. */
 :is(.post-content, .ProseMirror) table {
-  width: 100%;
-  table-layout: fixed;
+  /* The page colour (main is white or black), so the edge covers blend in. */
+  --table-fade: #ffffff;
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
   border-collapse: collapse;
   margin-block: 2rem;
   font-size: 0.875rem;
+  background:
+    linear-gradient(to right, var(--table-fade) 30%, transparent) left center / 3rem 100% no-repeat local,
+    linear-gradient(to left, var(--table-fade) 30%, transparent) right center / 3rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.14), transparent) left center / 1rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.14), transparent) right center / 1rem 100% no-repeat scroll;
+  background-color: var(--table-fade);
+}
+.dark :is(.post-content, .ProseMirror) table {
+  --table-fade: #000000;
+  background:
+    linear-gradient(to right, var(--table-fade) 30%, transparent) left center / 3rem 100% no-repeat local,
+    linear-gradient(to left, var(--table-fade) 30%, transparent) right center / 3rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(255 255 255 / 0.12), transparent) left center / 1rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(255 255 255 / 0.12), transparent) right center / 1rem 100% no-repeat scroll;
+  background-color: var(--table-fade);
+}
+:is(.post-content, .ProseMirror) tr {
+  background-image: linear-gradient(to right, transparent, var(--table-border) 8%, var(--table-border) 92%, transparent);
+  background-size: 100% 1px;
+  background-position: bottom;
+  background-repeat: no-repeat;
+}
+:is(.post-content, .ProseMirror) tr:has(th) {
+  background-image: linear-gradient(to right, transparent, var(--foreground) 8%, var(--foreground) 92%, transparent);
 }
 :is(.post-content, .ProseMirror) :is(th, td) {
-  padding: 0.5rem 0.75rem 0.5rem 0;
+  min-width: 8.5rem;
+  max-width: 22rem;
+  padding: 0.75rem 1.25rem;
   text-align: left;
   vertical-align: top;
-  overflow-wrap: anywhere;
-  border-bottom: 1px solid var(--border);
+  overflow-wrap: break-word;
   font-weight: 300;
+  line-height: 1.6;
 }
 :is(.post-content, .ProseMirror) th {
   font-weight: 500;
   color: var(--foreground);
+  white-space: nowrap;
 }
 :is(.post-content, .ProseMirror) :is(th, td) > p {
   margin: 0;
