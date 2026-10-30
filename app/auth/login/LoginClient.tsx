@@ -23,6 +23,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSearchParams } from "next/navigation";
 import { safeNextPath, withNext } from "@/lib/next-path";
+import { PasswordInput } from "@/components/ui/password-input";
 
 type LoginFields = keyof z.infer<typeof loginSchema>;
 
@@ -216,10 +217,9 @@ export default function LoginClient() {
                     Forgot password?
                   </Link>
                 </div>
-                <Input
+                <PasswordInput
                   aria-invalid={!!visibleErrors.password}
                   placeholder="********"
-                  type="password"
                   id="password"
                   required
                   {...field}

@@ -16,6 +16,7 @@ import { connection } from "next/server";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
 import { escapeHtml, sanitizePostHtml } from "@/lib/sanitize-server";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TopicBadge } from "@/components/web/TopicBadge";
 
 interface PostSlugRouteProps {
   params: Promise<{ slug: string }>;
@@ -132,9 +133,7 @@ async function PostBody({ params }: PostSlugRouteProps) {
           </div>
           <div className="flex flex-col items-center gap-2">
             <BookType className="size-4 sm:size-5 text-black dark:text-white" />
-            <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
-              {post.topic}
-            </span>
+            <TopicBadge topic={post.topic} />
           </div>
           <div className="flex flex-col items-center gap-2 text-black dark:text-white">
             <ClockFading className="size-4 sm:size-5" />

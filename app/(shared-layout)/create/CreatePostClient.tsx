@@ -44,13 +44,9 @@ import {
   savePostText,
 } from "@/lib/post-draft";
 import { withNext } from "@/lib/next-path";
+import { TOPICS } from "@/convex/topics";
 
-const TOPIC_OPTIONS = [
-  "Web Architecture",
-  "UI Engineering",
-  "AI for Developers",
-  "Productivity",
-] as const;
+const TOPIC_OPTIONS = TOPICS;
 
 type PostValues = z.infer<typeof postSchema>;
 type PostFields = keyof PostValues;

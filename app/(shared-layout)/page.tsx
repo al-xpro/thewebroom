@@ -1,5 +1,4 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import Link from "next/link";
 import { Suspense } from "react";
 import { AuroraText } from "@/components/ui/aurora-text";
 import Footer from "@/components/web/Footer";
@@ -7,9 +6,9 @@ import { api } from "@/convex/_generated/api";
 import { fetchQuery } from "convex/nextjs";
 import { SignatureIcon } from "@/public/SignatureIcon";
 import Newsletter from "@/components/web/Newsletter";
-import { ArrowRight } from "lucide-react";
 import { cacheLife, cacheTag } from "next/cache";
 import { AvatarCircles } from "@/components/ui/avatar-magicui";
+import { PostCard } from "@/components/web/PostCard";
 
 export default function Home() {
   return (
@@ -31,7 +30,7 @@ export default function Home() {
         <SignatureIcon className="text-black dark:text-white" />
       </section>
       {/* Latest Posts on Home */}
-      <section className="py-10 border-t">
+      <section className="relative py-10 divider-fade-top">
         <div className="mx-auto space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div className="text-left">
@@ -47,7 +46,7 @@ export default function Home() {
                 {[...Array(3)].map((_, i) => (
                   <div
                     key={i}
-                    className="relative flex w-full flex-col sm:flex-row min-w-0 items-center justify-center border-b border-dashed h-[119px] sm:h-[85px] gap-6 sm:gap-10"
+                    className="relative flex w-full flex-col sm:flex-row min-w-0 items-center justify-center divider-dashed-fade-bottom h-[119px] sm:h-[85px] gap-6 sm:gap-10"
                   >
                     <div className="flex flex-col sm:flex-1 items-start justify-center w-full min-w-0 gap-2">
                       <Skeleton className="h-6 w-1/2 rounded-lg" />
@@ -110,33 +109,7 @@ export async function LoadHomePostList() {
   return (
     <div className="grid gap-6 grid-rows-3">
       {limitedPosts.map((post) => (
-        <Link key={post._id} href={`/posts/${post.slug}`} className="group block">
-          <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 md:gap-12">
-            <div
-              className="hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0
-                -translate-x-10 transition-all duration-200 ease-out
-                group-hover:opacity-100 group-hover:translate-x-0"
-            >
-              <ArrowRight className="h-5 w-5 text-black dark:text-white" />
-            </div>
-            <div
-              className="flex w-full flex-row min-w-0 items-start justify-between
-                transition-transform duration-300 ease-out
-                md:group-hover:translate-x-10"
-            >
-              <div className="flex flex-col flex-1 min-w-0">
-                <h1 className="text-xl font-bold line-clamp-1 break-all">{post.title}</h1>
-                <p className="text-paragraph line-clamp-1 break-all">{post.subtitle}</p>
-              </div>
-            </div>
-            <div className="flex flex-row sm:flex-col sm:min-w-[120px] sm:max-w-[140px] w-full sm:w-1/3 items-center justify-start sm:justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
-                {post.topic}
-              </span>
-              <p className="text-sm text-paragraph whitespace-nowrap">{post.minRead} min read</p>
-            </div>
-          </div>
-        </Link>
+        <PostCard key={post._id} post={post} />
       ))}
     </div>
   );

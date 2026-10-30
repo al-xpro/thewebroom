@@ -24,7 +24,7 @@ export async function injectShikiIntoHtml(html: string): Promise<string> {
 
       try {
         const lang = LANGUAGES.includes(fileIcon) ? fileIcon : "text";
-        const opts = { lang, themes: { light: "vercel-light", dark: "vercel-dark" }, defaultColor: false } as const;
+        const opts = { lang, themes: { light: "alxpro-light", dark: "alxpro-dark" }, defaultColor: false } as const;
         const lightHtml = hl.codeToHtml(code, opts);
         const darkHtml  = hl.codeToHtml(code, opts);
 

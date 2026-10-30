@@ -4,6 +4,7 @@ import { NodeViewWrapper, NodeViewContent } from "@tiptap/react";
 import { Terminal, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { convertCommands, type PackageManager } from "@/lib/package-manager-command";
 
 const managers = ["npm", "pnpm", "yarn", "bun"];
 
@@ -20,9 +21,11 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
       const currentNode = state.doc.nodeAt(pos);
       if (!currentNode) return false;
 
-      const currentManager = currentNode.attrs.packageManager;
+      // Whatever is written in the current tab is converted for the target tab, so a
+      // command is typed once for every package manager.
+      const currentManager = currentNode.attrs.packageManager as PackageManager;
       const currentText = currentNode.textContent;
-      const targetContent = currentNode.attrs[`${targetManager}Content`] || "";
+      const targetContent = convertCommands(currentText, currentManager, targetManager as PackageManager);
 
       //  1. Capture cursor position RELATIVE to node
       const { from } = state.selection;
@@ -82,7 +85,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
 
       if (line.startsWith("#")) {
         return (
-          <div key={i} className="text-[#A0A0A0] dark:text-[#666666]">
+          <div key={i} className="text-(--alxpro-syntax-comment)">
             {line || <br />}
           </div>
         );
@@ -90,7 +93,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
 
       if (!match) {
         return (
-          <div key={i} className="text-[#397C3B] dark:text-[#58C760]">
+          <div key={i} className="text-(--alxpro-syntax-argument)">
             {line || <br />}
           </div>
         );
@@ -101,8 +104,8 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
 
       return (
         <div key={i}>
-          <span className="text-[#7200C4] dark:text-[#B675F1]">{prefix}</span>
-          <span className="text-[#397C3B] dark:text-[#58C760]">{rest}</span>
+          <span className="text-(--alxpro-syntax-command)">{prefix}</span>
+          <span className="text-(--alxpro-syntax-argument)">{rest}</span>
         </div>
       );
     });
@@ -112,15 +115,15 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
   const commonFont = "font-mono text-[13px] leading-[20px]";
 
   return (
-    <NodeViewWrapper className="relative rounded-lg group/terminal max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <NodeViewWrapper className="relative rounded-lg group/terminal max-w-full mx-auto overflow-hidden border border-(--alxpro-terminal-border)">
       {/* HEADER */}
       {node.attrs.showHeader !== false && (
         <div
           contentEditable={false}
-          className="flex items-center justify-between overflow-x-auto gap-2 px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none"
+          className="flex items-center justify-between overflow-x-auto gap-2 px-3.5 sm:px-4 py-2 border-b border-(--alxpro-terminal-border) bg-(--alxpro-terminal-header) select-none"
         >
           <div className="flex items-center gap-2 sm:gap-3">
-            <Terminal className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+            <Terminal className="size-4 text-(--alxpro-terminal-muted)" />
             <div className="flex gap-1 text-xs font-mono">
               {managers.map((manager) => (
                 <button
@@ -130,12 +133,15 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
                     e.preventDefault();
                     switchManager(manager);
                   }}
-                  className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${node.attrs.packageManager === manager ? "bg-black text-white dark:bg-white dark:text-black" : "dark:bg-[#181818] bg-[#E8E8E8]"}`}
+                  className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${node.attrs.packageManager === manager ? "bg-black text-white dark:bg-white dark:text-black" : "bg-(--alxpro-ui-hover)"}`}
                 >
                   {manager}
                 </button>
               ))}
             </div>
+            <span className="hidden sm:inline text-xs text-paragraph">
+              Write once, the other tabs follow
+            </span>
           </div>
           <button
             type="button"
@@ -147,7 +153,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
               e.stopPropagation();
               handleCopy();
             }}
-            className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            className="p-2 rounded-md transition cursor-pointer hover:bg-(--alxpro-ui-hover) outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           >
             {copied ? (
               <motion.div
@@ -157,7 +163,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
                 exit={{ scale: 0.1, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <Check className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+                <Check className="size-4 text-(--alxpro-terminal-muted)" />
               </motion.div>
             ) : (
               <motion.div
@@ -167,7 +173,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
                 exit={{ scale: 0.1, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <Copy className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+                <Copy className="size-4 text-(--alxpro-terminal-muted)" />
               </motion.div>
             )}
           </button>
@@ -178,7 +184,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
       {node.attrs.showHeader === false && (
         <div
           contentEditable={false}
-          className="absolute top-[10px] right-3 z-30 opacity-0 group-hover/terminal:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black"
+          className="absolute top-[10px] right-3 z-30 opacity-0 group-hover/terminal:opacity-100 transition-opacity duration-150 rounded-[10px] bg-(--alxpro-terminal-header)"
         >
           <button
             type="button"
@@ -189,7 +195,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
               e.stopPropagation();
               handleCopy();
             }}
-            className="relative p-2 rounded-md border border-[#EAEAEA] dark:border-[#1E1E1E] hover:bg-[#EAEAEA] dark:hover:bg-[#2A2A2A] transition cursor-pointer"
+            className="relative p-2 rounded-md border border-(--alxpro-terminal-border) hover:bg-(--alxpro-ui-hover) transition cursor-pointer"
           >
             {copied ? (
               <motion.div
@@ -199,7 +205,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
                 exit={{ scale: 0.1, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <Check className="size-3.5 text-[#666666] dark:text-[#A0A0A0]" />
+                <Check className="size-3.5 text-(--alxpro-terminal-muted)" />
               </motion.div>
             ) : (
               <motion.div
@@ -209,7 +215,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
                 exit={{ scale: 0.1, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <Copy className="size-3.5 text-[#666666] dark:text-[#A0A0A0]" />
+                <Copy className="size-3.5 text-(--alxpro-terminal-muted)" />
               </motion.div>
             )}
           </button>
@@ -219,7 +225,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
       {/* BODY - GRID STACK */}
       {/* The grid ensures both children overlap exactly. `min-h` prevents collapse. */}
       <div
-        className={`relative bg-white dark:bg-[#0A0A0A] overflow-x-auto w-full p-4 ${commonFont}`}
+        className={`relative bg-(--alxpro-terminal-background) overflow-x-auto w-full p-4 ${commonFont}`}
       >
         <div className="relative grid grid-cols-1 grid-rows-1 min-w-max">
           {/* Layer 1: Visuals (Bottom) */}
