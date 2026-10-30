@@ -86,6 +86,12 @@ export const cleanupOldRateLimitRecords = internalMutation({
       }
     }
 
+    const dayAgo = now - 24 * 60 * 60 * 1000;
+    const oldSignUps = await ctx.db.query("existingAccountSignUps").collect();
+    for (const attempt of oldSignUps) {
+      if (attempt.attemptedAt < dayAgo) await ctx.db.delete(attempt._id);
+    }
+
     // Clean up expired OTP lockouts
     const otpLockouts = await ctx.db.query("otpLockouts").collect();
     for (const lockout of otpLockouts) {
