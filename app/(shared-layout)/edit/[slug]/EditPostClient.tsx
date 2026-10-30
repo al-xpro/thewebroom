@@ -581,7 +581,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                 clearError("content");
                 clearError("contentHtml");
               }}
-              assistant={{
+              agent={{
                 title: form.watch("title"),
                 subtitle: form.watch("subtitle"),
                 onApplied: () => setAiAssisted(true),
