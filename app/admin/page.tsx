@@ -5,6 +5,7 @@ import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { ModerationTab } from "@/components/web/admin/ModerationTab";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,8 @@ export default function AdminPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  // Posts: the list, or the moderation agent's review of them.
+  const [postsView, setPostsView] = useState<"list" | "agent">("list");
   // Read once after mounting (the page is prerendered); the charts don't need to tick.
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => setNow(Date.now()), []);
@@ -335,6 +338,27 @@ export default function AdminPage() {
         )}
 
         {tab === "posts" && (
+          <div className="flex gap-1 pt-4" role="tablist" aria-label="Posts view">
+            {(["list", "agent"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                role="tab"
+                aria-selected={postsView === view}
+                onClick={() => setPostsView(view)}
+                className={`cursor-pointer rounded-full px-3 py-1 text-sm ${
+                  postsView === view ? "bg-black text-white dark:bg-white dark:text-black" : "text-[#666666] dark:text-[#A0A0A0]"
+                }`}
+              >
+                {view === "list" ? "List" : "Agent review"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === "posts" && postsView === "agent" && <ModerationTab posts={posts} />}
+
+        {tab === "posts" && postsView === "list" && (
           <ul>
             {visiblePosts.map((post) => {
               const status = post.status || "published";

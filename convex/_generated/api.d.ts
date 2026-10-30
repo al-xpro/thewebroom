@@ -23,6 +23,7 @@ import type * as follows from "../follows.js";
 import type * as http from "../http.js";
 import type * as ipBans from "../ipBans.js";
 import type * as migrations from "../migrations.js";
+import type * as moderation from "../moderation.js";
 import type * as newsletter from "../newsletter.js";
 import type * as notifications from "../notifications.js";
 import type * as passwordReset from "../passwordReset.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   ipBans: typeof ipBans;
   migrations: typeof migrations;
+  moderation: typeof moderation;
   newsletter: typeof newsletter;
   notifications: typeof notifications;
   passwordReset: typeof passwordReset;
