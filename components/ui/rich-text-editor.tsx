@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils";
 import { AlignmentExtension } from "@/lib/extension/alignment";
 import { ShortcutsExtension } from "@/lib/extension/shortcuts";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { AgentReviewBar, AgentSelectionMenu } from "@/components/web/AgentToolbar";
 
 interface RichTextEditorProps {
   value?: string;
@@ -69,6 +70,8 @@ interface RichTextEditorProps {
   name?: string;
   id?: string;
   isMetaEditing?: boolean;
+  // Turns on the agent toolbar: a menu on selected text and a review of the draft.
+  assistant?: { title?: string; subtitle?: string; onApplied?: () => void };
 }
 
 type ToolbarPosition = "top" | "left" | "right" | "bottom";
@@ -108,6 +111,7 @@ export function RichTextEditor({
   name,
   id,
   isMetaEditing = false,
+  assistant,
 }: RichTextEditorProps) {
   const [, forceUpdate] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -954,6 +958,18 @@ export function RichTextEditor({
           </div>
         </motion.div>
       </AnimatePresence>
+
+      {assistant && editor && (
+        <>
+          <AgentReviewBar
+            editor={editor}
+            title={assistant.title}
+            subtitle={assistant.subtitle}
+            onApplied={assistant.onApplied}
+          />
+          <AgentSelectionMenu editor={editor} onApplied={assistant.onApplied} />
+        </>
+      )}
 
       <EditorContent
         editor={editor}

@@ -18,4 +18,6 @@ export const AGENT_LIMITS = {
   // The same body length a person gets in the editor.
   bodyMin: 5000,
   bodyMax: 30000,
+  // The writing assistant in the editor: selection actions and reviews, per account.
+  assistantPerDay: 30,
 } as const;

@@ -97,6 +97,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
   // The author removed the cover image; saving deletes it.
   const [removeImage, setRemoveImage] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
+  const [aiAssisted, setAiAssisted] = useState(false);
   // A scheduled post opens the picker at its current time (#60).
   const scheduledAt = post.status === "scheduled" && post.publishAt ? post.publishAt : undefined;
   const [isTopicOpen, setIsTopicOpen] = useState(false);
@@ -144,7 +145,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
       setDraftPending(true);
       try {
         if (!post.slug) throw new Error("Post slug is missing");
-        await updatePostAction(post._id, post.slug, values, post.imageStorageId, "draft", removeImage);
+        await updatePostAction(post._id, post.slug, values, post.imageStorageId, "draft", removeImage, aiAssisted);
         await schedulePost({ postId: post._id, publishAt });
         showSuccessToast(`Scheduled for ${formatPublishAt(publishAt)}`);
         router.push("/my-posts");
@@ -166,7 +167,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
 
     try {
       if (!post.slug) throw new Error("Post slug is missing");
-      const response = await updatePostAction(post._id, post.slug, values, post.imageStorageId, status, removeImage);
+      const response = await updatePostAction(post._id, post.slug, values, post.imageStorageId, status, removeImage, aiAssisted);
       const nextSlug = response.slug ?? post.slug;
 
       if (status === "draft") {
@@ -579,6 +580,11 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                 });
                 clearError("content");
                 clearError("contentHtml");
+              }}
+              assistant={{
+                title: form.watch("title"),
+                subtitle: form.watch("subtitle"),
+                onApplied: () => setAiAssisted(true),
               }}
               placeholder="Write something worth reading."
             />
