@@ -222,20 +222,25 @@ export function DockNavigation() {
 
   // --- Items ---
   // The dock shows a few items; related ones sit in a group that branches out in place,
-  // with a back button, so the dock never needs more room.
+  // with a back button, so the dock never needs more room. A group stays open while you
+  // move between its pages, and closes only with the back button.
   const [group, setGroup] = useState<DockGroup | null>(null);
-  const [switchingGroup, setSwitchingGroup] = useState(false);
-  // A new page closes any open group and restores the normal entrance timing.
-  const [groupPath, setGroupPath] = useState(pathname);
-  if (groupPath !== pathname) {
-    setGroupPath(pathname);
-    setGroup(null);
-    setSwitchingGroup(false);
-  }
+  // Labels are hidden while the dock changes size: they're placed against its left edge,
+  // which moves as the dock grows or shrinks.
+  const [isSwitchingGroup, setIsSwitchingGroup] = useState(false);
+  const [jumpTooltip, setJumpTooltip] = useState(false);
   const openGroup = (next: DockGroup | null) => {
-    setSwitchingGroup(true);
     setGroup(next);
+    setHoveredIndex(null);
+    setPrevHoveredIndex(0);
+    setIsSwitchingGroup(true);
+    setJumpTooltip(true);
   };
+  useEffect(() => {
+    if (!isSwitchingGroup) return;
+    const t = setTimeout(() => setIsSwitchingGroup(false), 350);
+    return () => clearTimeout(t);
+  }, [isSwitchingGroup, group]);
 
   const groups: Record<DockGroup, DockEntry[]> = {
     write: [
@@ -257,6 +262,16 @@ export function DockNavigation() {
           { key: "sign-up", label: "Sign up", icon: UserPlus, href: "/auth/sign-up" },
         ],
   };
+
+  // Landing on a page that belongs to a group (a link, a reload) opens that group.
+  const pageGroup = (Object.keys(groups) as DockGroup[]).find((key) =>
+    groups[key].some((child) => child.href && (pathname === child.href || pathname.startsWith(`${child.href}/`)))
+  );
+  const [groupPath, setGroupPath] = useState<string | null>(null);
+  if (groupPath !== pathname) {
+    setGroupPath(pathname);
+    if (pageGroup && pageGroup !== group) setGroup(pageGroup);
+  }
 
   const entries: DockEntry[] = group
     ? [{ key: "back", label: "Back", icon: ArrowLeft, onClick: () => openGroup(null) }, ...groups[group]]
@@ -289,7 +304,7 @@ export function DockNavigation() {
   const dockLabels = [...entries.map((entry) => entry.label), ...(group ? [] : ["Theme"])];
 
   const handleItemHover = (e: React.MouseEvent<HTMLElement>, index: number) => {
-    if (isDragging || isSearching || isLayoutAnimating) return;
+    if (isDragging || isSearching || isLayoutAnimating || isSwitchingGroup) return;
     if (!dockRef.current) return;
 
     const buttonRect = e.currentTarget.getBoundingClientRect();
@@ -301,6 +316,13 @@ export function DockNavigation() {
     } else {
       const buttonCenterX = buttonRect.left - dockRect.left + buttonRect.width / 2;
       mouseX.set(buttonCenterX);
+    }
+    // The first label after switching groups appears in place instead of sliding from
+    // where the old dock's label was.
+    if (jumpTooltip) {
+      setJumpTooltip(false);
+      xSpring.jump(mouseX.get());
+      ySpring.jump(mouseY.get());
     }
 
     if (hoveredIndex !== null && hoveredIndex !== index) {
@@ -538,7 +560,7 @@ export function DockNavigation() {
 
   let renderIndex = 0;
   const getIndex = () => renderIndex++;
-  const showTooltips = isMounted && !isSearching && !isDragging && !isLayoutAnimating;
+  const showTooltips = isMounted && !isSearching && !isDragging && !isLayoutAnimating && !isSwitchingGroup;
 
   if (!isMounted) return null;
 
@@ -673,10 +695,12 @@ export function DockNavigation() {
                   />
                 ) : (
                   // --- DOCK MODE ---
+                  // One container for every group: items fade and slide in place while the
+                  // dock resizes, so switching groups never blinks or jumps.
                   <motion.div
-                    key={`dock-${group ?? "root"}`}
+                    key="dock"
                     initial={{ opacity: 0, y: isVertical ? 0 : 20, x: isVertical ? 20 : 0 }}
-                    animate={{ opacity: 1, y: 0, x: 0, transition: { delay: switchingGroup ? 0.05 : 0.5 } }}
+                    animate={{ opacity: 1, y: 0, x: 0, transition: { delay: 0.5 } }}
                     exit={{
                       opacity: 0,
                       y: isVertical ? 0 : 20,
@@ -685,83 +709,86 @@ export function DockNavigation() {
                     }}
                     transition={{ duration: 0.1, ease: "easeOut" }}
                     className={cn(
-                      "flex items-center justify-center w-full h-full",
+                      "relative flex items-center justify-center w-full h-full",
                       isVertical ? "flex-col" : "flex-row",
                       isDragging && "pointer-events-none"
                     )}
                   >
                     {/* DOCK ITEMS RENDER */}
-                    {entries.map((entry) => {
-                      const active = isActive(entry);
-                      const icon =
-                        entry.avatar && currentUser?.avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={currentUser.avatarUrl} alt="" className="size-6 rounded-full object-cover" />
-                        ) : (
-                          <entry.icon className="size-5" />
-                        );
-                      const label = typeof entry.label === "string" ? entry.label : entry.key;
-                      return (
-                        <DockItem key={entry.key} index={getIndex()} onHover={handleItemHover}>
-                          {entry.href ? (
-                            <Link
-                              href={entry.href}
-                              aria-label={label}
-                              aria-current={active ? "page" : undefined}
-                              onClick={() => group && openGroup(null)}
-                            >
-                              <DockIconWrapper active={active}>{icon}</DockIconWrapper>
-                            </Link>
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {entries.map((entry) => {
+                        const active = isActive(entry);
+                        const icon =
+                          entry.avatar && currentUser?.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={currentUser.avatarUrl} alt="" className="size-6 rounded-full object-cover" />
                           ) : (
-                            <button
-                              type="button"
-                              aria-label={label}
-                              aria-expanded={entry.group ? false : undefined}
-                              onClick={() => (entry.group ? openGroup(entry.group) : entry.onClick?.())}
-                            >
-                              <DockIconWrapper active={active}>{icon}</DockIconWrapper>
-                            </button>
-                          )}
+                            <entry.icon className="size-5" />
+                          );
+                        const label = typeof entry.label === "string" ? entry.label : entry.key;
+                        return (
+                          <DockItem key={entry.key} index={getIndex()} onHover={handleItemHover}>
+                            {entry.href ? (
+                              <Link href={entry.href} aria-label={label} aria-current={active ? "page" : undefined}>
+                                <DockIconWrapper active={active}>{icon}</DockIconWrapper>
+                              </Link>
+                            ) : (
+                              <button
+                                type="button"
+                                aria-label={label}
+                                aria-expanded={entry.group ? false : undefined}
+                                onClick={() => (entry.group ? openGroup(entry.group) : entry.onClick?.())}
+                              >
+                                <DockIconWrapper active={active}>{icon}</DockIconWrapper>
+                              </button>
+                            )}
+                          </DockItem>
+                        );
+                      })}
+
+                      {!group && (
+                        <DockItem key="theme" index={getIndex()} onHover={handleItemHover}>
+                          <AnimatedThemeToggler className="w-full h-full block" aria-label="theme">
+                            <DockIconWrapper>
+                              <div className="relative w-full h-full flex items-center justify-center">
+                                <Sun className="size-5 absolute scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+                                <Moon className="size-5 absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+                              </div>
+                            </DockIconWrapper>
+                          </AnimatedThemeToggler>
                         </DockItem>
-                      );
-                    })}
-
-                    {!group && (
-                      <DockItem index={getIndex()} onHover={handleItemHover}>
-                        <AnimatedThemeToggler className="w-full h-full block" aria-label="theme">
-                          <DockIconWrapper>
-                            <div className="relative w-full h-full flex items-center justify-center">
-                              <Sun className="size-5 absolute scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                              <Moon className="size-5 absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-                            </div>
-                          </DockIconWrapper>
-                        </AnimatedThemeToggler>
-                      </DockItem>
-                    )}
-
-                    <Separator
-                      orientation={isVertical ? "horizontal" : "vertical"}
-                      className={cn(
-                        "bg-border/60 relative",
-                        isVertical ? "w-8 h-[1px] top-1" : "h-8 w-[1px] left-1"
                       )}
-                    />
+                    </AnimatePresence>
 
-                    <div
-                      onPointerDown={(e) => dragControls.start(e)}
-                      role="button"
-                      aria-label="drag"
-                      className={cn(
-                        "relative flex w-full h-full items-center justify-center cursor-grab active:cursor-grabbing",
-                        isVertical ? "py-3 top-1" : "px-3 left-1"
-                      )}
+                    <motion.div
+                      layout="position"
+                      transition={DOCK_ITEM_TRANSITION}
+                      className={cn("flex items-center", isVertical ? "flex-col" : "flex-row")}
                     >
-                      {isVertical ? (
-                        <GripHorizontal className="text-paragraph" />
-                      ) : (
-                        <GripVertical className="text-paragraph" />
-                      )}
-                    </div>
+                      <Separator
+                        orientation={isVertical ? "horizontal" : "vertical"}
+                        className={cn(
+                          "bg-border/60 relative",
+                          isVertical ? "w-8 h-[1px] top-1" : "h-8 w-[1px] left-1"
+                        )}
+                      />
+
+                      <div
+                        onPointerDown={(e) => dragControls.start(e)}
+                        role="button"
+                        aria-label="drag"
+                        className={cn(
+                          "relative flex w-full h-full items-center justify-center cursor-grab active:cursor-grabbing",
+                          isVertical ? "py-3 top-1" : "px-3 left-1"
+                        )}
+                      >
+                        {isVertical ? (
+                          <GripHorizontal className="text-paragraph" />
+                        ) : (
+                          <GripVertical className="text-paragraph" />
+                        )}
+                      </div>
+                    </motion.div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1251,21 +1278,27 @@ function DockIconWrapper({
   );
 }
 
-function DockItem({
-  children,
-  index,
-  onHover,
-}: {
-  children: React.ReactNode;
-  index: number;
-  onHover: any;
-}) {
+const DOCK_ITEM_TRANSITION = { type: "spring", stiffness: 420, damping: 36, mass: 0.8 } as const;
+
+const DockItem = React.forwardRef<
+  HTMLDivElement,
+  { children: React.ReactNode; index: number; onHover: (e: React.MouseEvent<HTMLElement>, index: number) => void }
+>(function DockItem({ children, index, onHover }, ref) {
   return (
-    <div className="relative block" onMouseEnter={(e) => onHover(e, index)}>
+    <motion.div
+      ref={ref}
+      layout="position"
+      initial={{ opacity: 0, scale: 0.6, filter: "blur(4px)" }}
+      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, scale: 0.6, filter: "blur(4px)", transition: { duration: 0.15 } }}
+      transition={DOCK_ITEM_TRANSITION}
+      className="relative block"
+      onMouseEnter={(e) => onHover(e, index)}
+    >
       {children}
-    </div>
+    </motion.div>
   );
-}
+});
 
 function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
