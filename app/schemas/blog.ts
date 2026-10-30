@@ -56,3 +56,15 @@ export const postSchema = baseSchema.extend({
 export const editPostSchema = baseSchema.extend({
   image: imageField.optional(),
 });
+
+// Drafts save whatever is there: nothing is required until the post is published or
+// scheduled. An empty title becomes "Untitled draft".
+export const draftSchema = z.object({
+  title: z.string().max(50).optional().transform((title) => title?.trim() || "Untitled draft"),
+  subtitle: z.string().max(80).optional().default(""),
+  topic: z.enum(TOPICS).optional().default("Web Architecture"),
+  minRead: z.number().min(1).max(30).optional().default(5),
+  content: z.string().max(30000).optional().default(""),
+  contentHtml: z.string().optional().default(""),
+  image: imageField.optional(),
+});

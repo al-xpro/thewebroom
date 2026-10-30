@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
 import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
-import { ScrollFade } from "@/components/ui/scroll-fade";
 import { FunctionReturnType } from "convex/server";
 import {
   clearSavedPost,
@@ -127,8 +126,6 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
   // Shown when someone without an account tries to publish or save a draft.
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [restored, setRestored] = useState(false);
-  // When set, Publish schedules the post for this time instead (#60).
-  const [publishAt, setPublishAt] = useState<number | null>(null);
 
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<PostFields, string>>>({});
 
@@ -204,6 +201,12 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
       savePostText(pickPostText(values));
       void savePostImage(values.image);
       setShowAuthModal(true);
+      return;
+    }
+    // A draft saves whatever is there; publishing checks the whole post.
+    if (status === "draft") {
+      setVisibleErrors({});
+      void onSubmit(form.getValues(), "draft");
       return;
     }
     void form.handleSubmit((values) => onSubmit(values, status), onInvalid)();
@@ -403,8 +406,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (publishAt) void scheduleAt(publishAt);
-          else submitAs("published");
+          submitAs("published");
         }}
         className="flex flex-col gap-8 pb-16"
       >
@@ -416,6 +418,27 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
             </Button>
           </Link>
 
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending || draftPending}
+              onClick={() => submitAs("draft")}
+            >
+              {draftPending && <Loader2 className="size-4 animate-spin" />}
+              Draft
+            </Button>
+            <SchedulePicker confirmLabel="Schedule" onConfirm={scheduleAt}>
+              <Button type="button" variant="ghost" size="sm" disabled={isPending || draftPending}>
+                Schedule
+              </Button>
+            </SchedulePicker>
+            <Button type="submit" size="sm" disabled={isPending || draftPending}>
+              {isPending && <Loader2 className="size-4 animate-spin" />}
+              Publish
+            </Button>
+          </div>
         </div>
 
         <article className="flex flex-col gap-8">
@@ -492,28 +515,15 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
 
             <Separator className="my-4" />
 
-            <ScrollFade orientation="horizontal">
-            <div className="flex w-max min-w-full flex-nowrap items-center gap-8 sm:gap-12 py-1 text-[11px] sm:text-sm text-paragraph">
+            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-1 text-[11px] sm:text-sm text-paragraph">
               <div className="flex flex-col items-center gap-2 text-black dark:text-white">
                 <User className="size-4 sm:size-5" />
                 <p>{user?.name || ""}</p>
               </div>
-              <SchedulePicker
-                initial={publishAt ?? undefined}
-                onConfirm={(at) => setPublishAt(at)}
-                onClear={publishAt ? () => setPublishAt(null) : undefined}
-              >
-                <button
-                  type="button"
-                  aria-label={publishAt ? `Publishes ${formatPublishAt(publishAt)}. Change` : "Schedule"}
-                  className={`flex shrink-0 flex-col items-center gap-2 cursor-pointer ${publishAt ? "text-primary" : "text-black dark:text-white"}`}
-                >
-                  <Calendar className="size-4 sm:size-5" />
-                  <span className="whitespace-nowrap">
-                    {publishAt ? formatPublishAt(publishAt) : new Date().toLocaleDateString("en-US")}
-                  </span>
-                </button>
-              </SchedulePicker>
+              <div className="flex flex-col items-center gap-2 text-black dark:text-white">
+                <Calendar className="size-4 sm:size-5" />
+                <p>{new Date().toLocaleDateString("en-US")}</p>
+              </div>
               <Controller
                 name="topic"
                 control={form.control}
@@ -635,24 +645,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                 )}
               />
               <CopySlugButton slug={slugPreview} />
-              <div className="ml-auto flex shrink-0 items-center gap-1 pl-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isPending || draftPending}
-                  onClick={() => submitAs("draft")}
-                >
-                  {draftPending && <Loader2 className="size-4 animate-spin" />}
-                  Draft
-                </Button>
-                <Button type="submit" size="sm" disabled={isPending || draftPending}>
-                  {isPending && <Loader2 className="size-4 animate-spin" />}
-                  {publishAt ? "Schedule" : "Publish"}
-                </Button>
-              </div>
             </div>
-            </ScrollFade>
           </header>
 
           <Controller

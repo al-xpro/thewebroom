@@ -30,7 +30,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
-import { ScrollFade } from "@/components/ui/scroll-fade";
 import { FunctionReturnType } from "convex/server";
 import { TOPICS, type Topic } from "@/convex/topics";
 import { CoverImageField } from "@/components/web/CoverImageField";
@@ -98,10 +97,8 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
   // The author removed the cover image; saving deletes it.
   const [removeImage, setRemoveImage] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
-  // Scheduled posts keep their time; setting one turns Publish into Schedule (#60).
-  const [publishAt, setPublishAt] = useState<number | null>(
-    post.status === "scheduled" && post.publishAt ? post.publishAt : null
-  );
+  // A scheduled post opens the picker at its current time (#60).
+  const scheduledAt = post.status === "scheduled" && post.publishAt ? post.publishAt : undefined;
   const [isTopicOpen, setIsTopicOpen] = useState(false);
   const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
@@ -286,8 +283,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (publishAt) void scheduleAt(publishAt);
-          else void form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)();
+          void form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)();
         }}
         className="flex flex-col gap-8 pb-16"
       >
@@ -299,6 +295,31 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
             </Button>
           </Link>
 
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending || draftPending}
+              onClick={() => {
+                // A draft saves whatever is there; publishing checks the whole post.
+                setVisibleErrors({});
+                void onSubmit(form.getValues(), "draft");
+              }}
+            >
+              {draftPending && <Loader2 className="size-4 animate-spin" />}
+              Draft
+            </Button>
+            <SchedulePicker confirmLabel="Schedule" initial={scheduledAt} onConfirm={scheduleAt}>
+              <Button type="button" variant="ghost" size="sm" disabled={isPending || draftPending}>
+                Schedule
+              </Button>
+            </SchedulePicker>
+            <Button type="submit" size="sm" disabled={isPending || draftPending}>
+              {isPending && <Loader2 className="size-4 animate-spin" />}
+              Publish
+            </Button>
+          </div>
         </div>
 
         <article className="flex flex-col gap-8">
@@ -387,28 +408,15 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
 
             <Separator className="my-4" />
 
-            <ScrollFade orientation="horizontal">
-            <div className="flex w-max min-w-full flex-nowrap items-center gap-8 sm:gap-12 py-1 text-[11px] sm:text-sm text-paragraph">
+            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-1 text-[11px] sm:text-sm text-paragraph">
               <div className="flex flex-col items-center gap-2 text-black dark:text-white">
                 <User className="size-4 sm:size-5" />
                 <p>{user?.name || ""}</p>
               </div>
-              <SchedulePicker
-                initial={publishAt ?? undefined}
-                onConfirm={(at) => setPublishAt(at)}
-                onClear={publishAt ? () => setPublishAt(null) : undefined}
-              >
-                <button
-                  type="button"
-                  aria-label={publishAt ? `Publishes ${formatPublishAt(publishAt)}. Change` : "Schedule"}
-                  className={`flex shrink-0 flex-col items-center gap-2 cursor-pointer ${publishAt ? "text-primary" : "text-black dark:text-white"}`}
-                >
-                  <Calendar className="size-4 sm:size-5" />
-                  <span className="whitespace-nowrap">
-                    {publishAt ? formatPublishAt(publishAt) : new Date().toLocaleDateString("en-US")}
-                  </span>
-                </button>
-              </SchedulePicker>
+              <div className="flex flex-col items-center gap-2 text-black dark:text-white">
+                <Calendar className="size-4 sm:size-5" />
+                <p>{scheduledAt ? formatPublishAt(scheduledAt) : new Date().toLocaleDateString("en-US")}</p>
+              </div>
               <Controller
                 name="topic"
                 control={form.control}
@@ -530,24 +538,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                 )}
               />
               <CopySlugButton slug={slugPreview} />
-              <div className="ml-auto flex shrink-0 items-center gap-1 pl-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isPending || draftPending}
-                  onClick={form.handleSubmit((values) => onSubmit(values, "draft"), onInvalid)}
-                >
-                  {draftPending && <Loader2 className="size-4 animate-spin" />}
-                  Draft
-                </Button>
-                <Button type="submit" size="sm" disabled={isPending || draftPending}>
-                  {isPending && <Loader2 className="size-4 animate-spin" />}
-                  {publishAt ? "Schedule" : "Publish"}
-                </Button>
-              </div>
             </div>
-            </ScrollFade>
           </header>
 
           <Controller

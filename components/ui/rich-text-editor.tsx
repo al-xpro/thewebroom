@@ -30,6 +30,8 @@ import {
   TableIcon,
   StickyNote,
   Pilcrow,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -57,6 +59,7 @@ import { Callout } from "@/lib/extension/callout";
 import { cn } from "@/lib/utils";
 import { AlignmentExtension } from "@/lib/extension/alignment";
 import { ShortcutsExtension } from "@/lib/extension/shortcuts";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface RichTextEditorProps {
   value?: string;
@@ -114,7 +117,14 @@ export function RichTextEditor({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtStart, setIsAtStart] = useState(true);
   const [isAtEnd, setIsAtEnd] = useState(false);
-  const [toolbarPosition, setToolbarPosition] = useState<ToolbarPosition>("bottom");
+  const [chosenToolbarPosition, setToolbarPosition] = useState<ToolbarPosition>("bottom");
+  // The sides are for medium and large screens; below that a side toolbar sits at the
+  // bottom, and goes back to its side when the window grows again.
+  const isWide = useMediaQuery("(min-width: 768px)");
+  const toolbarPosition: ToolbarPosition =
+    !isWide && (chosenToolbarPosition === "left" || chosenToolbarPosition === "right")
+      ? "bottom"
+      : chosenToolbarPosition;
   const [isToolbarPositionPopoverOpen, setIsToolbarPositionPopoverOpen] = useState(false);
 
   // Table Configuration State
@@ -395,8 +405,13 @@ export function RichTextEditor({
     value: ToolbarPosition;
     Icon: typeof ArrowUp;
   }> = [
-    // Only top and bottom: on the sides the toolbar squeezes the dock's minimap.
     { label: "Top", value: "top", Icon: ArrowUp },
+    ...(isWide
+      ? [
+          { label: "Left", value: "left" as const, Icon: ArrowLeft },
+          { label: "Right", value: "right" as const, Icon: ArrowRight },
+        ]
+      : []),
     { label: "Bottom", value: "bottom", Icon: ArrowDown },
   ];
 

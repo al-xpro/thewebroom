@@ -1,7 +1,7 @@
 "use server";
 
 import z from "zod";
-import { editPostSchema, postSchema } from "./schemas/blog";
+import { draftSchema, editPostSchema, postSchema } from "./schemas/blog";
 import { fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { getToken } from "@/lib/auth-server";
@@ -17,7 +17,8 @@ export async function createBlogAction(
   values: z.infer<typeof postSchema>,
   status: "published" | "draft" = "published"
 ) {
-  const parsed = postSchema.safeParse(values);
+  // Drafts need nothing filled in; publishing needs the whole post.
+  const parsed = status === "draft" ? draftSchema.safeParse(values) : postSchema.safeParse(values);
   if (!parsed.success) throw new Error("Validation failed");
 
   const token = await getToken();
@@ -103,7 +104,8 @@ export async function updatePostAction(
     api.posts.updatePost,
     {
       postId: postId as Id<"posts">,
-      title: values.title,
+      // A draft may be saved with no title yet.
+      title: values.title?.trim() || (status === "draft" ? "Untitled draft" : values.title),
       body: values.content,
       subtitle: values.subtitle,
       minRead: values.minRead,
