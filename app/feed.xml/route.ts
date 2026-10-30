@@ -31,7 +31,7 @@ async function buildFeed() {
   <channel>
     <title>The Web Room</title>
     <link>${SITE_URL}</link>
-    <description>A blog about building for the web: frontend, backend, design and the tools behind them.</description>
+    <description>A community for writing about web architecture, UI engineering, AI and productivity, with an AI assistant when you want one.</description>
     <language>en</language>
     <atom:link href="${SITE_URL}/feed.xml" rel="self" type="application/rss+xml" />
 ${items}
