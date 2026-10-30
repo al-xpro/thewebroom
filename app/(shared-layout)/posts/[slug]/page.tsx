@@ -123,6 +123,12 @@ async function PostBody({ params }: PostSlugRouteProps) {
           {post.title}
         </h1>
         <p className="type-body text-lg">{post.subtitle}</p>
+        {post.aiAssisted && (
+          <p className="type-meta inline-flex items-center gap-1.5 text-xs">
+            <span aria-hidden className="size-1.5 rounded-full bg-black dark:bg-white" />
+            Written with AI assistance
+          </p>
+        )}
         <Separator className="my-4" />
         <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
           <div className="flex flex-col items-center gap-2 text-black dark:text-white">

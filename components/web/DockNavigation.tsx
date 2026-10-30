@@ -20,6 +20,7 @@ import {
   BookUser,
   UserPlus,
   LogIn,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 import { AnimatedThemeToggler } from "../ui/animated-theme-toggle";
@@ -245,7 +246,8 @@ export function DockNavigation() {
   const groups: Record<DockGroup, DockEntry[]> = {
     write: [
       { key: "create", label: "Create", icon: Pencil, href: "/create" },
-      { key: "agents", label: "Agents", icon: Bot, href: "/concepts/mcp" },
+      { key: "agents", label: "Agents", icon: Bot, href: "/mcp" },
+      { key: "rules", label: "Rules", icon: ScrollText, href: "/rules" },
     ],
     people: [
       { key: "following", label: "Following", icon: UserPlus, href: "/concepts/follow" },

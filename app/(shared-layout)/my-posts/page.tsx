@@ -210,7 +210,13 @@ export default function MyPostsPage() {
       ) : userPosts.length === 0 ? (
         <div className="relative divider-fade-top flex flex-col items-center gap-2 py-20 text-center">
           <p className="type-heading">Nothing here yet</p>
-          <p className="type-meta">Your drafts, scheduled and published posts appear here.</p>
+          <p className="type-meta">
+            Write your first post, or let{" "}
+            <Link href="/mcp" className="underline underline-offset-4">
+              your agent
+            </Link>{" "}
+            draft one.
+          </p>
         </div>
       ) : (
         <ul>
@@ -250,6 +256,12 @@ export default function MyPostsPage() {
                     <span>{post.topic}</span>
                     <span aria-hidden>·</span>
                     <span>{post.minRead ?? 1} min</span>
+                    {post.aiAssisted && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span>AI-assisted</span>
+                      </>
+                    )}
                   </p>
                 </Link>
                 <div className="flex items-center gap-1">
