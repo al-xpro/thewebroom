@@ -20,6 +20,10 @@ export default defineSchema({
     scheduledJobId: v.optional(v.id("_scheduled_functions")),
     contentHtml: v.optional(v.string()),
     topic: topicValidator,
+    // Written or edited with an agent (MCP) or the writing assistant; shown on the post.
+    aiAssisted: v.optional(v.boolean()),
+    // When followers were told about the post, so republishing doesn't tell them twice.
+    announcedAt: v.optional(v.number()),
   })
     .searchIndex("search_title", { searchField: "title" })
     .searchIndex("search_body", { searchField: "body" })
@@ -49,7 +53,55 @@ export default defineSchema({
     commentCount: v.optional(v.number()),
     followWindowStart: v.optional(v.number()),
     followCount: v.optional(v.number()),
+    // Agents (MCP): drafts written and drafts changed, per account and day.
+    agentDraftWindowStart: v.optional(v.number()),
+    agentDraftCount: v.optional(v.number()),
+    agentUpdateWindowStart: v.optional(v.number()),
+    agentUpdateCount: v.optional(v.number()),
+    // The writing assistant in the editor, per account and day.
+    assistantWindowStart: v.optional(v.number()),
+    assistantCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
+
+  // Tokens members create for their agents (MCP). Only a hash is stored; the token is
+  // shown once.
+  agentTokens: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    tokenHash: v.string(),
+    // The first characters, so a member can tell tokens apart.
+    prefix: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    requestWindowStart: v.optional(v.number()),
+    requestCount: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_tokenHash", ["tokenHash"]),
+
+  // What happened that involves a member: comments on their posts, replies, new
+  // followers, new posts from people and topics they follow.
+  notifications: defineTable({
+    userId: v.string(),
+    kind: v.union(
+      v.literal("comment"),
+      v.literal("reply"),
+      v.literal("follower"),
+      v.literal("post"),
+      v.literal("published")
+    ),
+    actorId: v.optional(v.string()),
+    actorName: v.optional(v.string()),
+    postId: v.optional(v.id("posts")),
+    postSlug: v.optional(v.string()),
+    postTitle: v.optional(v.string()),
+    createdAt: v.number(),
+    readAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_user_unread", ["userId", "readAt"]),
 
   // Reports from members on posts and comments; an admin resolves them.
   reports: defineTable({

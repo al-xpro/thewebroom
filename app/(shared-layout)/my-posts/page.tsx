@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/web/Footer";
@@ -15,6 +15,33 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { formatPublishAt } from "@/components/web/SchedulePicker";
 import { ScheduleDialog } from "@/components/web/ScheduleDialog";
 import type { Id } from "@/convex/_generated/dataModel";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+
+const TABS = [
+  { key: "all", label: "All" },
+  { key: "draft", label: "Drafts" },
+  { key: "scheduled", label: "Scheduled" },
+  { key: "published", label: "Published" },
+  { key: "hidden", label: "Hidden" },
+] as const;
+type Tab = (typeof TABS)[number]["key"];
 
 export default function MyPostsPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -31,6 +58,7 @@ export default function MyPostsPage() {
   const [picked, setPicked] = useState<Id<"posts">[]>([]);
   const [scheduling, setScheduling] = useState(false);
   const [publishing, setPublishing] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("all");
   const unschedulePost = useMutation(api.scheduledPosts.unschedulePost);
 
   const togglePicked = (postId: Id<"posts">) =>
@@ -60,18 +88,6 @@ export default function MyPostsPage() {
     else showErrorToast(result.message);
   };
 
-  // Lock scroll when modal is open
-  useEffect(() => {
-    if (pendingDelete) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [pendingDelete]);
-
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.push("/auth/login");
   }, [isAuthenticated, isLoading, router]);
@@ -97,39 +113,38 @@ export default function MyPostsPage() {
 
   const postsReady = posts !== undefined && user != null;
   const userPosts = postsReady ? posts : [];
+  const statusOf = (post: { status?: string }) => (post.status === "flagged" ? "hidden" : post.status || "published");
+  const counts = Object.fromEntries(
+    TABS.map((t) => [t.key, t.key === "all" ? userPosts.length : userPosts.filter((p) => statusOf(p) === t.key).length])
+  ) as Record<Tab, number>;
+  const shown = tab === "all" ? userPosts : userPosts.filter((post) => statusOf(post) === tab);
 
   return (
     <div className="flex flex-col w-full pt-20 max-w-3xl mx-auto px-4">
-      {/* ── Delete confirmation modal ── */}
-      {pendingDelete && (
-        <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 min-w-[320px]">
-          <div className="bg-white dark:bg-black border rounded-2xl max-w-sm w-full p-6 flex flex-col gap-6">
-            <div className="space-y-1">
-              <h2 className="type-heading">Delete post?</h2>
-              <p className="type-meta">&quot;{pendingDelete.title}&quot; is deleted for good.</p>
-            </div>
-            <div className="flex gap-3">
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={() => setPendingDelete(null)}
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                onClick={handleDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {isDeleting && <Loader2 className="size-4 animate-spin" />}
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && !isDeleting && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="type-heading">Delete post?</AlertDialogTitle>
+            <AlertDialogDescription>&quot;{pendingDelete?.title}&quot; is deleted for good.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="ghost" disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteConfirm();
+              }}
+            >
+              {isDeleting && <Loader2 className="size-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {scheduling && (
         <ScheduleDialog
@@ -145,122 +160,171 @@ export default function MyPostsPage() {
         />
       )}
 
-      <div className="w-full">
-        <div className="flex items-baseline justify-between gap-4 py-10">
-          <h1 className="type-display">My posts</h1>
-          {postsReady && userPosts.length > 0 && <p className="type-meta">{userPosts.length}</p>}
+      <div className="flex items-end justify-between gap-4 py-10">
+        <h1 className="type-display">My posts</h1>
+        <Link href="/create" className={buttonVariants({ size: "sm" })}>
+          Write
+        </Link>
+      </div>
+
+      {postsReady && userPosts.length > 0 && (
+        <div className="flex flex-wrap gap-1 pb-4" role="tablist" aria-label="Filter by status">
+          {TABS.filter((t) => t.key === "all" || counts[t.key] > 0).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1 text-sm",
+                tab === t.key ? "bg-black text-white dark:bg-white dark:text-black" : "text-[#666666] hover:text-black dark:text-[#A0A0A0] dark:hover:text-white"
+              )}
+            >
+              {t.label}
+              <span className="text-xs tabular-nums opacity-60">{counts[t.key]}</span>
+            </button>
+          ))}
         </div>
+      )}
 
-        {picked.length > 0 && (
-          <div className="sticky top-20 z-10 flex items-center justify-between gap-3 rounded-full border bg-white/90 px-4 py-2 backdrop-blur dark:bg-black/90">
-            <p className="type-meta">{picked.length} picked</p>
-            <div className="flex gap-1">
-              <Button size="sm" variant="ghost" onClick={() => setPicked([])}>Clear</Button>
-              <Button size="sm" onClick={() => setScheduling(true)}>Schedule</Button>
+      {picked.length > 0 && (
+        <div className="sticky top-20 z-10 mb-2 flex items-center justify-between gap-3 rounded-full border bg-white/90 px-4 py-2 backdrop-blur dark:bg-black/90">
+          <p className="type-meta">{picked.length} picked</p>
+          <div className="flex gap-1">
+            <Button size="sm" variant="ghost" onClick={() => setPicked([])}>Clear</Button>
+            <Button size="sm" onClick={() => setScheduling(true)}>Schedule</Button>
+          </div>
+        </div>
+      )}
+
+      {!postsReady ? (
+        <div>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="relative divider-fade-top space-y-2 py-5">
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-4 w-1/3" />
             </div>
-          </div>
-        )}
-
-        {!postsReady ? (
-          <div>
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="relative divider-fade-top flex gap-4 py-6">
-                <Skeleton className="size-20 sm:size-24 rounded-md" />
-                <div className="flex-1 space-y-3">
-                  <Skeleton className="h-5 w-2/3" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : userPosts.length === 0 ? (
-          <div className="relative divider-fade-top py-20 flex flex-col items-center gap-4">
-            <p className="type-meta">No posts yet.</p>
-            <Link href="/create" className={buttonVariants({ size: "sm" })}>
-              Write
-            </Link>
-          </div>
-        ) : (
-          <div>
-            {userPosts.map((post) => {
-              const status = post.status || "published";
-              const schedulable = status === "draft" || status === "scheduled";
-              const date =
-                status === "scheduled" && post.publishAt
-                  ? `Goes out ${formatPublishAt(post.publishAt)}`
-                  : new Date(post.publishAt ?? post._creationTime ?? 0).toLocaleDateString("en-US");
-              return (
-                <article key={post._id} className="relative divider-dashed-fade-bottom flex gap-3 py-5">
+          ))}
+        </div>
+      ) : userPosts.length === 0 ? (
+        <div className="relative divider-fade-top flex flex-col items-center gap-2 py-20 text-center">
+          <p className="type-heading">Nothing here yet</p>
+          <p className="type-meta">
+            Write your first post, or let{" "}
+            <Link href="/mcp" className="underline underline-offset-4">
+              your agent
+            </Link>{" "}
+            draft one.
+          </p>
+        </div>
+      ) : (
+        <ul>
+          {shown.map((post) => {
+            const status = statusOf(post);
+            const schedulable = status === "draft" || status === "scheduled";
+            const date =
+              status === "scheduled" && post.publishAt
+                ? `Goes out ${formatPublishAt(post.publishAt)}`
+                : new Date(post.publishAt ?? post._creationTime ?? 0).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  });
+            const href = status === "published" ? `/posts/${post.slug}` : `/edit/${post.slug}`;
+            return (
+              <li key={post._id} className="relative divider-fade-top grid grid-cols-[1.25rem_1fr_auto] items-start gap-x-3 py-4">
+                <span className="pt-1">
                   {schedulable && (
                     <input
                       type="checkbox"
-                      aria-label={`Pick ${post.title}`}
+                      aria-label={`Pick ${post.title} to schedule`}
                       checked={picked.includes(post._id)}
                       onChange={() => togglePicked(post._id)}
-                      className="mt-1.5 size-4 shrink-0 cursor-pointer accent-black dark:accent-white"
+                      className="size-4 cursor-pointer accent-black dark:accent-white"
                     />
                   )}
-                  <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:gap-12">
-                    <div className="min-w-0 flex-1">
-                      <h2 className="type-heading line-clamp-1 break-all">{post.title}</h2>
-                      <p className="type-meta line-clamp-1 break-all">{post.subtitle || "No subtitle yet"}</p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2">
-                        <StatusBadge status={status} />
-                        <span className="type-meta text-xs">{date}</span>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-start gap-2 sm:w-[140px] sm:items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                          {post.topic}
-                        </span>
-                        <span className="type-meta whitespace-nowrap">{post.minRead} min</span>
-                      </div>
-                      <div className="-ml-2 flex items-center sm:ml-0">
-                        {status === "published" && (
-                          <Link href={`/posts/${post.slug}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                            View
-                          </Link>
-                        )}
-                        <Link href={`/edit/${post.slug}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                          Edit
-                        </Link>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setPendingDelete({ _id: post._id, title: post.title })}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                      {schedulable && (
-                        <div className="-ml-2 flex items-center sm:ml-0">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={publishing === post._id}
-                            onClick={() => publishNow(post)}
-                          >
-                            {publishing === post._id && <Loader2 className="size-4 animate-spin" />}
-                            Publish
-                          </Button>
-                          {status === "scheduled" && (
-                            <Button variant="ghost" size="sm" onClick={() => unschedule(post._id)}>
-                              Unschedule
-                            </Button>
-                          )}
-                        </div>
+                </span>
+                <Link href={href} className="group min-w-0">
+                  <h2 className="type-heading truncate group-hover:underline underline-offset-4">{post.title}</h2>
+                  <p className="type-meta truncate">{post.subtitle || "No subtitle yet"}</p>
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1.5 text-xs font-light text-[#666666] dark:text-[#A0A0A0]">
+                    <StatusBadge status={status} />
+                    <span aria-hidden>·</span>
+                    <span>{date}</span>
+                    <span aria-hidden>·</span>
+                    <span>{post.topic}</span>
+                    <span aria-hidden>·</span>
+                    <span>{post.minRead ?? 1} min</span>
+                    {post.aiAssisted && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span>AI-assisted</span>
+                      </>
+                    )}
+                  </p>
+                </Link>
+                <div className="flex items-center gap-1">
+                  {schedulable && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={publishing === post._id}
+                      onClick={() => void publishNow(post)}
+                      className="hidden sm:inline-flex"
+                    >
+                      {publishing === post._id && <Loader2 className="size-4 animate-spin" />}
+                      Publish
+                    </Button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${post.title}`}>
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-40">
+                      {status === "published" && (
+                        <DropdownMenuItem asChild>
+                          <Link href={`/posts/${post.slug}`}>View</Link>
+                        </DropdownMenuItem>
                       )}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
+                      <DropdownMenuItem asChild>
+                        <Link href={`/edit/${post.slug}`}>Edit</Link>
+                      </DropdownMenuItem>
+                      {schedulable && (
+                        <>
+                          <DropdownMenuItem onSelect={() => void publishNow(post)}>Publish now</DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setPicked([post._id]);
+                              setScheduling(true);
+                            }}
+                          >
+                            Schedule…
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {status === "scheduled" && (
+                        <DropdownMenuItem onSelect={() => void unschedule(post._id)}>Back to drafts</DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => setPendingDelete({ _id: post._id, title: post.title })}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
-        <Footer />
-      </div>
+      <Footer />
     </div>
   );
 }

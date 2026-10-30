@@ -4,6 +4,7 @@ import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { Doc, Id } from "./_generated/dataModel";
 import { components, internal } from "./_generated/api";
 import { topicValidator, type Topic } from "./topics";
+import { announcePost } from "./notifications";
 
 
 type BetterAuthUserContact = {
@@ -108,6 +109,7 @@ export const createPost = mutation({
       v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
     ),
     imageStorageId: v.optional(v.id("_storage")),
+    aiAssisted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -171,6 +173,7 @@ export const createPost = mutation({
       contentHtml: args.contentHtml,
       topic: (args.topic ?? "Web Architecture") as Topic,
       status: args.status ?? "published",
+      ...(args.aiAssisted ? { aiAssisted: true } : {}),
     });
 
     // Update rate limit (counts both draft and publish creations)
@@ -199,6 +202,8 @@ export const createPost = mutation({
         postCount: 1,
       });
     }
+
+    await announcePost(ctx, blogArticle);
 
     return { id: blogArticle, slug: uniqueSlug };
   },
@@ -296,6 +301,8 @@ export const updatePost = mutation({
     topic: v.optional(
       topicValidator
     ),
+    // Once a post is AI-assisted it stays so; this only turns it on.
+    aiAssisted: v.optional(v.boolean()),
     status: v.optional(
       v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
     ),
@@ -343,6 +350,7 @@ export const updatePost = mutation({
     if (args.body !== undefined) patch.body = args.body;
     if (args.subtitle !== undefined) patch.subtitle = args.subtitle;
     if (args.contentHtml !== undefined) patch.contentHtml = args.contentHtml;
+    if (args.aiAssisted) patch.aiAssisted = true;
     if (args.topic !== undefined) patch.topic = args.topic as Topic;
     if (status !== undefined) patch.status = status;
     if (args.minRead !== undefined) {
@@ -359,6 +367,7 @@ export const updatePost = mutation({
     await ctx.db.patch(args.postId, patch);
 
     const nextStatus = status ?? post.status;
+    if (nextStatus === undefined || nextStatus === "published") await announcePost(ctx, post._id);
     const becameHidden = nextStatus === "hidden" && post.status !== "hidden";
     const becamePublished = nextStatus === "published" && post.status === "hidden";
     if (isAdmin && (becameHidden || becamePublished)) {

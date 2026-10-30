@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ForAgentsButton } from "@/components/web/ForAgentsButton";
 
 export default function Footer() {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -16,15 +17,11 @@ export default function Footer() {
       <nav className="flex items-center gap-4">
         <Link href="/privacy-policy" className="hover:text-black dark:hover:text-white">Privacy</Link>
         <Link href="/terms-and-conditions" className="hover:text-black dark:hover:text-white">Terms</Link>
+        <Link href="/rules" className="hover:text-black dark:hover:text-white">Rules</Link>
         <Link href="https://alxpro.com" target="_blank" className="hover:text-black dark:hover:text-white">
           AlxPro
         </Link>
-        <a
-          href="/llms.txt"
-          className="rounded-full border border-black/10 px-2.5 py-0.5 text-xs text-black hover:bg-black/5 dark:border-white/15 dark:text-white dark:hover:bg-white/10"
-        >
-          For agents
-        </a>
+        <ForAgentsButton />
       </nav>
     </footer>
   );

@@ -3,6 +3,7 @@ import { components, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, type MutationCtx } from "./_generated/server";
 import { assertUserNotBanned, authComponent } from "./auth";
+import { announcePost, notify } from "./notifications";
 
 // Scheduled posts (#60). A scheduled post is private like a draft until its job publishes
 // it. The job checks everything again when it runs, so a post that was moved back to draft,
@@ -116,6 +117,8 @@ export const publishScheduledPost = internalMutation({
     }
 
     await ctx.db.patch(post._id, { status: "published", publishAt: Date.now(), scheduledJobId: undefined });
+    await notify(ctx, { userId: post.authorId, kind: "published", postId: post._id, postSlug: post.slug, postTitle: post.title });
+    await announcePost(ctx, post._id);
     if (post.slug) {
       await ctx.scheduler.runAfter(0, internal.revalidate.revalidateTags, {
         tags: ["blog", `post-${post.slug}`],
