@@ -1,6 +1,8 @@
 import "server-only";
 
 import TurndownService from "turndown";
+import { marked } from "marked";
+import { sanitizePostHtml } from "@/lib/sanitize-server";
 
 // Turns a post's stored HTML into Markdown for agents (/agents/posts/<slug>, /llms.txt).
 // Code blocks keep their language; terminal blocks become bash blocks with the npm tab.
@@ -35,7 +37,9 @@ export function htmlToMarkdown(html: string) {
   return turndown.turndown(html).trim();
 }
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://thewebroom.alxpro.com").replace(/\/$/, "");
+import { SITE_URL } from "@/lib/site-url";
+
+export { SITE_URL };
 
 export function escapeXml(text: string) {
   return text
@@ -44,4 +48,42 @@ export function escapeXml(text: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
+}
+
+// Markdown from an agent (MCP) as post HTML: GitHub-flavoured, then sanitized like any post.
+export function markdownToPostHtml(markdown: string) {
+  const html = marked.parse(markdown, { gfm: true, breaks: false, async: false });
+  return sanitizePostHtml(html);
+}
+
+type MarkdownPost = {
+  title: string;
+  subtitle?: string;
+  authorName: string;
+  topic: string;
+  slug?: string;
+  body: string;
+  contentHtml?: string;
+  publishAt?: number;
+  _creationTime: number;
+  aiAssisted?: boolean;
+};
+
+// A post as Markdown, for agents: a short header, then the body.
+export function postToMarkdown(post: MarkdownPost) {
+  const date = new Date(post.publishAt ?? post._creationTime).toISOString().slice(0, 10);
+  const body = htmlToMarkdown(sanitizePostHtml(post.contentHtml || `<p>${escapeXml(post.body)}</p>`));
+  return `---
+title: ${JSON.stringify(post.title)}
+subtitle: ${JSON.stringify(post.subtitle ?? "")}
+author: ${JSON.stringify(post.authorName)}
+date: ${date}
+topic: ${JSON.stringify(post.topic)}
+url: ${SITE_URL}/posts/${post.slug}${post.aiAssisted ? "\nai_assisted: true" : ""}
+---
+
+# ${post.title}
+
+${body}
+`;
 }

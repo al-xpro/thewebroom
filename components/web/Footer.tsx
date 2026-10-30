@@ -16,6 +16,7 @@ export default function Footer() {
       <nav className="flex items-center gap-4">
         <Link href="/privacy-policy" className="hover:text-black dark:hover:text-white">Privacy</Link>
         <Link href="/terms-and-conditions" className="hover:text-black dark:hover:text-white">Terms</Link>
+        <Link href="/rules" className="hover:text-black dark:hover:text-white">Rules</Link>
         <Link href="https://alxpro.com" target="_blank" className="hover:text-black dark:hover:text-white">
           AlxPro
         </Link>
