@@ -15,7 +15,8 @@ import { ConvexError } from "convex/values";
 // including showSuccessToast.
 export async function createBlogAction(
   values: z.infer<typeof postSchema>,
-  status: "published" | "draft" = "published"
+  status: "published" | "draft" = "published",
+  aiAssisted = false
 ) {
   // Drafts need nothing filled in; publishing needs the whole post.
   const parsed = status === "draft" ? draftSchema.safeParse(values) : postSchema.safeParse(values);
@@ -49,6 +50,7 @@ export async function createBlogAction(
       topic: parsed.data.topic,
       status,
       imageStorageId: storageId,
+      aiAssisted: aiAssisted || undefined,
     },
     { token }
   );
@@ -81,7 +83,8 @@ export async function updatePostAction(
   values: z.infer<typeof editPostSchema>,
   existingImageStorageId: Id<"_storage"> | undefined,
   status: "published" | "draft" = "published",
-  removeImage = false
+  removeImage = false,
+  aiAssisted = false
 ) {
   const token = await getToken();
   if (!token) throw new Error("Not authenticated");
@@ -114,6 +117,7 @@ export async function updatePostAction(
       removeImage: removeImage && !values.image,
       topic: values.topic,
       status,
+      aiAssisted: aiAssisted || undefined,
     },
     { token }
   );

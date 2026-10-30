@@ -113,6 +113,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isMetaEditing, setIsMetaEditing] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
+  const [aiAssisted, setAiAssisted] = useState(false);
   const [isTopicOpen, setIsTopicOpen] = useState(false);
   const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
@@ -224,7 +225,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
     await form.handleSubmit(async (values) => {
       setDraftPending(true);
       try {
-        const { id } = await createBlogAction(values, "draft");
+        const { id } = await createBlogAction(values, "draft", aiAssisted);
         try {
           await schedulePost({ postId: id, publishAt });
           showSuccessToast(`Scheduled for ${formatPublishAt(publishAt)}`);
@@ -249,7 +250,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
     }
 
     try {
-      const { slug } = await createBlogAction(values, status);
+      const { slug } = await createBlogAction(values, status, aiAssisted);
       await clearSavedPost();
 
       if (status === "draft") {
@@ -683,6 +684,11 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                   clearError("content");
                 }}
                 placeholder="Write your content here... Use the toolbar for formatting"
+                assistant={{
+                  title: form.watch("title"),
+                  subtitle: form.watch("subtitle"),
+                  onApplied: () => setAiAssisted(true),
+                }}
               />
             ) : (
               <div className="min-h-screen w-full bg-transparent" />

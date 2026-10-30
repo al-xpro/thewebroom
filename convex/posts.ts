@@ -108,6 +108,7 @@ export const createPost = mutation({
       v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
     ),
     imageStorageId: v.optional(v.id("_storage")),
+    aiAssisted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -171,6 +172,7 @@ export const createPost = mutation({
       contentHtml: args.contentHtml,
       topic: (args.topic ?? "Web Architecture") as Topic,
       status: args.status ?? "published",
+      ...(args.aiAssisted ? { aiAssisted: true } : {}),
     });
 
     // Update rate limit (counts both draft and publish creations)
@@ -296,6 +298,8 @@ export const updatePost = mutation({
     topic: v.optional(
       topicValidator
     ),
+    // Once a post is AI-assisted it stays so; this only turns it on.
+    aiAssisted: v.optional(v.boolean()),
     status: v.optional(
       v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
     ),
@@ -343,6 +347,7 @@ export const updatePost = mutation({
     if (args.body !== undefined) patch.body = args.body;
     if (args.subtitle !== undefined) patch.subtitle = args.subtitle;
     if (args.contentHtml !== undefined) patch.contentHtml = args.contentHtml;
+    if (args.aiAssisted) patch.aiAssisted = true;
     if (args.topic !== undefined) patch.topic = args.topic as Topic;
     if (status !== undefined) patch.status = status;
     if (args.minRead !== undefined) {

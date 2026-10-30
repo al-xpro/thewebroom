@@ -56,6 +56,9 @@ export default defineSchema({
     agentDraftCount: v.optional(v.number()),
     agentUpdateWindowStart: v.optional(v.number()),
     agentUpdateCount: v.optional(v.number()),
+    // The writing assistant in the editor, per account and day.
+    assistantWindowStart: v.optional(v.number()),
+    assistantCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
 
   // Tokens members create for their agents (MCP). Only a hash is stored; the token is
