@@ -206,6 +206,23 @@ export function DockNavigation() {
   // leaving it waits for the dock's items to arrive.
   const frame = isSearching ? "search" : targetMode === "minimap" ? "minimap" : frameMode;
 
+  // A new page resets the scroll while the dock's layout is being measured, and the dock
+  // read that as a move: it rose from below. Its layout animation pauses for the two frames
+  // a page change takes to settle.
+  const [layoutPath, setLayoutPath] = useState(pathname);
+  const [routeSettling, setRouteSettling] = useState(false);
+  if (layoutPath !== pathname) {
+    setLayoutPath(pathname);
+    setRouteSettling(true);
+  }
+  useEffect(() => {
+    if (!routeSettling) return;
+    let frameId = requestAnimationFrame(() => {
+      frameId = requestAnimationFrame(() => setRouteSettling(false));
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [routeSettling]);
+
   // --- Drag Controls ---
   // We use dragControls to allow dragging ONLY from the specific Grip icon
   const dragControls = useDragControls();
@@ -598,7 +615,12 @@ export function DockNavigation() {
           <motion.div layoutRoot className={getContainerStyles()} ref={containerRef}>
             <motion.div
               ref={dockRef}
-              layout // Crucial for fluid transition between Dock and Minimap sizes
+              // Fluid changes between dock, minimap and search sizes; off while a new page
+              // settles (see routeSettling).
+              layout={!routeSettling}
+              // A group switch resizes on a short, steady curve, so the new items can wait for
+              // it to end; dragging to another side keeps its own motion.
+              transition={isSwitchingGroup ? { layout: { duration: GROUP_RESIZE_S, ease: [0.4, 0, 0.2, 1] } } : undefined}
               drag={!isSearching && allowDrag && !(showMinimap && isScrolling)}
               dragControls={dragControls}
               dragMomentum={false}
@@ -727,9 +749,9 @@ export function DockNavigation() {
                       isDragging && "pointer-events-none"
                     )}
                   >
-                    {/* The frame takes the dock's size only now that its items are here: measured
-                        empty, it was scaled up to the minimap's width and stretched. */}
-                    <OnMount onMount={() => setFrameMode("dock")} />
+                    {/* The frame takes the dock's size only once its items are here (measured empty,
+                        it stretched), and once a new page has settled its scroll. */}
+                    <OnMount onMount={() => afterFrames(3, () => setFrameMode("dock"))} />
                     {/* DOCK ITEMS RENDER */}
                     <AnimatePresence mode="popLayout" initial={false}>
                       {entries.map((entry) => {
@@ -782,7 +804,7 @@ export function DockNavigation() {
                       key={`grip-${group ?? "root"}`}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: 0.15, delay: GROUP_RESIZE_S }}
                       className={cn("flex items-center", isVertical ? "flex-col" : "flex-row")}
                     >
                       <Separator
@@ -1301,6 +1323,12 @@ function DockIconWrapper({
   );
 }
 
+// Runs `run` a few animation frames from now: after a new page has settled its scroll.
+function afterFrames(count: number, run: () => void) {
+  const tick = () => (--count > 0 ? requestAnimationFrame(tick) : run());
+  requestAnimationFrame(tick);
+}
+
 // Runs once, before paint, when it mounts.
 function OnMount({ onMount }: { onMount: () => void }) {
   const ref = useRef(onMount);
@@ -1309,6 +1337,9 @@ function OnMount({ onMount }: { onMount: () => void }) {
   }, []);
   return null;
 }
+
+// How long the dock takes to resize when a group opens or closes; new items appear after.
+const GROUP_RESIZE_S = 0.25;
 
 const DOCK_ITEM_TRANSITION = { type: "spring", stiffness: 420, damping: 36, mass: 0.8 } as const;
 
@@ -1323,10 +1354,11 @@ const DockItem = React.forwardRef<
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, scale: 0.6, filter: "blur(4px)" }}
+      initial={{ opacity: 0, scale: 0.85, filter: "blur(4px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      exit={{ opacity: 0, scale: 0.6, filter: "blur(4px)", transition: { duration: 0.15 } }}
-      transition={DOCK_ITEM_TRANSITION}
+      // Gone at once: fading out inside the resizing dock showed stretched icons.
+      exit={{ opacity: 0, transition: { duration: 0 } }}
+      transition={{ ...DOCK_ITEM_TRANSITION, delay: GROUP_RESIZE_S }}
       className="relative block"
       onMouseEnter={(e) => onHover(e, index)}
     >
