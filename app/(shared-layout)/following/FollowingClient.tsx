@@ -10,6 +10,8 @@ import { MemberAvatar } from "@/components/web/MemberAvatar";
 import { PostCard } from "@/components/web/PostCard";
 import { SignInPrompt } from "@/components/web/SignInPrompt";
 import { TopicBadge } from "@/components/web/TopicBadge";
+import { FollowButton } from "@/components/web/FollowButton";
+import type { Topic } from "@/convex/topics";
 
 // The member's Following page: new posts from the people and topics they follow.
 export function FollowingClient() {
@@ -42,13 +44,16 @@ export function FollowingClient() {
         {!data ? (
           <Skeleton className="h-10 w-full" />
         ) : data.people.length === 0 ? (
-          <p className="type-meta">
-            You don’t follow anyone yet. Find writers in the{" "}
-            <Link href="/community" className="underline underline-offset-4 text-black dark:text-white">
-              community
-            </Link>
-            .
-          </p>
+          <div className="space-y-4">
+            <p className="type-meta">
+              You don’t follow anyone yet. Some writers on your topics, or find more in the{" "}
+              <Link href="/community" className="underline underline-offset-4 text-black dark:text-white">
+                community
+              </Link>
+              :
+            </p>
+            <SuggestedWriters topics={data.topics} />
+          </div>
         ) : (
           <ul className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
             {data.people.map((person) => (
@@ -95,5 +100,28 @@ export function FollowingClient() {
         )}
       </section>
     </>
+  );
+}
+
+// Three writers who publish most in the member's topics, each with Follow.
+function SuggestedWriters({ topics }: { topics: Topic[] }) {
+  const writers = useQuery(api.follows.suggestedAuthors, { topics });
+  if (!writers) return <Skeleton className="h-10 w-full" />;
+  if (writers.length === 0) return null;
+  return (
+    <ul className="space-y-3">
+      {writers.map((writer) => (
+        <li key={writer.id} className="flex items-center gap-3">
+          <Link href={`/members/${writer.id}`} className="group flex min-w-0 flex-1 items-center gap-3">
+            <MemberAvatar name={writer.name} url={writer.avatarUrl} />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium group-hover:underline underline-offset-4">{writer.name}</span>
+              <span className="block truncate text-xs text-paragraph">Latest: {writer.latest.title}</span>
+            </span>
+          </Link>
+          <FollowButton userId={writer.id} returnTo="/following" />
+        </li>
+      ))}
+    </ul>
   );
 }
