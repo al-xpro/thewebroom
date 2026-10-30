@@ -257,3 +257,55 @@ export const following = query({
     return { topics, people, feed };
   },
 });
+
+// Three writers to follow, for onboarding and an empty Following page: the members who
+// publish most in the given topics (all topics when none), newest first on ties, leaving
+// out the viewer and anyone they already follow.
+export const suggestedAuthors = query({
+  args: { topics: v.array(topicValidator), limit: v.optional(v.number()) },
+  handler: async (ctx, { topics, limit }) => {
+    const user = await authComponent.safeGetAuthUser(ctx).catch(() => null);
+    const followed = user
+      ? new Set(
+          (
+            await ctx.db
+              .query("follows")
+              .withIndex("by_follower", (q) => q.eq("followerId", user._id).eq("targetType", "user"))
+              .collect()
+          ).map((follow) => follow.targetId)
+        )
+      : new Set<string>();
+
+    const posts = (await ctx.db.query("posts").order("desc").take(500)).filter(
+      (post) => isPublished(post) && post.slug && (topics.length === 0 || topics.includes(post.topic))
+    );
+    const authors = new Map<string, { id: string; name: string; posts: number; latest: { slug: string; title: string; at: number } }>();
+    for (const post of posts) {
+      if (post.authorId === user?._id || followed.has(post.authorId)) continue;
+      const at = post.publishAt ?? post._creationTime;
+      const entry = authors.get(post.authorId);
+      if (entry) {
+        entry.posts += 1;
+        if (at > entry.latest.at) entry.latest = { slug: post.slug!, title: post.title, at };
+      } else {
+        authors.set(post.authorId, {
+          id: post.authorId,
+          name: post.authorName || "Member",
+          posts: 1,
+          latest: { slug: post.slug!, title: post.title, at },
+        });
+      }
+    }
+
+    const picked = [...authors.values()]
+      .sort((a, b) => b.posts - a.posts || b.latest.at - a.latest.at)
+      .slice(0, Math.min(6, limit ?? 3));
+    const avatars = await getAvatarUrls(ctx, picked.map((author) => author.id));
+    const result = [];
+    for (const author of picked) {
+      const member = avatars.has(author.id) ? null : await findMember(ctx, author.id);
+      result.push({ ...author, avatarUrl: avatars.get(author.id) ?? member?.image ?? null });
+    }
+    return result;
+  },
+});
