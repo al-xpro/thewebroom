@@ -19,6 +19,7 @@ import { createAgentTokenAction } from "./actions";
 export function AgentTokens() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const tokens = useQuery(api.agents.myTokens, isAuthenticated ? {} : "skip");
+  const nextTokenAt = useQuery(api.agents.nextTokenAt, isAuthenticated ? {} : "skip");
   const revoke = useMutation(api.agents.revokeToken);
   const [name, setName] = useState("");
   const [created, setCreated] = useState<string | null>(null);
@@ -82,11 +83,16 @@ export function AgentTokens() {
           aria-label="Token name"
           className="input-underline flex-1"
         />
-        <Button type="submit" size="sm" disabled={pending}>
+        <Button type="submit" size="sm" disabled={pending || Boolean(nextTokenAt)}>
           {pending && <Loader2 className="size-4 animate-spin" />}
           Create
         </Button>
       </form>
+      {nextTokenAt && !created && (
+        <p className="type-meta text-xs">
+          One new token a day: the next one {formatDistanceToNow(nextTokenAt, { addSuffix: true })}.
+        </p>
+      )}
 
       {created && (
         <div className="space-y-2">

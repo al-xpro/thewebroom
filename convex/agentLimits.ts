@@ -3,6 +3,8 @@
 export const AGENT_LIMITS = {
   // Active tokens per account.
   tokensPerAccount: 3,
+  // A new token at most once a day, counting revoked ones.
+  tokenIntervalHours: 24,
   // A token stops working this long after it was created.
   tokenLifetimeDays: 90,
   // Calls to the MCP server, per token.

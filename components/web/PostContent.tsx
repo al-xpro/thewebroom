@@ -56,7 +56,7 @@ const MANAGERS = ["npm", "pnpm", "yarn", "bun"] as const;
 type Manager = (typeof MANAGERS)[number];
 
 const CMD_RE =
-  /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh|vercel)\b/;
+  /^(npm|pnpm|yarn|npx|bun|bunx|cd|git|rm|mv|touch|mkdir|ls|echo|cat|ls|dlx|node|sudo|cp|grep|curl|wget|chmod|pwd|docker|docker-compose|gh|vercel|claude|export|setx)\b/;
 
 function TerminalLine({ line }: { line: string }) {
   if (line.startsWith("#")) {
@@ -74,7 +74,7 @@ function TerminalLine({ line }: { line: string }) {
   );
 }
 
-interface TerminalData {
+export interface TerminalData {
   activeManager: Manager;
   // Each slot holds the raw text for that tab.
   // Empty string means the user never typed anything there — shown as empty.
@@ -83,9 +83,11 @@ interface TerminalData {
   yarn: string;
   bun: string;
   showHeader: boolean;
+  // A command that isn't a package manager's: the header shows this instead of the tabs.
+  label?: string;
 }
 
-function TerminalBlock({ data }: { data: TerminalData }) {
+export function TerminalBlock({ data }: { data: TerminalData }) {
   const [active, setActive] = useState<Manager>("npm");
   const contents: Record<Manager, string> = {
     npm: data.npm,
@@ -109,22 +111,26 @@ function TerminalBlock({ data }: { data: TerminalData }) {
         <div className="flex items-center justify-between px-3.5 sm:px-4 py-2 border-b border-(--alxpro-terminal-border) bg-(--alxpro-terminal-header) select-none">
           <div className="flex items-center gap-2 sm:gap-3">
             <Terminal className="size-4 text-neutral-500" />
-            <div className="flex gap-1 text-xs font-mono">
-              {MANAGERS.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setActive(m)}
-                  className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer ${
-                    active === m
-                      ? "bg-black text-white dark:bg-white dark:text-black"
-                      : "bg-(--alxpro-ui-hover)"
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
+            {data.label ? (
+              <span className="text-xs font-mono text-(--alxpro-terminal-muted)">{data.label}</span>
+            ) : (
+              <div className="flex gap-1 text-xs font-mono">
+                {MANAGERS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setActive(m)}
+                    className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer ${
+                      active === m
+                        ? "bg-black text-white dark:bg-white dark:text-black"
+                        : "bg-(--alxpro-ui-hover)"
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <CopyButton getText={() => text} />
         </div>
@@ -152,7 +158,7 @@ function getHighlighter() {
   return highlighterPromise;
 }
 
-interface FileData {
+export interface FileData {
   showHeader: boolean;
   filename: string;
   fileIcon: string;
@@ -164,7 +170,7 @@ interface FileData {
 
 // ─── File Code Block ──────────────────────────────────────────────────────────
 
-function FileCodeBlock({ data }: { data: FileData }) {
+export function FileCodeBlock({ data }: { data: FileData }) {
   const [lightHtml, setLightHtml] = useState<string | null>(data.ssrLight ?? null);
   const [darkHtml, setDarkHtml] = useState<string | null>(data.ssrDark ?? null);
 
@@ -175,7 +181,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
 
   const getFileIcon = (lang: string) => <FileIcon lang={lang} />;
 
-  const languages = ["ts", "tsx", "js", "jsx"];
+  const languages = ["ts", "tsx", "js", "jsx", "json"];
 
   useEffect(() => {
     if (data.ssrLight && data.ssrDark) return;
