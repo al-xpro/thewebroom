@@ -29,6 +29,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
+import { ReportButton } from "@/components/web/ReportButton";
 
 const COMMENT_MAX = 300;
 
@@ -254,6 +255,7 @@ function CommentRow({
                   <Reply className="size-4" />
                 </Button>
               )}
+              <ReportButton targetType="comment" targetId={comment._id} authorId={comment.authorId} />
               {canEdit && (
                 <>
                   <Button

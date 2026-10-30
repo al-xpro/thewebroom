@@ -51,6 +51,27 @@ export default defineSchema({
     followCount: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
 
+  // Reports from members on posts and comments; an admin resolves them.
+  reports: defineTable({
+    reporterId: v.string(),
+    targetType: v.union(v.literal("post"), v.literal("comment")),
+    targetId: v.string(),
+    reason: v.union(
+      v.literal("spam"),
+      v.literal("harassment"),
+      v.literal("plagiarism"),
+      v.literal("off-topic"),
+      v.literal("other")
+    ),
+    status: v.union(v.literal("open"), v.literal("resolved"), v.literal("dismissed")),
+    createdAt: v.number(),
+    resolvedBy: v.optional(v.string()),
+    resolvedAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status"])
+    .index("by_target", ["targetType", "targetId"])
+    .index("by_reporter", ["reporterId", "createdAt"]),
+
   // Newsletter sign-ups: one row per address.
   newsletterSubscribers: defineTable({
     email: v.string(),

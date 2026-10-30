@@ -1,62 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { reports } from "../data";
 
-const REASONS = ["Spam", "Harassment", "Plagiarism", "Off-topic", "Something else"];
-
-// A reader reports in two taps; the agent sorts the queue; a person decides.
+// The admin's queue, sorted by an agent: it labels each report and says why; a person decides.
 export default function ModerationConcept() {
-  const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
   const [decided, setDecided] = useState<Record<number, string>>({});
 
   return (
     <>
-      <h1 className="type-display py-10">Moderation</h1>
-
-      <section className="section-minimal">
-        <h2 className="type-label">Reader</h2>
-        <div className="flex items-start justify-between gap-4">
-          <p className="type-body">“Buy cheap followers here → link.example”</p>
-          <Button variant="ghost" size="sm" onClick={() => { setOpen(true); setSent(false); setReason(null); }}>
-            <Flag className="size-4" /> Report
-          </Button>
-        </div>
-        {open && (
-          <div className="space-y-4 rounded-2xl border p-5">
-            {sent ? (
-              <p className="type-meta">Thanks. A person will look at it.</p>
-            ) : (
-              <>
-                <p className="type-heading">What’s wrong?</p>
-                <div className="flex flex-wrap gap-2">
-                  {REASONS.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setReason(r)}
-                      aria-pressed={reason === r}
-                      className={`rounded-full px-3 py-1.5 text-sm cursor-pointer ${
-                        reason === r ? "bg-black text-white dark:bg-white dark:text-black" : "bg-black/5 dark:bg-white/10"
-                      }`}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button size="sm" disabled={!reason} onClick={() => setSent(true)}>Send</Button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </section>
+      <div className="space-y-2 py-10">
+        <h1 className="type-display">Agent moderation</h1>
+        <p className="type-body">Admin only. Members already flag posts and comments; the agent sorts what comes in.</p>
+      </div>
 
       <section className="section-minimal">
         <div className="flex items-baseline justify-between">

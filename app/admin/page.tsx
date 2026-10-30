@@ -17,7 +17,7 @@ import Footer from "@/components/web/Footer";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const WEEKS = 12;
-type Tab = "overview" | "posts" | "members";
+type Tab = "overview" | "reports" | "posts" | "members";
 
 interface Confirm {
   title: string;
@@ -46,10 +46,13 @@ export default function AdminPage() {
   const isAdmin = useQuery(api.auth.getIsAdmin, isAuthenticated ? {} : "skip");
   const posts = useQuery(api.posts.getAllPostsForAdmin, isAdmin ? {} : "skip");
   const users = useQuery(api.auth.listUsersForAdmin, isAdmin ? {} : "skip");
+  const reports = useQuery(api.reports.listOpenReports, isAdmin ? {} : "skip");
 
   const deletePost = useMutation(api.posts.deletePost);
   const updatePost = useMutation(api.posts.updatePost);
   const banUserByAdmin = useMutation(api.auth.banUserByAdmin);
+  const deleteComment = useMutation(api.comment.deleteComment);
+  const closeReports = useMutation(api.reports.closeReports);
 
   const [tab, setTab] = useState<Tab>("overview");
   const [query, setQuery] = useState("");
@@ -109,6 +112,7 @@ export default function AdminPage() {
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "overview", label: "Overview" },
+    { key: "reports", label: "Reports", count: reports?.length },
     { key: "posts", label: "Posts", count: posts.length },
     { key: "members", label: "Members", count: users.length },
   ];
@@ -210,7 +214,96 @@ export default function AdminPage() {
           </>
         )}
 
-        {tab !== "overview" && (
+        {tab === "reports" && (
+          <ul className="relative divider-fade-top">
+            {(reports ?? []).map((item) => {
+              const close = (outcome: "resolved" | "dismissed") =>
+                closeReports({ targetType: item.targetType, targetId: item.targetId, outcome });
+              return (
+                <li key={`${item.targetType}:${item.targetId}`} className="relative divider-dashed-fade-bottom space-y-2 py-5">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <p className="type-heading text-base truncate">{item.title}</p>
+                    <span className="type-meta shrink-0 text-xs tabular-nums">
+                      {item.count} {item.count === 1 ? "report" : "reports"}
+                    </span>
+                  </div>
+                  {item.excerpt && <p className="type-body text-sm line-clamp-2">“{item.excerpt}”</p>}
+                  <p className="type-meta text-xs">
+                    {item.author} · {item.reasons.join(", ")}
+                  </p>
+                  <div className="-ml-3 flex items-center">
+                    {item.slug && (
+                      <Link
+                        href={`/posts/${item.slug}`}
+                        className="px-3 py-1 text-sm text-[#666666] hover:text-black dark:text-[#A0A0A0] dark:hover:text-white"
+                      >
+                        View
+                      </Link>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setConfirm({
+                          title: "Dismiss these reports?",
+                          body: "The item stays as it is.",
+                          action: "Dismiss",
+                          done: "Reports dismissed",
+                          run: () => close("dismissed"),
+                        })
+                      }
+                    >
+                      Dismiss
+                    </Button>
+                    {item.targetType === "post" && item.status !== "hidden" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setConfirm({
+                            title: "Hide this post?",
+                            body: `"${item.title}". The author gets an e-mail.`,
+                            action: "Hide",
+                            done: "Post hidden",
+                            run: async () => {
+                              await updatePost({ postId: item.targetId as Id<"posts">, status: "hidden" });
+                              await close("resolved");
+                            },
+                          })
+                        }
+                      >
+                        Hide
+                      </Button>
+                    )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        setConfirm({
+                          title: item.targetType === "post" ? "Delete this post?" : "Delete this comment?",
+                          body: "It is deleted for good.",
+                          action: "Delete",
+                          destructive: true,
+                          done: "Deleted",
+                          run: async () => {
+                            await close("resolved");
+                            if (item.targetType === "post") await deletePost({ postId: item.targetId as Id<"posts"> });
+                            else await deleteComment({ commentId: item.targetId as Id<"comments"> });
+                          },
+                        })
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+            {reports && reports.length === 0 && <li className="type-meta py-10 text-center">No open reports.</li>}
+          </ul>
+        )}
+
+        {(tab === "posts" || tab === "members") && (
           <div className="relative divider-fade-top flex flex-wrap items-center gap-4 py-6">
             <Input
               placeholder={tab === "posts" ? "Search title or author" : "Search name or email"}

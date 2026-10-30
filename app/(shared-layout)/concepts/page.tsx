@@ -6,7 +6,7 @@ const concepts = [
   { href: "/concepts/notifications", title: "Notifications", text: "Only what involves you." },
   { href: "/concepts/community", title: "Community", text: "Who writes here and what’s happening." },
   { href: "/concepts/mcp", title: "MCP server", text: "Draft from your own agent." },
-  { href: "/concepts/moderation", title: "Report and moderation", text: "The agent sorts, a person decides." },
+  { href: "/concepts/moderation", title: "Agent moderation", text: "For admins: the agent sorts, a person decides." },
   { href: "/concepts/assistant", title: "Agentic toolbar", text: "Help on what you select, review before publishing." },
 ];
 

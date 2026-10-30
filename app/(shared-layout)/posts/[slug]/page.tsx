@@ -17,6 +17,7 @@ import { injectShikiIntoHtml } from "@/lib/highlight-post";
 import { escapeHtml, sanitizePostHtml } from "@/lib/sanitize-server";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TopicBadge } from "@/components/web/TopicBadge";
+import { ReportButton } from "@/components/web/ReportButton";
 
 interface PostSlugRouteProps {
   params: Promise<{ slug: string }>;
@@ -141,7 +142,10 @@ async function PostBody({ params }: PostSlugRouteProps) {
             <ClockFading className="size-4 sm:size-5" />
             <p>{post.minRead} min</p>
           </div>
-          <CopyPostButton />
+          <div className="flex items-center gap-1">
+            <CopyPostButton />
+            <ReportButton targetType="post" targetId={post._id} authorId={post.authorId} />
+          </div>
         </div>
       </header>
 
