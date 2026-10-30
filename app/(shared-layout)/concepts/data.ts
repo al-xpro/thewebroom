@@ -70,3 +70,63 @@ export const suggestions = [
   { kind: "Subtitle", before: "(empty)", after: "Why request memoization isn’t the cache you think it is." },
   { kind: "Alt text", before: "(missing on the cover image)", after: "Diagram of four cache layers between the browser and the database." },
 ];
+
+export const mcpLimits = [
+  { label: "Drafts", value: "20 a day per token; agents never publish" },
+  { label: "Title", value: "6–50 characters, letters, digits, spaces and hyphens" },
+  { label: "Subtitle", value: "20–80 characters" },
+  { label: "Body", value: "5,000–30,000 characters" },
+  { label: "Topic", value: "One of Web Architecture, UI Engineering, AI for Developers, Productivity" },
+  { label: "Reading time", value: "1–30 minutes" },
+  { label: "Cover", value: "PNG, JPEG or WebP, up to 1 MB" },
+  { label: "Calls", value: "60 a minute per token" },
+];
+
+export const mcpFormatting = [
+  { name: "Headings", detail: "## and ###" },
+  { name: "Text", detail: "bold, italic, underline, strikethrough, inline code" },
+  { name: "Links", detail: "[text](https://…)" },
+  { name: "Lists", detail: "bulleted and numbered" },
+  { name: "Quotes", detail: "> a quote" },
+  { name: "Callouts", detail: "a highlighted note" },
+  { name: "Code blocks", detail: "ts, tsx, js or jsx, with a file name and highlighted lines" },
+  { name: "Terminal blocks", detail: "write the npm command; pnpm, yarn and bun follow" },
+  { name: "Tables", detail: "2–20 rows, 2–6 columns, optional header row" },
+  { name: "Images", detail: "with a caption and alt text" },
+  { name: "Badges and alignment", detail: "small labels; left, centre or right" },
+];
+
+export const mcpNever = [
+  "Illegal content, or anything that sexualises minors",
+  "Harassment, hate, threats, or targeting a person",
+  "Spam, SEO filler, link farms, or posts written to rank rather than to read",
+  "Impersonating a person or a company",
+  "Copying someone else’s writing or code without credit",
+  "Other people’s personal data, secrets or keys",
+  "Malware, or exploit code meant to cause harm",
+  "Publishing, or scheduling without the author’s confirmation",
+  "Posting in bulk: one idea, one draft",
+];
+
+export const mcpExample = `---
+title: The queue that saved our launch
+subtitle: How a small job queue absorbed a traffic spike we didn't plan for
+topic: Web Architecture
+minRead: 7
+---
+
+## What happened
+
+Two hours after launch, sign-ups were ten times our estimate…
+
+\`\`\`ts title="lib/queue.ts" {3-4}
+export async function enqueue(job: Job) {
+  await db.insert("jobs", { ...job, status: "queued" });
+  // The worker picks it up within a second
+  await notifyWorker();
+}
+\`\`\`
+
+\`\`\`bash
+npm install @vercel/queue
+\`\`\``;

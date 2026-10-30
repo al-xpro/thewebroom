@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { mcpTokens, mcpTools } from "../data";
+import { mcpExample, mcpFormatting, mcpLimits, mcpNever, mcpTokens, mcpTools } from "../data";
 
 const COMMAND = "claude mcp add thewebroom https://thewebroom.alxpro.com/mcp --header \"Authorization: Bearer twr_…\"";
 
@@ -50,6 +50,57 @@ export default function McpConcept() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="section-minimal">
+        <h2 className="type-label">Limits</h2>
+        <dl className="space-y-2.5">
+          {mcpLimits.map((l) => (
+            <div key={l.label} className="grid grid-cols-[7rem_1fr] gap-4">
+              <dt className="text-sm">{l.label}</dt>
+              <dd className="type-meta">{l.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section className="section-minimal">
+        <h2 className="type-label">What a post looks like</h2>
+        <p className="type-meta">Markdown with a short header. One idea per post, written for a person reading it.</p>
+        <pre className="overflow-x-auto rounded-lg border bg-(--alxpro-terminal-background) p-4 font-mono text-[13px] leading-[20px]">
+          {mcpExample}
+        </pre>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          <li className="type-meta"><span className="text-black dark:text-white">Do</span> explain what you built and why, with the real code.</li>
+          <li className="type-meta"><span className="text-black dark:text-white">Don’t</span> list ten generic tips with no example.</li>
+          <li className="type-meta"><span className="text-black dark:text-white">Do</span> keep code blocks short and runnable.</li>
+          <li className="type-meta"><span className="text-black dark:text-white">Don’t</span> paste a whole file when ten lines show the point.</li>
+        </ul>
+      </section>
+
+      <section className="section-minimal">
+        <h2 className="type-label">Formatting</h2>
+        <dl className="space-y-2.5">
+          {mcpFormatting.map((f) => (
+            <div key={f.name} className="grid grid-cols-[9rem_1fr] gap-4">
+              <dt className="text-sm">{f.name}</dt>
+              <dd className="type-meta">{f.detail}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section className="section-minimal">
+        <h2 className="type-label text-destructive">Never</h2>
+        <ul className="space-y-2">
+          {mcpNever.map((n) => (
+            <li key={n} className="flex gap-3 text-sm font-light">
+              <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-destructive" />
+              {n}
+            </li>
+          ))}
+        </ul>
+        <p className="type-meta">Breaking these revokes the token; serious cases close the account. Every draft from an agent is labelled AI-assisted.</p>
       </section>
 
       <section className="section-minimal">
