@@ -13,11 +13,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { HorizontalBars, StatusSplit, WeeklyColumns } from "@/components/web/admin/charts";
 import { TOPICS } from "@/convex/topics";
+import { computeMetrics } from "@/lib/metrics";
 import Footer from "@/components/web/Footer";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const WEEKS = 12;
-type Tab = "overview" | "reports" | "posts" | "members";
+type Tab = "overview" | "metrics" | "reports" | "posts" | "members";
 
 interface Confirm {
   title: string;
@@ -55,6 +56,7 @@ export default function AdminPage() {
   const closeReports = useMutation(api.reports.closeReports);
 
   const [tab, setTab] = useState<Tab>("overview");
+  const activity = useQuery(api.metrics.activity, isAdmin && tab === "metrics" ? {} : "skip");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [confirm, setConfirm] = useState<Confirm | null>(null);
@@ -81,6 +83,11 @@ export default function AdminPage() {
       topics: TOPICS.map((topic) => ({ label: topic, value: posts.filter((p) => p.topic === topic).length })),
     };
   }, [posts, users, now]);
+
+  const metrics =
+    activity && users && now !== null
+      ? computeMetrics(users.map((u) => ({ id: u._id, createdAt: u.createdAt })), activity, now)
+      : null;
 
   if (!authLoading && !isAuthenticated) notFound();
   if (isAdmin !== undefined && !isAdmin) notFound();
@@ -112,6 +119,7 @@ export default function AdminPage() {
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "overview", label: "Overview" },
+    { key: "metrics", label: "Metrics" },
     { key: "reports", label: "Reports", count: reports?.length },
     { key: "posts", label: "Posts", count: posts.length },
     { key: "members", label: "Members", count: users.length },
@@ -212,6 +220,10 @@ export default function AdminPage() {
               />
             </section>
           </>
+        )}
+
+        {tab === "metrics" && (
+          <MetricsTab metrics={metrics} />
         )}
 
         {tab === "reports" && (
@@ -449,6 +461,80 @@ export default function AdminPage() {
 
         <Footer />
       </div>
+    </>
+  );
+}
+
+const percent = (value: number | null) => (value === null ? "—" : `${Math.round(value * 100)}%`);
+
+// Retention, active members and output for the case study, from Convex data. Traffic and
+// Web Vitals are in Vercel Analytics; errors in Sentry.
+function MetricsTab({ metrics }: { metrics: ReturnType<typeof computeMetrics> | null }) {
+  if (!metrics) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="size-5 animate-spin text-paragraph" />
+      </div>
+    );
+  }
+  return (
+    <>
+      <dl className="relative divider-fade-top py-8 grid grid-cols-2 sm:grid-cols-4 gap-6">
+        {[
+          { label: "Active this week", value: String(metrics.activeThisWeek), hint: "Wrote, commented or followed" },
+          { label: "Posts a week", value: metrics.postsPerWeekAverage.toFixed(1), hint: "Average of the last 4 weeks" },
+          { label: "Week-1 retention", value: percent(metrics.retentionWeek1), hint: "Active the week after joining" },
+          { label: "Week-4 retention", value: percent(metrics.retentionWeek4), hint: "Active in their 4th week" },
+        ].map(({ label, value, hint }) => (
+          <div key={label} className="space-y-1">
+            <dt className="type-label">{label}</dt>
+            <dd className="type-title tabular-nums">{value}</dd>
+            <dd className="type-meta text-xs">{hint}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <section className="relative divider-fade-top py-8 grid gap-10 sm:grid-cols-2">
+        <WeeklyColumns title="Active members a week" data={metrics.activePerWeek} />
+        <WeeklyColumns title="Comments a week" data={metrics.commentsPerWeek} />
+      </section>
+
+      <section className="relative divider-fade-top py-8 space-y-4">
+        <h2 className="type-label">Retention by week joined</h2>
+        {metrics.cohorts.length === 0 ? (
+          <p className="type-meta">No sign-ups in the last 12 weeks.</p>
+        ) : (
+          <div className="post-content">
+            <table>
+              <tbody>
+                <tr>
+                  <th>Joined</th>
+                  <th>Members</th>
+                  <th>Week 1</th>
+                  <th>Week 2</th>
+                  <th>Week 3</th>
+                  <th>Week 4</th>
+                </tr>
+                {metrics.cohorts.map((cohort) => (
+                  <tr key={cohort.label}>
+                    <td>{cohort.label}</td>
+                    <td className="tabular-nums">{cohort.size}</td>
+                    {cohort.weeks.map((share, i) => (
+                      <td key={i} className="tabular-nums">
+                        {percent(share)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="type-meta text-xs">
+          Active means wrote a post or draft, commented or followed someone or a topic. Page views, visitors and Web
+          Vitals are in Vercel Analytics; errors in Sentry.
+        </p>
+      </section>
     </>
   );
 }

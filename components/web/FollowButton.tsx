@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@/lib/analytics";
 import { useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
@@ -29,6 +30,7 @@ export function FollowButton({ userId, returnTo }: { userId: string; returnTo: s
     setPending(true);
     try {
       await (following ? unfollow({ userId }) : follow({ userId }));
+      if (!following) trackEvent("follow", { target: "member" });
     } catch (error) {
       showErrorToast(error instanceof ConvexError && typeof error.data === "string" ? error.data : "Couldn't update the follow");
     } finally {

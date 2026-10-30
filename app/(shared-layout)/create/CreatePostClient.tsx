@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@/lib/analytics";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { postSchema } from "@/app/schemas/blog";
@@ -254,9 +255,11 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
 
       if (status === "draft") {
         showSuccessToast("Draft saved successfully!");
+        trackEvent("draft_saved");
         router.push("/my-posts");
       } else {
         showSuccessToast("Post published successfully!");
+        trackEvent("post_published", { topic: values.topic, aiAssisted });
         router.push(`/posts/${slug}`);
       }
     } catch (error) {

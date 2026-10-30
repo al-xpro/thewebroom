@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ConvexClientProvider } from "@/components/web/ConvexClientProvider";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import RequireCompleteProfile from "@/components/web/RequireCompleteProfile";
 import { Toaster } from "sonner";
 
@@ -52,6 +54,9 @@ export default function RootLayout({
           </main>
           <Toaster closeButton />
         </ThemeProvider>
+        {/* Page views and Web Vitals on Vercel: cookieless, no personal data. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
