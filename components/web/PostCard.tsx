@@ -16,7 +16,7 @@ interface PostCardProps {
 export function PostCard({ post }: PostCardProps) {
   return (
     <Link href={`/posts/${post.slug}`} className="group block outline-none">
-      <div className="relative flex flex-col sm:flex-row items-start sm:items-center border-b border-dashed py-4 gap-3 md:gap-12">
+      <div className="relative flex flex-col sm:flex-row items-start sm:items-center divider-dashed-fade-bottom py-4 gap-3 md:gap-12">
         <div
           aria-hidden
           className="pointer-events-none hidden absolute left-2 top-8 md:flex items-center justify-center opacity-0

@@ -121,7 +121,7 @@ export function buildEmailVerificationEmail(params: {
     ${p("Hi there,")}
     ${p("Thank you for creating an account on The Web Room. To complete your account setup, please verify your email address by clicking the button below.")}
     <div style="text-align:center;">${btn(params.verificationLink, "Verify Email")}</div>
-    ${p("This link expires in 15 minutes. If you didn't create this account, you can safely ignore this email.")}
+    ${p("This link expires in 1 hour. If you didn't create this account, you can safely ignore this email.")}
     ${p("Best,<br/>The Web Room team")}`;
 
   return {
@@ -135,7 +135,7 @@ export function buildEmailVerificationEmail(params: {
       "",
       `Verification link: ${params.verificationLink}`,
       "",
-      "This link expires in 15 minutes.",
+      "This link expires in 1 hour.",
       "",
       "If you didn't create this account, you can safely ignore this email.",
       "",

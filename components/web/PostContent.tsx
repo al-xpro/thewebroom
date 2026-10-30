@@ -23,7 +23,7 @@ function CopyButton({ getText }: { getText: () => string }) {
       type="button"
       onClick={handle}
       aria-label="copy button"
-      className="p-2 rounded-md transition cursor-pointer hover:bg-[#EAEAEA] dark:hover:bg-[#1E1E1E]"
+      className="p-2 rounded-md transition cursor-pointer hover:bg-(--alxpro-ui-hover)"
     >
       <AnimatePresence mode="wait">
         {copied ? (
@@ -34,7 +34,7 @@ function CopyButton({ getText }: { getText: () => string }) {
             exit={{ scale: 0.1 }}
             transition={{ duration: 0.25 }}
           >
-            <Check className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+            <Check className="size-4 text-(--alxpro-terminal-muted)" />
           </motion.div>
         ) : (
           <motion.div
@@ -44,7 +44,7 @@ function CopyButton({ getText }: { getText: () => string }) {
             exit={{ scale: 0.1 }}
             transition={{ duration: 0.25 }}
           >
-            <Copy className="size-4 text-[#666666] dark:text-[#A0A0A0]" />
+            <Copy className="size-4 text-(--alxpro-terminal-muted)" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -62,16 +62,16 @@ const CMD_RE =
 
 function TerminalLine({ line }: { line: string }) {
   if (line.startsWith("#")) {
-    return <div className="text-[#A0A0A0] dark:text-[#666666]">{line || <br />}</div>;
+    return <div className="text-(--alxpro-syntax-comment)">{line || <br />}</div>;
   }
   const match = line.match(CMD_RE);
-  if (!match) return <div className="text-[#397C3B] dark:text-[#58C760]">{line || <br />}</div>;
+  if (!match) return <div className="text-(--alxpro-syntax-argument)">{line || <br />}</div>;
   const prefix = match[0];
   const rest = line.slice(prefix.length);
   return (
     <div>
-      <span className="text-[#7200C4] dark:text-[#B675F1]">{prefix}</span>
-      <span className="text-[#397C3B] dark:text-[#58C760]">{rest}</span>
+      <span className="text-(--alxpro-syntax-command)">{prefix}</span>
+      <span className="text-(--alxpro-syntax-argument)">{rest}</span>
     </div>
   );
 }
@@ -99,16 +99,16 @@ function TerminalBlock({ data }: { data: TerminalData }) {
   const lines = text ? text.split("\n") : [];
 
   return (
-    <div className="relative group rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <div className="relative group rounded-lg max-w-full mx-auto overflow-hidden border border-(--alxpro-terminal-border)">
       {/* Sticky copy button — outside scroll container, only when no header */}
       {!data.showHeader && (
-        <div className="absolute top-[9px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black border border-[#EAEAEA] dark:border-[#2E2E2E]">
+        <div className="absolute top-[9px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-(--alxpro-terminal-header) border border-(--alxpro-terminal-border)">
           <CopyButton getText={() => text} />
         </div>
       )}
 
       {data.showHeader && (
-        <div className="flex items-center justify-between px-3.5 sm:px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black select-none">
+        <div className="flex items-center justify-between px-3.5 sm:px-4 py-2 border-b border-(--alxpro-terminal-border) bg-(--alxpro-terminal-header) select-none">
           <div className="flex items-center gap-2 sm:gap-3">
             <Terminal className="size-4 text-neutral-500" />
             <div className="flex gap-1 text-xs font-mono">
@@ -120,7 +120,7 @@ function TerminalBlock({ data }: { data: TerminalData }) {
                   className={`px-1 sm:px-2 py-0.5 rounded transition cursor-pointer ${
                     active === m
                       ? "bg-black text-white dark:bg-white dark:text-black"
-                      : "dark:bg-[#181818] bg-[#E8E8E8]"
+                      : "bg-(--alxpro-ui-hover)"
                   }`}
                 >
                   {m}
@@ -132,7 +132,7 @@ function TerminalBlock({ data }: { data: TerminalData }) {
         </div>
       )}
 
-      <div className="bg-white dark:bg-[#0A0A0A] w-full p-4 font-mono text-[13px] leading-[20px] overflow-x-auto">
+      <div className="bg-(--alxpro-terminal-background) w-full p-4 font-mono text-[13px] leading-[20px] overflow-x-auto">
         <div className="whitespace-pre min-w-max">
           {lines.length > 0 ? (
             lines.map((line, i) => <TerminalLine key={i} line={line} />)
@@ -148,7 +148,7 @@ function TerminalBlock({ data }: { data: TerminalData }) {
 // ─── File Code Block ──────────────────────────────────────────────────────────
 
 // Reuse the exact same highlighter instance the editor already set up.
-// This guarantees vercel-light / vercel-dark are registered and avoids
+// This guarantees alxpro-light / alxpro-dark are registered and avoids
 // a second download of the shiki bundle.
 function getHighlighter() {
   return highlighterPromise;
@@ -202,12 +202,12 @@ function FileCodeBlock({ data }: { data: FileData }) {
         const opts = { defaultColor: false } as const;
         const light = hl.codeToHtml(data.code, {
           lang: languages.includes(data.fileIcon) ? data.fileIcon : "text",
-          themes: { light: "vercel-light", dark: "vercel-dark" },
+          themes: { light: "alxpro-light", dark: "alxpro-dark" },
           ...opts,
         });
         const dark = hl.codeToHtml(data.code, {
           lang: languages.includes(data.fileIcon) ? data.fileIcon : "text",
-          themes: { light: "vercel-light", dark: "vercel-dark" },
+          themes: { light: "alxpro-light", dark: "alxpro-dark" },
           ...opts,
         });
         if (active) {
@@ -232,16 +232,16 @@ function FileCodeBlock({ data }: { data: FileData }) {
   );
 
   return (
-    <div className="relative group rounded-lg max-w-full mx-auto overflow-hidden border border-[#EAEAEA] dark:border-[#1E1E1E]">
+    <div className="relative group rounded-lg max-w-full mx-auto overflow-hidden border border-(--alxpro-terminal-border)">
       {!data.showHeader && (
-        <div className="absolute top-[13px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-[#FAFAFA] dark:bg-black border border-[#EAEAEA] dark:border-[#2E2E2E]">
+        <div className="absolute top-[13px] right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-[10px] bg-(--alxpro-terminal-header) border border-(--alxpro-terminal-border)">
           <CopyButton getText={() => data.code} />
         </div>
       )}
 
       {/* Header */}
       {data.showHeader && (
-        <div className="flex items-center justify-between px-4 py-2 border-b border-[#EAEAEA] dark:border-[#1E1E1E] bg-[#FAFAFA] dark:bg-black">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-(--alxpro-terminal-border) bg-(--alxpro-terminal-header)">
           <div className="flex items-center gap-2 min-w-0">
             <span className="shrink-0 text-paragraph">{getFileIcon(data.fileIcon)}</span>
             <span className={`${commonFont} text-paragraph truncate text-xs font-sans`}>
@@ -253,7 +253,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
       )}
 
       {/* Body */}
-      <div className="relative flex w-full overflow-x-auto bg-white dark:bg-[#0A0A0A] focus:outline-none! focus-visible:outline-none! focus:ring-0! focus-visible:ring-0!">
+      <div className="relative flex w-full overflow-x-auto bg-(--alxpro-terminal-background) focus:outline-none! focus-visible:outline-none! focus:ring-0! focus-visible:ring-0!">
         {/* Line numbers */}
         <div className={`hidden sm:flex flex-col pt-5 pb-5 shrink-0 select-none ${commonFont}`}>
           {lines.map((_: string, i: number) => {
@@ -263,7 +263,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
                 key={i}
                 className={`pl-4 pr-3 text-right border-l-2 ${
                   hl
-                    ? "border-[#0068D6] bg-[#EAF5FF] dark:border-[#52A8FF] dark:bg-[#0F233D] text-[#666666] dark:text-[#A0A0A0]"
+                    ? "border-(--alxpro-ui-accent) bg-(--alxpro-ui-line-highlight) text-(--alxpro-terminal-muted)"
                     : "border-transparent text-paragraph"
                 }`}
               >
@@ -282,7 +282,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
               return (
                 <div
                   key={i}
-                  className={`w-full min-h-[20px] ${hl ? "bg-[#EAF5FF] dark:bg-[#0F233D] border-l-2 border-[#0068D6] dark:border-[#52A8FF] sm:border-none" : ""}`}
+                  className={`w-full min-h-[20px] ${hl ? "bg-(--alxpro-ui-line-highlight) border-l-2 border-(--alxpro-ui-accent) sm:border-none" : ""}`}
                 />
               );
             })}

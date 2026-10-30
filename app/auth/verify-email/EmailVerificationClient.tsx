@@ -1,220 +1,168 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
-import { Mail, CheckCircle, Loader2, ArrowLeft } from "lucide-react";
+import { Mail, CheckCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+
+const RESEND_COOLDOWN_SECONDS = 30;
+const MAX_RESENDS = 2;
+
+// better-auth redirects here with `?error=<code>` when a verification link fails.
+const LINK_ERRORS: Record<string, string> = {
+  TOKEN_EXPIRED: "This verification link has expired.",
+  INVALID_TOKEN: "This verification link isn't valid.",
+  USER_NOT_FOUND: "No account matches this verification link.",
+};
 
 export default function EmailVerificationClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const user = useQuery(api.auth.getCurrentUser);
 
   const [isResending, setIsResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [resendCount, setResendCount] = useState(0);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [tokenError, setTokenError] = useState<string | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
 
-  const token = searchParams.get("token");
+  const verified = searchParams.get("verified") === "1";
   const error = searchParams.get("error");
-  const emailParam = searchParams.get("email");
+  const email = searchParams.get("email");
+  // Links sent before #65 carry `?token=` and point at the old verification flow.
+  const legacyToken = searchParams.get("token");
 
-  const sendVerificationMutation = useMutation(api.auth.sendVerificationEmail);
-  const verifyEmailMutation = useMutation(api.auth.verifyEmail);
-  const verifiedRef = useRef<string | null>(null);
+  const hasState = verified || error || email || legacyToken;
 
-  // Guard: block direct URL access — page is only valid with a token (email
-  // link click) or an email param (just redirected from signup).
-  // If neither is present, the user typed the URL manually → send to sign-up.
+  // Without a link or an address there's nothing to show: send people to sign-up.
   useEffect(() => {
-    if (token || emailParam || error) return;
-    // Wait one tick so searchParams hydrate before redirecting
-    const id = setTimeout(() => {
-      router.replace("/auth/sign-up");
-    }, 0);
+    if (hasState) return;
+    const id = setTimeout(() => router.replace("/auth/sign-up"), 0);
     return () => clearTimeout(id);
-  }, [token, emailParam, error, router]);
+  }, [hasState, router]);
 
-  // Cooldown countdown
+  // The link signed the member in; post-auth sends them to onboarding (or home).
+  useEffect(() => {
+    if (!verified || error) return;
+    const id = setTimeout(() => router.replace("/onboarding/post-auth"), 1000);
+    return () => clearTimeout(id);
+  }, [verified, error, router]);
+
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [cooldown]);
 
-  // Handle token in URL — fires once per unique token, never loops
-  useEffect(() => {
-    if (!token || error) return;
-    if (verifiedRef.current === token) return;
-
-    verifiedRef.current = token;
-    setIsVerifying(true);
-
-    verifyEmailMutation({ token })
-      .then((result) => {
-        if (result.verified || result.already) {
-          setShowSuccess(true);
-          setTimeout(() => {
-            router.push("/auth/login?verified=1");
-          }, 1000);
-        }
-      })
-      .catch((err) => {
-        const msg = err instanceof Error ? err.message : "Verification failed";
-        setTokenError(msg);
-        showErrorToast(msg);
-      })
-      .finally(() => {
-        setIsVerifying(false);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, error]);
-
-  // If user is already verified and onboarded, send them home
-  useEffect(() => {
-    if (!user || token) return;
-    if (user.emailVerified && user.onboardingCompleted) {
-      router.replace("/");
-    } else if (user.emailVerified) {
-      router.replace("/onboarding/complete-profile?force=1");
-    }
-  }, [user, token, router]);
-
-  const displayEmail = user?.email ?? emailParam ?? "your email";
-
   const handleResendEmail = async () => {
-    if (resendCount >= 2) {
-      showErrorToast("Maximum resend attempts reached. Please check your spam folder.");
-      return;
-    }
-
-    const email = user?.email ?? emailParam;
-    if (!email) {
-      showErrorToast("Email address not found. Please sign up again.");
-      return;
-    }
+    if (!email || resendCount >= MAX_RESENDS) return;
 
     setIsResending(true);
-    try {
-      const result = await sendVerificationMutation({ email });
-      if (result.sent) {
-        setResendCount((c) => c + 1);
-        setCooldown(30);
-        showSuccessToast("Verification email sent!");
-      } else {
-        showErrorToast("Failed to send verification email. Please try again.");
-      }
-    } catch (err) {
-      showErrorToast(err instanceof Error ? err.message : "Failed to resend verification email");
-    } finally {
-      setIsResending(false);
+    const { error: resendError } = await authClient.sendVerificationEmail({
+      email,
+      callbackURL: `/auth/verify-email?verified=1&email=${encodeURIComponent(email)}`,
+    });
+    setIsResending(false);
+
+    if (resendError) {
+      showErrorToast(resendError.message || "Failed to send the verification e-mail.");
+      return;
     }
+    setResendCount((c) => c + 1);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+    showSuccessToast("Verification e-mail sent!");
   };
 
-  // Don't render anything while the guard redirect is pending
-  if (!token && !emailParam && !error) {
-    return null;
-  }
+  const resendButton = email && (
+    <Button
+      onClick={handleResendEmail}
+      disabled={isResending || cooldown > 0 || resendCount >= MAX_RESENDS}
+      variant="outline"
+      className="w-full"
+    >
+      {isResending
+        ? "Sending..."
+        : cooldown > 0
+          ? `Resend in ${cooldown}s`
+          : resendCount >= MAX_RESENDS
+            ? "Max resends reached"
+            : `Resend e-mail${resendCount > 0 ? ` (${resendCount}/${MAX_RESENDS})` : ""}`}
+    </Button>
+  );
 
-  if (isVerifying) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4">
-        <Loader2 className="size-8 animate-spin text-primary" />
-        <p className="text-sm text-paragraph">Verifying your email...</p>
-      </div>
-    );
-  }
+  const backToSignUp = (
+    <Link href="/auth/sign-up">
+      <Button variant="outline" size="sm" className="flex items-center gap-1">
+        <ArrowLeft className="h-4 w-4" /> Sign up
+      </Button>
+    </Link>
+  );
 
-  if (showSuccess) {
+  if (!hasState) return null;
+
+  if (verified && !error) {
     return (
       <div className="relative flex flex-col w-full h-full items-center justify-center gap-8">
-        <Link href="/auth/sign-up">
-          <Button variant="outline" size="sm" className="flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Signup
-          </Button>
-        </Link>
         <div className="flex flex-col items-center gap-5 text-center max-w-md">
           <CheckCircle className="w-16 h-16 text-primary" />
-          <h1 className="text-2xl font-bold">Email Verified!</h1>
-          <p className="text-paragraph text-balance">
-            Your email has been verified. Redirecting to login...
-          </p>
+          <h1 className="text-2xl font-bold">E-mail verified</h1>
+          <p className="text-paragraph text-balance">You&apos;re signed in. Taking you on...</p>
         </div>
       </div>
     );
   }
 
-  if (error || tokenError) {
+  if (error || legacyToken) {
+    const message = legacyToken
+      ? "This link is from an earlier version of the site and no longer works."
+      : (LINK_ERRORS[error ?? ""] ?? "This verification link didn't work.");
     return (
       <div className="relative flex flex-col w-full h-full items-center justify-center gap-8">
-        <Link href="/auth/sign-up">
-          <Button variant="outline" size="sm" className="flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Signup
-          </Button>
-        </Link>
-        <div className="flex flex-col items-center gap-10 text-center max-w-md">
+        {backToSignUp}
+        <div className="flex flex-col items-center gap-6 text-center max-w-md">
           <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
             <span className="text-3xl text-white">✕</span>
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Verification Failed</h1>
-            <p className="text-paragraph text-balance">
-              {tokenError ??
-                (error === "expired"
-                  ? "This verification link has expired. Please request a new one."
-                  : "Invalid verification link. Please check your email and try again.")}
+            <h1 className="text-2xl font-bold">Verification failed</h1>
+            <p className="text-paragraph text-balance">{message}</p>
+            <p className="text-paragraph text-sm text-balance">
+              {email
+                ? "Request a new link below."
+                : "Sign in with your e-mail and password, and we'll send you a new link."}
             </p>
           </div>
-          <Link href="/auth/sign-up">
-            <Button variant="outline" size="sm">Back to Signup</Button>
-          </Link>
+          {resendButton ?? (
+            <Link href="/auth/login" className="w-full">
+              <Button variant="outline" className="w-full">
+                Sign in
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     );
   }
 
-  // Waiting room — shown after signup redirect with ?email= param
+  // Waiting room, right after sign-up.
   return (
     <div className="relative flex flex-col w-full h-full items-center justify-center gap-8">
-      <Link href="/auth/sign-up">
-        <Button variant="outline" size="sm" className="flex items-center gap-1">
-          <ArrowLeft className="h-4 w-4" /> Signup
-        </Button>
-      </Link>
+      {backToSignUp}
       <div className="flex flex-col items-center gap-5 text-center max-w-md">
         <Mail className="w-16 h-16 text-primary" />
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Verify Your Email</h1>
+          <h1 className="text-2xl font-bold">Verify your e-mail</h1>
           <p className="text-paragraph text-sm">
-            We sent a verification link to{" "}
-            <span className="font-medium">{displayEmail}</span>
+            We sent a verification link to <span className="font-medium">{email}</span>
           </p>
         </div>
         <div className="bg-[#EDEDED] dark:bg-[#0A0A0A] rounded-lg p-4 text-sm text-paragraph">
-          Click the link in your email to verify your address. The link expires in 15 minutes.
+          Click the link in the e-mail to verify your address and sign in. The link expires in
+          1 hour.
         </div>
         <div className="space-y-3 w-full">
-          <p className="text-sm text-paragraph">Didn&apos;t receive the email?</p>
-          <Button
-            onClick={handleResendEmail}
-            disabled={isResending || cooldown > 0 || resendCount >= 2}
-            variant="outline"
-            className="w-full"
-          >
-            {isResending
-              ? "Sending..."
-              : cooldown > 0
-                ? `Resend in ${cooldown}s`
-                : resendCount >= 2
-                  ? "Max resends reached"
-                  : `Resend Email${resendCount > 0 ? ` (${resendCount}/2)` : ""}`}
-          </Button>
+          <p className="text-sm text-paragraph">Didn&apos;t receive the e-mail?</p>
+          {resendButton}
         </div>
       </div>
     </div>

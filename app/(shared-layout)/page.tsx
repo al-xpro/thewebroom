@@ -30,7 +30,7 @@ export default function Home() {
         <SignatureIcon className="text-black dark:text-white" />
       </section>
       {/* Latest Posts on Home */}
-      <section className="py-10 border-t">
+      <section className="relative py-10 divider-fade-top">
         <div className="mx-auto space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div className="text-left">
@@ -46,7 +46,7 @@ export default function Home() {
                 {[...Array(3)].map((_, i) => (
                   <div
                     key={i}
-                    className="relative flex w-full flex-col sm:flex-row min-w-0 items-center justify-center border-b border-dashed h-[119px] sm:h-[85px] gap-6 sm:gap-10"
+                    className="relative flex w-full flex-col sm:flex-row min-w-0 items-center justify-center divider-dashed-fade-bottom h-[119px] sm:h-[85px] gap-6 sm:gap-10"
                   >
                     <div className="flex flex-col sm:flex-1 items-start justify-center w-full min-w-0 gap-2">
                       <Skeleton className="h-6 w-1/2 rounded-lg" />

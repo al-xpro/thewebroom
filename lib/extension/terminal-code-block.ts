@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import TerminalCodeBlockComponent from "@/components/ui/TerminalCodeBlock";
+import { convertCommands, type PackageManager } from "@/lib/package-manager-command";
 
 export const TerminalCodeBlock = Node.create({
   name: "terminalBlock",
@@ -44,14 +45,14 @@ export const TerminalCodeBlock = Node.create({
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    // Flush the live text of the active tab back into its slot
-    const mgr = node.attrs.packageManager as string;
+    // The tab being edited is the source: every other tab is generated from it (#104).
+    const mgr = node.attrs.packageManager as PackageManager;
     const live = node.textContent;
 
-    const npmContent = mgr === "npm" ? live : (node.attrs.npmContent as string);
-    const pnpmContent = mgr === "pnpm" ? live : (node.attrs.pnpmContent as string);
-    const yarnContent = mgr === "yarn" ? live : (node.attrs.yarnContent as string);
-    const bunContent = mgr === "bun" ? live : (node.attrs.bunContent as string);
+    const npmContent = convertCommands(live, mgr, "npm");
+    const pnpmContent = convertCommands(live, mgr, "pnpm");
+    const yarnContent = convertCommands(live, mgr, "yarn");
+    const bunContent = convertCommands(live, mgr, "bun");
 
     return [
       "div",

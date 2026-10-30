@@ -69,6 +69,12 @@ export default defineSchema({
     .index("by_ipAddress", ["ipAddress"])
     .index("by_email", ["accountEmail"]),
 
+  // Sign-ups refused because the address already has an account (#65), counted per IP.
+  existingAccountSignUps: defineTable({
+    ipAddress: v.string(),
+    attemptedAt: v.number(),
+  }).index("by_ipAddress", ["ipAddress"]),
+
   otpLockouts: defineTable({
     email: v.string(),
     lockedUntil: v.number(),
@@ -144,6 +150,8 @@ export default defineSchema({
     bannedByUserId: v.string(),
   }).index("by_ipAddress", ["ipAddress"]),
 
+  // Unused since #65: better-auth verifies e-mail now. Empty it with
+  // migrations:deleteEmailVerificationTokens, then remove this table.
   emailVerificationTokens: defineTable({
     userId: v.string(),
     tokenHash: v.string(),
