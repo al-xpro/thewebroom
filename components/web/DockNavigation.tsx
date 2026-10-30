@@ -56,6 +56,8 @@ interface DockEntry {
   group?: DockGroup;
   // Shows the member's photo instead of the icon when there is one.
   avatar?: boolean;
+  // A small dot for something new (unread notifications).
+  dot?: boolean;
 }
 
 // --- HOOK: Reading Progress & Headings (Enhanced) ---
@@ -129,6 +131,7 @@ function useReadingProgress() {
 export function DockNavigation() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const currentUser = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
+  const unreadNotifications = useQuery(api.notifications.unreadCount, isAuthenticated ? {} : "skip") ?? 0;
   const pathname = usePathname();
   const isEditorRoute = pathname?.startsWith("/create") || pathname?.startsWith("/edit/");
   const isPostRoute =
@@ -250,13 +253,13 @@ export function DockNavigation() {
       { key: "rules", label: "Rules", icon: ScrollText, href: "/rules" },
     ],
     people: [
-      { key: "following", label: "Following", icon: UserPlus, href: "/concepts/follow" },
-      { key: "community", label: "Community", icon: Users, href: "/concepts/community" },
+      { key: "following", label: "Following", icon: UserPlus, href: "/following" },
+      { key: "community", label: "Community", icon: Users, href: "/community" },
     ],
     you: isAuthenticated
       ? [
           { key: "profile", label: "Profile", icon: User, href: "/profile", avatar: true },
-          { key: "notifications", label: "Notifications", icon: Bell, href: "/concepts/notifications" },
+          { key: "notifications", label: "Notifications", icon: Bell, href: "/notifications", dot: unreadNotifications > 0 },
           { key: "my-posts", label: "My posts", icon: BookUser, href: "/my-posts" },
         ]
       : [
@@ -291,7 +294,7 @@ export function DockNavigation() {
         },
         { key: "write", label: "Write", icon: PenLine, group: "write" },
         { key: "people", label: "People", icon: Users, group: "people" },
-        { key: "you", label: isAuthenticated ? "You" : "Account", icon: User, group: "you", avatar: true },
+        { key: "you", label: isAuthenticated ? "You" : "Account", icon: User, group: "you", avatar: true, dot: unreadNotifications > 0 },
       ];
 
   const isActive = (entry: DockEntry) =>
@@ -732,7 +735,7 @@ export function DockNavigation() {
                           <DockItem key={entry.key} index={getIndex()} onHover={handleItemHover}>
                             {entry.href ? (
                               <Link href={entry.href} aria-label={label} aria-current={active ? "page" : undefined}>
-                                <DockIconWrapper active={active}>{icon}</DockIconWrapper>
+                                <DockIconWrapper active={active} dot={entry.dot}>{icon}</DockIconWrapper>
                               </Link>
                             ) : (
                               <button
@@ -741,7 +744,7 @@ export function DockNavigation() {
                                 aria-expanded={entry.group ? false : undefined}
                                 onClick={() => (entry.group ? openGroup(entry.group) : entry.onClick?.())}
                               >
-                                <DockIconWrapper active={active}>{icon}</DockIconWrapper>
+                                <DockIconWrapper active={active} dot={entry.dot}>{icon}</DockIconWrapper>
                               </button>
                             )}
                           </DockItem>
@@ -1259,10 +1262,12 @@ function DockIconWrapper({
   children,
   className,
   active = false,
+  dot = false,
 }: {
   children: React.ReactNode;
   className?: string;
   active?: boolean;
+  dot?: boolean;
 }) {
   return (
     <div
@@ -1276,6 +1281,7 @@ function DockIconWrapper({
     >
       {children}
       {active && <span aria-hidden className="absolute bottom-0.5 size-1 rounded-full bg-current" />}
+      {dot && <span aria-label="New" className="absolute right-1.5 top-1.5 size-2 rounded-full border-2 border-white bg-primary dark:border-black" />}
     </div>
   );
 }

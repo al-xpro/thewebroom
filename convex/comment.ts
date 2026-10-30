@@ -3,6 +3,7 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { components } from "./_generated/api";
 import { getAvatarUrls } from "./avatars";
+import { notify } from "./notifications";
 
 const COMMENT_MAX_LENGTH = 300;
 
@@ -117,6 +118,17 @@ export const createComment = mutation({
       authorName: user.name || "",
       status: "visible",
     });
+
+    // Tell the post's author, and the author of the comment replied to.
+    const post = await ctx.db.get(args.postId);
+    const parent = args.parentId ? await ctx.db.get(args.parentId) : null;
+    const about = { actorId: user._id, actorName: user.name || "", postId: args.postId, postSlug: post?.slug, postTitle: post?.title };
+    if (parent && parent.authorId !== user._id) {
+      await notify(ctx, { userId: parent.authorId, kind: "reply", ...about });
+    }
+    if (post && post.authorId !== parent?.authorId) {
+      await notify(ctx, { userId: post.authorId, kind: "comment", ...about });
+    }
 
     // Update rate limit
     if (rateLimit) {

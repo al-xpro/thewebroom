@@ -4,6 +4,7 @@ import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { Doc, Id } from "./_generated/dataModel";
 import { components, internal } from "./_generated/api";
 import { topicValidator, type Topic } from "./topics";
+import { announcePost } from "./notifications";
 
 
 type BetterAuthUserContact = {
@@ -202,6 +203,8 @@ export const createPost = mutation({
       });
     }
 
+    await announcePost(ctx, blogArticle);
+
     return { id: blogArticle, slug: uniqueSlug };
   },
 });
@@ -364,6 +367,7 @@ export const updatePost = mutation({
     await ctx.db.patch(args.postId, patch);
 
     const nextStatus = status ?? post.status;
+    if (nextStatus === undefined || nextStatus === "published") await announcePost(ctx, post._id);
     const becameHidden = nextStatus === "hidden" && post.status !== "hidden";
     const becamePublished = nextStatus === "published" && post.status === "hidden";
     if (isAdmin && (becameHidden || becamePublished)) {
