@@ -133,7 +133,9 @@ async function PostBody({ params }: PostSlugRouteProps) {
         <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
           <div className="flex flex-col items-center gap-2 text-black dark:text-white">
             <User className="size-4 sm:size-5" />
-            <p>{post.authorName}</p>
+            <Link href={`/members/${post.authorId}`} className="hover:underline underline-offset-4">
+              {post.authorName}
+            </Link>
           </div>
           <div className="flex flex-col items-center gap-2 text-black dark:text-white">
             <Calendar className="size-4 sm:size-5" />

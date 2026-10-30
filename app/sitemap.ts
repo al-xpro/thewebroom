@@ -34,6 +34,7 @@ function getStaticPages(): MetadataRoute.Sitemap {
   return [
     { url: baseUrl, lastModified: new Date(), changeFrequency: "daily", priority: 1.0 },
     { url: `${baseUrl}/posts`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
+    { url: `${baseUrl}/community`, lastModified: new Date(), changeFrequency: "daily", priority: 0.6 },
     { url: `${baseUrl}/rules`, lastModified: new Date("2026-10-30"), changeFrequency: "monthly", priority: 0.6 },
     { url: `${baseUrl}/mcp`, lastModified: new Date("2026-10-30"), changeFrequency: "monthly", priority: 0.6 },
     { url: `${baseUrl}/privacy-policy`, lastModified: new Date("2026-03-09"), changeFrequency: "monthly", priority: 0.5 },
