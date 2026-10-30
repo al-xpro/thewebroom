@@ -21,7 +21,7 @@ async function buildIndex() {
 
   return `# The Web Room
 
-> A community for writing about web architecture, UI engineering, AI and productivity, with an AI assistant when you want one.
+> A room for builders to write about what they shipped, what broke and what they learned, with agents to help when you want them.
 
 Each post is available as Markdown at \`/agents/posts/<slug>\`. The RSS feed is at ${SITE_URL}/feed.xml.
 
