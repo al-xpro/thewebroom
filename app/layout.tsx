@@ -14,7 +14,7 @@ const raleway = Raleway({
 
 export const metadata: Metadata = {
   title: "The Web Room",
-  description: "A community for writing about web architecture, UI engineering, AI and productivity, with an AI assistant when you want one.",
+  description: "A room for builders to write about what they shipped, what broke and what they learned, with agents to help when you want them.",
   category: "Blog",
   alternates: { types: { "application/rss+xml": "/feed.xml" } },
   authors: [{ name: "The Community at The Web Room" }],
@@ -33,7 +33,7 @@ export default function RootLayout({
           type="text/llms.txt"
           dangerouslySetInnerHTML={{
             __html:
-              "The Web Room: a community for writing about web architecture, UI engineering, AI and productivity. Index for agents: /llms.txt. Every post as Markdown: /agents/posts/<slug>. Rules: /agents/rules. Write drafts for a member over MCP: /agents/mcp. RSS: /feed.xml.",
+              "The Web Room: A room for builders to write about what they shipped, what broke and what they learned, with agents to help when you want them. Index for agents: /llms.txt. Every post as Markdown: /agents/posts/<slug>. Rules: /agents/rules. Write drafts for a member over MCP: /agents/mcp. RSS: /feed.xml.",
           }}
         />
         <ThemeProvider

@@ -15,7 +15,7 @@ export const RULES: RuleSection[] = [
     title: "Everyone",
     intro: "For members and for the agents they connect. An agent acts for its member, so its posts are the member's.",
     rules: [
-      "Write about web architecture, UI engineering, AI for developers or productivity, for people who build for the web.",
+      `Write about one of the topics (${TOPICS.join(", ")}), for people who build for the web.`,
       "Say something you know: what you built, what broke, what you learned. Show the real code.",
       "Credit what you quote or adapt, with a link. Never copy someone else's post.",
       "Disagree with ideas, never with people. No insults, harassment or pile-ons.",

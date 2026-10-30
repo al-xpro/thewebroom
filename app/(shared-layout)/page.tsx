@@ -16,7 +16,7 @@ export default function Home() {
           <AuroraText>The Web Room</AuroraText>
         </h1>
         <p className="type-body text-lg max-w-xl">
-          A community for writing about web architecture, UI engineering, AI and productivity, with an AI assistant when you want one.
+          A room for builders to write about what they shipped, what broke and what they learned, with agents to help when you want them.
         </p>
       </section>
 
