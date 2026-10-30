@@ -3,12 +3,8 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { Doc, Id } from "./_generated/dataModel";
 import { components, internal } from "./_generated/api";
+import { topicValidator, type Topic } from "./topics";
 
-type Topic =
-  | "Web Architecture"
-  | "UI Engineering"
-  | "AI for Developers"
-  | "Productivity";
 
 type BetterAuthUserContact = {
   email?: string | null;
@@ -106,12 +102,7 @@ export const createPost = mutation({
     minRead: v.number(),
     contentHtml: v.optional(v.string()),
     topic: v.optional(
-      v.union(
-        v.literal("Web Architecture"),
-        v.literal("UI Engineering"),
-        v.literal("AI for Developers"),
-        v.literal("Productivity")
-      )
+      topicValidator
     ),
     status: v.optional(
       v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))
@@ -297,12 +288,7 @@ export const updatePost = mutation({
     contentHtml: v.optional(v.string()),
     imageStorageId: v.optional(v.id("_storage")),
     topic: v.optional(
-      v.union(
-        v.literal("Web Architecture"),
-        v.literal("UI Engineering"),
-        v.literal("AI for Developers"),
-        v.literal("Productivity")
-      )
+      topicValidator
     ),
     status: v.optional(
       v.union(v.literal("published"), v.literal("draft"), v.literal("hidden"), v.literal("flagged"))

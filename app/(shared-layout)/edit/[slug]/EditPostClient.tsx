@@ -34,13 +34,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { FunctionReturnType } from "convex/server";
+import { TOPICS, type Topic } from "@/convex/topics";
 
-const TOPIC_OPTIONS = [
-  "Web Architecture",
-  "UI Engineering",
-  "AI for Developers",
-  "Productivity",
-] as const;
+const TOPIC_OPTIONS = TOPICS;
 
 type EditPostValues = z.infer<typeof editPostSchema>;
 type EditPostFields = keyof EditPostValues;
@@ -129,11 +125,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
       title: post.title,
       subtitle: post.subtitle ?? "",
       minRead: post.minRead ?? 5,
-      topic: (post.topic ?? "Web Architecture") as
-        | "Web Architecture"
-        | "UI Engineering"
-        | "AI for Developers"
-        | "Productivity",
+      topic: (post.topic ?? "Web Architecture") as Topic,
       image: undefined,
     },
   });
