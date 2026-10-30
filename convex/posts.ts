@@ -469,6 +469,24 @@ export const deletePost = mutation({
 
     await ctx.db.delete(args.postId);
 
+    // Saved and "helpful" rows go with the post; its series closes the gap.
+    for (const table of ["bookmarks", "reactions"] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_post", (q) => q.eq("postId", args.postId))
+        .collect();
+      for (const row of rows) await ctx.db.delete(row._id);
+    }
+    if (post.seriesId) {
+      const seriesId = post.seriesId;
+      const parts = await ctx.db
+        .query("posts")
+        .withIndex("by_series", (q) => q.eq("seriesId", seriesId))
+        .collect();
+      for (const [index, part] of parts.entries()) await ctx.db.patch(part._id, { seriesPart: index + 1 });
+      if (parts.length === 0) await ctx.db.delete(seriesId);
+    }
+
     return { success: true };
   },
 });

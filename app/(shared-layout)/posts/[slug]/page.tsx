@@ -12,6 +12,7 @@ import { FadeImage } from "@/components/ui/fade-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CopyPostButton from "@/components/web/CopyPostButton";
+import { BookmarkButton, HelpfulButton, SeriesBox } from "@/components/web/ReadingActions";
 import { connection } from "next/server";
 import { injectShikiIntoHtml } from "@/lib/highlight-post";
 import { escapeHtml, sanitizePostHtml } from "@/lib/sanitize-server";
@@ -123,6 +124,7 @@ async function PostBody({ params }: PostSlugRouteProps) {
           {post.title}
         </h1>
         <p className="type-body text-lg">{post.subtitle}</p>
+        <SeriesBox postId={post._id} compact />
         {post.aiAssisted && (
           <p className="type-meta inline-flex items-center gap-1.5 text-xs">
             <span aria-hidden className="size-1.5 rounded-full bg-black dark:bg-white" />
@@ -150,6 +152,7 @@ async function PostBody({ params }: PostSlugRouteProps) {
             <p>{post.minRead} min</p>
           </div>
           <div className="flex items-center gap-1">
+            <BookmarkButton postId={post._id} />
             <CopyPostButton />
           </div>
         </div>
@@ -171,6 +174,12 @@ async function PostBody({ params }: PostSlugRouteProps) {
 
         <PostContent html={highlightedHtml} />
       </div>
+
+      <div className="flex justify-center pt-12">
+        <HelpfulButton postId={post._id} />
+      </div>
+
+      <SeriesBox postId={post._id} />
 
       <Separator className="my-8" />
 

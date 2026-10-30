@@ -24,11 +24,45 @@ export default defineSchema({
     aiAssisted: v.optional(v.boolean()),
     // When followers were told about the post, so republishing doesn't tell them twice.
     announcedAt: v.optional(v.number()),
+    // A multi-part post: the series it belongs to and its place in it (1, 2, …).
+    seriesId: v.optional(v.id("series")),
+    seriesPart: v.optional(v.number()),
   })
     .searchIndex("search_title", { searchField: "title" })
     .searchIndex("search_body", { searchField: "body" })
     .index("by_slug", ["slug"])
-    .index("by_authorId", ["authorId"]),
+    .index("by_authorId", ["authorId"])
+    .index("by_series", ["seriesId", "seriesPart"]),
+
+  // Posts a member saved to read later.
+  bookmarks: defineTable({
+    userId: v.string(),
+    postId: v.id("posts"),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_user_post", ["userId", "postId"])
+    .index("by_post", ["postId"]),
+
+  // One reaction, "helpful". Readers see only their own; the author sees the count.
+  reactions: defineTable({
+    userId: v.string(),
+    postId: v.id("posts"),
+    kind: v.literal("helpful"),
+    createdAt: v.number(),
+  })
+    .index("by_user_post", ["userId", "postId"])
+    .index("by_post", ["postId"]),
+
+  // Multi-part posts by one author, in order.
+  series: defineTable({
+    authorId: v.string(),
+    title: v.string(),
+    slug: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_author", ["authorId"])
+    .index("by_slug", ["slug"]),
 
   presences: defineTable({
     userId: v.string(),
@@ -90,7 +124,8 @@ export default defineSchema({
       v.literal("reply"),
       v.literal("follower"),
       v.literal("post"),
-      v.literal("published")
+      v.literal("published"),
+      v.literal("helpful")
     ),
     actorId: v.optional(v.string()),
     actorName: v.optional(v.string()),

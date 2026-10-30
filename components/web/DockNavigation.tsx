@@ -21,6 +21,7 @@ import {
   UserPlus,
   LogIn,
   ScrollText,
+  Bookmark,
   type LucideIcon,
 } from "lucide-react";
 import { AnimatedThemeToggler } from "../ui/animated-theme-toggle";
@@ -281,6 +282,7 @@ export function DockNavigation() {
           { key: "profile", label: "Profile", icon: User, href: "/profile", avatar: true },
           { key: "notifications", label: "Notifications", icon: Bell, href: "/notifications", dot: unreadNotifications > 0 },
           { key: "my-posts", label: "My posts", icon: BookUser, href: "/my-posts" },
+          { key: "reading-list", label: "Reading list", icon: Bookmark, href: "/reading-list" },
         ]
       : [
           { key: "login", label: "Log in", icon: LogIn, href: "/auth/login" },
