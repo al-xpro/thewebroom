@@ -11,9 +11,19 @@ import {
   BookText,
   GripHorizontal,
   GripVertical,
+  ArrowLeft,
+  PenLine,
+  Users,
+  User,
+  Bell,
+  Bot,
+  BookUser,
+  UserPlus,
+  LogIn,
+  type LucideIcon,
 } from "lucide-react";
 import { AnimatedThemeToggler } from "../ui/animated-theme-toggle";
-import { NavbarDataBlog, NavbarDataUser, NavbarDataUnauth } from "@/lib/data";
+import { NavbarDataBlog } from "@/lib/data";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Link from "next/link";
@@ -35,6 +45,17 @@ import { ScrollFade } from "@/components/ui/scroll-fade";
 
 // Types
 type DockPosition = "bottom" | "top" | "left" | "right";
+type DockGroup = "write" | "people" | "you";
+interface DockEntry {
+  key: string;
+  label: React.ReactNode;
+  icon: LucideIcon;
+  href?: string;
+  onClick?: () => void;
+  group?: DockGroup;
+  // Shows the member's photo instead of the icon when there is one.
+  avatar?: boolean;
+}
 
 // --- HOOK: Reading Progress & Headings (Enhanced) ---
 function useReadingProgress() {
@@ -174,7 +195,9 @@ export function DockNavigation() {
   // the dock across the viewport, e.g. when leaving a post with the browser's back button.
   const targetMode = isSearching ? "search" : showMinimap ? "minimap" : "dock";
   const [frameMode, setFrameMode] = useState(targetMode);
-  const frame = isSearching ? "search" : frameMode;
+  // Entering the minimap resizes at once (waiting showed it squeezed while the dock grew);
+  // leaving it waits for the minimap to go.
+  const frame = isSearching ? "search" : targetMode === "minimap" ? "minimap" : frameMode;
 
   // --- Drag Controls ---
   // We use dragControls to allow dragging ONLY from the specific Grip icon
@@ -197,26 +220,73 @@ export function DockNavigation() {
   const xSpring = useSpring(mouseX, springConfig);
   const ySpring = useSpring(mouseY, springConfig);
 
-  // --- Labels ---
-  const dockLabels = useMemo(() => {
-    const labels = [
-      ...NavbarDataBlog.map((item) => item.label),
-      <div key="search-label">
-        Search &nbsp;<Kbd>⌘</Kbd> <Kbd>K</Kbd>
-      </div>,
-      "Create",
-    ];
+  // --- Items ---
+  // The dock shows a few items; related ones sit in a group that branches out in place,
+  // with a back button, so the dock never needs more room.
+  const [group, setGroup] = useState<DockGroup | null>(null);
+  const [switchingGroup, setSwitchingGroup] = useState(false);
+  // A new page closes any open group and restores the normal entrance timing.
+  const [groupPath, setGroupPath] = useState(pathname);
+  if (groupPath !== pathname) {
+    setGroupPath(pathname);
+    setGroup(null);
+    setSwitchingGroup(false);
+  }
+  const openGroup = (next: DockGroup | null) => {
+    setSwitchingGroup(true);
+    setGroup(next);
+  };
 
-    if (!isLoading) {
-      const authItems = isAuthenticated ? NavbarDataUser : NavbarDataUnauth;
-      labels.push(...authItems.map((i) => i.label));
-    } else {
-      labels.push("", "");
-    }
+  const groups: Record<DockGroup, DockEntry[]> = {
+    write: [
+      { key: "create", label: "Create", icon: Pencil, href: "/create" },
+      { key: "agents", label: "Agents", icon: Bot, href: "/concepts/mcp" },
+    ],
+    people: [
+      { key: "following", label: "Following", icon: UserPlus, href: "/concepts/follow" },
+      { key: "community", label: "Community", icon: Users, href: "/concepts/community" },
+    ],
+    you: isAuthenticated
+      ? [
+          { key: "profile", label: "Profile", icon: User, href: "/profile", avatar: true },
+          { key: "notifications", label: "Notifications", icon: Bell, href: "/concepts/notifications" },
+          { key: "my-posts", label: "My posts", icon: BookUser, href: "/my-posts" },
+        ]
+      : [
+          { key: "login", label: "Log in", icon: LogIn, href: "/auth/login" },
+          { key: "sign-up", label: "Sign up", icon: UserPlus, href: "/auth/sign-up" },
+        ],
+  };
 
-    labels.push("Theme");
-    return labels;
-  }, [isAuthenticated, isLoading]);
+  const entries: DockEntry[] = group
+    ? [{ key: "back", label: "Back", icon: ArrowLeft, onClick: () => openGroup(null) }, ...groups[group]]
+    : [
+        ...NavbarDataBlog.map((item) => ({ key: item.href, label: item.label, icon: item.icon, href: item.href })),
+        {
+          key: "search",
+          label: (
+            <div key="search-label">
+              Search &nbsp;<Kbd>⌘</Kbd> <Kbd>K</Kbd>
+            </div>
+          ),
+          icon: Search,
+          onClick: () => setIsSearching(true),
+        },
+        { key: "write", label: "Write", icon: PenLine, group: "write" },
+        { key: "people", label: "People", icon: Users, group: "people" },
+        { key: "you", label: isAuthenticated ? "You" : "Account", icon: User, group: "you", avatar: true },
+      ];
+
+  const isActive = (entry: DockEntry) =>
+    entry.href
+      ? entry.href === "/"
+        ? pathname === "/"
+        : pathname === entry.href || pathname.startsWith(`${entry.href}/`)
+      : entry.group
+        ? groups[entry.group].some((child) => child.href && (pathname === child.href || pathname.startsWith(`${child.href}/`)))
+        : false;
+
+  const dockLabels = [...entries.map((entry) => entry.label), ...(group ? [] : ["Theme"])];
 
   const handleItemHover = (e: React.MouseEvent<HTMLElement>, index: number) => {
     if (isDragging || isSearching || isLayoutAnimating) return;
@@ -529,7 +599,7 @@ export function DockNavigation() {
               onMouseLeave={handleItemLeave}
               style={showMinimap ? { y: dragY } : undefined}
               className={cn(
-                "relative flex gap-2 rounded-2xl border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black shadow-2xl backdrop-blur-2xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
+                "relative flex gap-1 rounded-[28px] border border-black/5 dark:border-white/10 bg-white/90 dark:bg-black/90 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)] backdrop-blur-xl transition-colors pointer-events-auto cursor-grab active:cursor-grabbing",
                 frame === "search"
                   ? "w-[550px] h-[450px] max-w-[90vw] max-h-[80vh] min-w-[300px] flex-col p-0 overflow-hidden cursor-default active:cursor-default truncate"
                   : frame === "minimap"
@@ -604,9 +674,9 @@ export function DockNavigation() {
                 ) : (
                   // --- DOCK MODE ---
                   <motion.div
-                    key="dock"
+                    key={`dock-${group ?? "root"}`}
                     initial={{ opacity: 0, y: isVertical ? 0 : 20, x: isVertical ? 20 : 0 }}
-                    animate={{ opacity: 1, y: 0, x: 0, transition: { delay: 0.5 } }}
+                    animate={{ opacity: 1, y: 0, x: 0, transition: { delay: switchingGroup ? 0.05 : 0.5 } }}
                     exit={{
                       opacity: 0,
                       y: isVertical ? 0 : 20,
@@ -621,67 +691,53 @@ export function DockNavigation() {
                     )}
                   >
                     {/* DOCK ITEMS RENDER */}
-                    {NavbarDataBlog.map((item) => (
-                      <DockItem key={item.label} index={getIndex()} onHover={handleItemHover}>
-                        <Link href={item.href} aria-label={item.label}>
-                          <DockIconWrapper>
-                            <item.icon className="size-5" />
-                          </DockIconWrapper>
-                        </Link>
-                      </DockItem>
-                    ))}
-
-                    <DockItem index={getIndex()} onHover={handleItemHover}>
-                      <button onClick={() => setIsSearching(true)} aria-label="search">
-                        <DockIconWrapper>
-                          <Search className="size-5" />
-                        </DockIconWrapper>
-                      </button>
-                    </DockItem>
-
-                    <DockItem index={getIndex()} onHover={handleItemHover}>
-                      <Link href="/create" aria-label="create">
-                        <DockIconWrapper>
-                          <Pencil className="size-5" />
-                        </DockIconWrapper>
-                      </Link>
-                    </DockItem>
-
-                    {!isLoading &&
-                      (isAuthenticated ? NavbarDataUser : NavbarDataUnauth).map((item) => (
-                        <DockItem key={item.label} index={getIndex()} onHover={handleItemHover}>
-                          <Link href={item.href} aria-label={item.label}>
-                            <DockIconWrapper>
-                              {item.href === "/profile" && currentUser?.avatarUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={currentUser.avatarUrl} alt="" className="size-6 rounded-full object-cover" />
-                              ) : (
-                                <item.icon className="size-5" />
-                              )}
-                            </DockIconWrapper>
-                          </Link>
+                    {entries.map((entry) => {
+                      const active = isActive(entry);
+                      const icon =
+                        entry.avatar && currentUser?.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={currentUser.avatarUrl} alt="" className="size-6 rounded-full object-cover" />
+                        ) : (
+                          <entry.icon className="size-5" />
+                        );
+                      const label = typeof entry.label === "string" ? entry.label : entry.key;
+                      return (
+                        <DockItem key={entry.key} index={getIndex()} onHover={handleItemHover}>
+                          {entry.href ? (
+                            <Link
+                              href={entry.href}
+                              aria-label={label}
+                              aria-current={active ? "page" : undefined}
+                              onClick={() => group && openGroup(null)}
+                            >
+                              <DockIconWrapper active={active}>{icon}</DockIconWrapper>
+                            </Link>
+                          ) : (
+                            <button
+                              type="button"
+                              aria-label={label}
+                              aria-expanded={entry.group ? false : undefined}
+                              onClick={() => (entry.group ? openGroup(entry.group) : entry.onClick?.())}
+                            >
+                              <DockIconWrapper active={active}>{icon}</DockIconWrapper>
+                            </button>
+                          )}
                         </DockItem>
-                      ))}
+                      );
+                    })}
 
-                    {isLoading && (
-                      <div className={cn("flex gap-2", isVertical ? "flex-col" : "flex-row")}>
-                        <div className="hidden">{getIndex()}</div>
-                        <div className="hidden">{getIndex()}</div>
-                        <Skeleton className="size-9 rounded-xl" />
-                        <Skeleton className="size-9 rounded-xl" />
-                      </div>
+                    {!group && (
+                      <DockItem index={getIndex()} onHover={handleItemHover}>
+                        <AnimatedThemeToggler className="w-full h-full block" aria-label="theme">
+                          <DockIconWrapper>
+                            <div className="relative w-full h-full flex items-center justify-center">
+                              <Sun className="size-5 absolute scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+                              <Moon className="size-5 absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+                            </div>
+                          </DockIconWrapper>
+                        </AnimatedThemeToggler>
+                      </DockItem>
                     )}
-
-                    <DockItem index={getIndex()} onHover={handleItemHover}>
-                      <AnimatedThemeToggler className="w-full h-full block" aria-label="theme">
-                        <DockIconWrapper>
-                          <div className="relative w-full h-full flex items-center justify-center">
-                            <Sun className="size-5 absolute scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                            <Moon className="size-5 absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-                          </div>
-                        </DockIconWrapper>
-                      </AnimatedThemeToggler>
-                    </DockItem>
 
                     <Separator
                       orientation={isVertical ? "horizontal" : "vertical"}
@@ -914,7 +970,7 @@ function Minimap({
 
         {/* Indicator Line */}
         <motion.div
-          className="absolute bg-primary rounded-full pointer-events-none z-20 shadow-[0_0_10px_rgba(255,88,0,1.0)]"
+          className="absolute bg-black dark:bg-white rounded-full pointer-events-none z-20"
           style={{
             ...(isVertical
               ? {
@@ -942,7 +998,7 @@ function Minimap({
               xmlns="http://www.w3.org/2000/svg"
               className="absolute -top-0.75 -left-3 -rotate-90"
             >
-              <path d="M3.54688 6L0.515786 0.75L6.57796 0.75L3.54688 6Z" fill="#FF3400"></path>
+              <path d="M3.54688 6L0.515786 0.75L6.57796 0.75L3.54688 6Z" fill="currentColor"></path>
             </svg>
           ) : (
             <svg
@@ -952,7 +1008,7 @@ function Minimap({
               xmlns="http://www.w3.org/2000/svg"
               className="absolute -top-2 -left-0.75"
             >
-              <path d="M3.54688 6L0.515786 0.75L6.57796 0.75L3.54688 6Z" fill="#FF3400"></path>
+              <path d="M3.54688 6L0.515786 0.75L6.57796 0.75L3.54688 6Z" fill="currentColor"></path>
             </svg>
           )}
         </motion.div>
@@ -1041,9 +1097,9 @@ function MinimapLine({
       className={cn(
         "rounded-full pointer-events-none transition-colors duration-200",
         isSpecial
-          ? "bg-primary"
+          ? "bg-black dark:bg-white"
           : isScrolledPast
-            ? "bg-primary"
+            ? "bg-black/60 dark:bg-white/60"
             : isHeading
               ? "bg-black dark:bg-white z-10"
               : "bg-black/20 dark:bg-white/20"
@@ -1066,7 +1122,7 @@ function VerticalTooltip({ items, hoveredIndex, prevHoveredIndex, ySpring, posit
     <motion.div
       initial={{ opacity: 0 }}
       className={cn(
-        "hidden sm:block pointer-events-none absolute overflow-hidden rounded-xl bg-[#FFEDE8] dark:bg-[#1C0100] text-primary shadow-lg z-50",
+        "hidden sm:block pointer-events-none absolute overflow-hidden rounded-full bg-black text-white dark:bg-white dark:text-black z-50",
         position === "left" ? "left-full ml-3" : "right-full mr-3"
       )}
       style={{ top: ySpring, y: "-50%" }}
@@ -1136,7 +1192,7 @@ function HorizontalTooltip({ items, hoveredIndex, prevHoveredIndex, xSpring, pos
         <motion.div
           initial={{ opacity: 0, width: 0 }}
           className={cn(
-            "hidden sm:block pointer-events-none absolute left-0 overflow-hidden rounded-xl bg-[#FFEDE8] dark:bg-[#1C0100] text-primary z-50",
+            "hidden sm:block pointer-events-none absolute left-0 overflow-hidden rounded-full bg-black text-white dark:bg-white dark:text-black z-50",
             position === "bottom" ? "bottom-full mb-3" : "top-full mt-3"
           )}
           style={{ x: xSpring, translateX: "-50%" }}
@@ -1173,19 +1229,24 @@ function HorizontalTooltip({ items, hoveredIndex, prevHoveredIndex, xSpring, pos
 function DockIconWrapper({
   children,
   className,
+  active = false,
 }: {
   children: React.ReactNode;
   className?: string;
+  active?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "size-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer",
-        "text-paragraph hover:text-primary! hover:bg-[#FFEDE8] dark:hover:bg-[#1C0100]",
+        "relative size-10 rounded-full flex items-center justify-center transition-colors duration-200 cursor-pointer",
+        active
+          ? "text-black dark:text-white"
+          : "text-[#8F8F8F] hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10",
         className
       )}
     >
       {children}
+      {active && <span aria-hidden className="absolute bottom-0.5 size-1 rounded-full bg-current" />}
     </div>
   );
 }
