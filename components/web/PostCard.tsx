@@ -32,17 +32,17 @@ export function PostCard({ post }: PostCardProps) {
             md:group-hover:translate-x-10 md:group-focus-visible:translate-x-10"
         >
           <div className="flex flex-col flex-1 min-w-0">
-            <h2 className="text-xl font-bold line-clamp-1 break-all group-focus-visible:text-primary">
+            <h2 className="type-heading line-clamp-1 break-all group-focus-visible:text-primary">
               {post.title}
             </h2>
-            <p className="text-paragraph line-clamp-1 break-all">{post.subtitle}</p>
+            <p className="type-meta line-clamp-1 break-all">{post.subtitle}</p>
           </div>
         </div>
         <div className="flex flex-row sm:flex-col sm:min-w-[120px] sm:max-w-[140px] w-full sm:w-1/3 items-center justify-start sm:justify-center gap-2 text-[12px] sm:text-sm text-paragraph">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
             {post.topic}
           </span>
-          <p className="text-sm text-paragraph whitespace-nowrap">{post.minRead} min read</p>
+          <p className="type-meta whitespace-nowrap">{post.minRead} min</p>
         </div>
       </div>
     </Link>

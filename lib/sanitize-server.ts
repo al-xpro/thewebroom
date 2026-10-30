@@ -5,7 +5,8 @@ import { JSDOM } from "jsdom";
 import { POST_CONFIG } from "@/lib/sanitize-config";
 
 // DOMPurify needs a DOM; on the server it runs on jsdom, the window DOMPurify recommends.
-const purify = createDOMPurify(new JSDOM("").window);
+const window = new JSDOM("").window;
+const purify = createDOMPurify(window);
 
 /**
  * Sanitize post HTML on the server, before it's rendered or sent to the client.
@@ -23,4 +24,11 @@ export function escapeHtml(text: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+// The plain text of post HTML, the way the editor counts a body's length.
+export function htmlToText(html: string): string {
+  const template = window.document.createElement("template");
+  template.innerHTML = html;
+  return (template.content.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim();
 }

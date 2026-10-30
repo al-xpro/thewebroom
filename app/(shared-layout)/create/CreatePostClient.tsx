@@ -8,24 +8,17 @@ import { Separator } from "@/components/ui/separator";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
-  ArrowRight,
-  Book,
-  BookDashed,
-  CalendarClock,
   BookType,
   Calendar,
   Check,
   ClockFading,
   Copy,
   Loader2,
-  Pen,
-  Upload,
   User,
 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import { createBlogAction } from "@/app/actions";
-import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/web/Footer";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
@@ -47,6 +40,7 @@ import {
 } from "@/lib/post-draft";
 import { withNext } from "@/lib/next-path";
 import { TOPICS } from "@/convex/topics";
+import { CoverImageField } from "@/components/web/CoverImageField";
 
 const TOPIC_OPTIONS = TOPICS;
 
@@ -119,6 +113,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isMetaEditing, setIsMetaEditing] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
+  const [aiAssisted, setAiAssisted] = useState(false);
   const [isTopicOpen, setIsTopicOpen] = useState(false);
   const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
@@ -209,6 +204,12 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
       setShowAuthModal(true);
       return;
     }
+    // A draft saves whatever is there; publishing checks the whole post.
+    if (status === "draft") {
+      setVisibleErrors({});
+      void onSubmit(form.getValues(), "draft");
+      return;
+    }
     void form.handleSubmit((values) => onSubmit(values, status), onInvalid)();
   }
 
@@ -216,10 +217,15 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
 
   // Saves the post as a draft, then schedules it (#60).
   async function scheduleAt(publishAt: number) {
+    // Without an account it saves the post here and asks to sign in, like Publish (#91).
+    if (!isAuthenticated) {
+      submitAs("draft");
+      return;
+    }
     await form.handleSubmit(async (values) => {
       setDraftPending(true);
       try {
-        const { id } = await createBlogAction(values, "draft");
+        const { id } = await createBlogAction(values, "draft", aiAssisted);
         try {
           await schedulePost({ postId: id, publishAt });
           showSuccessToast(`Scheduled for ${formatPublishAt(publishAt)}`);
@@ -244,7 +250,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
     }
 
     try {
-      const { slug } = await createBlogAction(values, status);
+      const { slug } = await createBlogAction(values, status, aiAssisted);
       await clearSavedPost();
 
       if (status === "draft") {
@@ -351,18 +357,10 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
           aria-labelledby="auth-dialog-title"
           className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
         >
-          <div className="relative flex w-full max-w-md flex-col items-center gap-6 rounded-2xl bg-[#EDEDED] p-8 text-center dark:bg-[#0A0A0A]">
-            <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
-              <Pen className="size-7 text-primary" />
-            </div>
+          <div className="relative flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border bg-white p-6 text-center dark:bg-black">
             <div className="space-y-2">
-              <h2 id="auth-dialog-title" className="text-2xl font-extrabold text-black dark:text-white">
-                Ready to share it?
-              </h2>
-              <p className="text-sm leading-relaxed text-paragraph">
-                Publishing and drafts are for signed-in members. Log in or create an account:
-                your post is saved in this browser and will be here when you come back.
-              </p>
+              <h2 id="auth-dialog-title" className="type-title">Sign in to publish</h2>
+              <p className="type-meta">Your post stays here.</p>
             </div>
             <div className="flex w-full flex-col gap-3">
               <Link
@@ -381,7 +379,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                   variant: "outline",
                 })}
               >
-                Create account
+                Sign up
               </Link>
               <Button
                 type="button"
@@ -390,7 +388,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                 autoFocus
                 onClick={() => setShowAuthModal(false)}
               >
-                Keep writing
+                Not now
               </Button>
             </div>
           </div>
@@ -415,49 +413,31 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
       >
         <div className="flex items-center justify-between gap-5">
           <Link href="/posts" className="flex items-center justify-center gap-2">
-            <Button variant="outline" size="sm" className="relative z-20">
+            <Button variant="ghost" size="sm" className="relative z-20 -ml-3">
               <ArrowLeft className="h-4 w-4" />
-              All posts
+              Posts
             </Button>
           </Link>
 
-          <div className="flex flex-wrap items-end justify-end gap-2">
-            <SchedulePicker onConfirm={scheduleAt}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={isPending || draftPending}
-                className="shrink-0"
-              >
-                <span className="flex items-center gap-2">
-                  Schedule… <CalendarClock className="size-4" />
-                </span>
-              </Button>
-            </SchedulePicker>
+          <div className="flex items-center gap-1">
             <Button
-              disabled={isPending || draftPending}
-              size="sm"
               type="button"
-              className="shrink-0"
+              variant="ghost"
+              size="sm"
+              disabled={isPending || draftPending}
               onClick={() => submitAs("draft")}
             >
               {draftPending && <Loader2 className="size-4 animate-spin" />}
-              <span className="flex items-center gap-2">
-                Save as Draft <BookDashed className="size-4" />
-              </span>
+              Draft
             </Button>
-
-            <Button
-              disabled={isPending || draftPending}
-              size="sm"
-              type="submit"
-              className="shrink-0"
-            >
+            <SchedulePicker confirmLabel="Schedule" onConfirm={scheduleAt}>
+              <Button type="button" variant="ghost" size="sm" disabled={isPending || draftPending}>
+                Schedule
+              </Button>
+            </SchedulePicker>
+            <Button type="submit" size="sm" disabled={isPending || draftPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              <span className="flex items-center gap-2">
-                Publish Post <Book className="size-4" />
-              </span>
+              Publish
             </Button>
           </div>
         </div>
@@ -536,7 +516,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
 
             <Separator className="my-4" />
 
-            <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
+            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-1 text-[11px] sm:text-sm text-paragraph">
               <div className="flex flex-col items-center gap-2 text-black dark:text-white">
                 <User className="size-4 sm:size-5" />
                 <p>{user?.name || ""}</p>
@@ -674,76 +654,17 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
             control={form.control}
             render={({ field }) => (
               <section className="flex flex-col gap-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="image"
-                  className="hidden"
-                  onChange={(e) => {
-                    field.onChange(e.target.files?.[0]);
+                <CoverImageField
+                  previewUrl={previewUrl}
+                  onPick={(file) => {
+                    field.onChange(file);
+                    clearError("image");
+                  }}
+                  onRemove={() => {
+                    field.onChange(undefined);
                     clearError("image");
                   }}
                 />
-
-                <div
-                  className={cn(
-                    "relative mb-2 h-[280px] w-full overflow-hidden rounded-md shadow-sm sm:h-[380px]",
-                    previewUrl
-                      ? "bg-[#FAFAFA] dark:bg-[#0A0A0A]"
-                      : "border border-dashed border-[#EAEAEA] bg-white dark:border-[#1E1E1E] dark:bg-black hover:bg-[#FAFAFA] dark:hover:bg-[#0A0A0A]"
-                  )}
-                >
-                  {previewUrl ? (
-                    <div className="relative flex w-full h-full p-6 border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black rounded-md">
-                      <Image
-                        src={previewUrl}
-                        alt="Featured image preview"
-                        width={700}
-                        height={500}
-                        loading="eager"
-                        className="object-cover rounded-md"
-                      />
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                      <Upload className="size-6" />
-                      <div className="space-y-1">
-                        <p className="text-base font-semibold text-black dark:text-white">
-                          Upload a featured image
-                        </p>
-                        <p className="text-xs text-paragraph">
-                          PNG, JPG, WebP, AVIF or TIFF up to 1MB
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  <label
-                    htmlFor="image"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) {
-                        field.onChange(file);
-                        clearError("image");
-                      }
-                    }}
-                    className={`absolute inset-0 cursor-pointer ${field.value ? "max-w-fit mx-auto" : ""}`}
-                  >
-                    <div className="relative left-0 top-full px-10 mx-auto">
-                      {field.value && (
-                        <span className="relative bottom-12 flex items-center justify-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-4 py-2 text-xs font-medium text-black dark:text-white">
-                          <Upload className="size-3.5" />
-                          <p className="flex-1 min-w-0 truncate">{field.value.name}</p>
-                          <p className="min-w-0 truncate">
-                            {`${(field.value.size / 1024 / 1024).toFixed(2)}MB`}
-                          </p>
-                        </span>
-                      )}
-                    </div>
-                  </label>
-                </div>
-
                 <EditorialError message={visibleErrors.image} />
               </section>
             )}
@@ -763,6 +684,11 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                   clearError("content");
                 }}
                 placeholder="Write your content here... Use the toolbar for formatting"
+                assistant={{
+                  title: form.watch("title"),
+                  subtitle: form.watch("subtitle"),
+                  onApplied: () => setAiAssisted(true),
+                }}
               />
             ) : (
               <div className="min-h-screen w-full bg-transparent" />

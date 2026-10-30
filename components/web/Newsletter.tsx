@@ -1,26 +1,34 @@
-import { FieldLabel } from "../ui/field";
+"use client";
+
+import { useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { PlaceholdersAndVanishInput } from "../ui/placeholder-vanish-input";
 
 export default function Newsletter() {
+  const subscribe = useMutation(api.newsletter.subscribe);
+  const [status, setStatus] = useState<"idle" | "done" | "error">("idle");
+
   return (
-    <section className="relative flex-1 flex flex-col items-start justify-center text-center gap-5 py-5">
-      <div className="flex flex-col w-full h-full items-center justify-start py-4 px-6 sm:px-8 gap-5 rounded-4xl bg-[#EDEDED] dark:bg-[#0A0A0A]">
-        <div className="flex w-full items-center justify-between pb-4">
-          <FieldLabel className="text-md text-lg md:text-2xl font-semibold text-left" htmlFor="email">Newsletter</FieldLabel>
-          <p className="text-left md:text-xl leading-normal text-paragraph">Over 100+ devs</p>
-        </div>
-
-        <div className="flex flex-col w-full items-start justify-between gap-5">
-          <PlaceholdersAndVanishInput placeholder="Email address" className="w-full" id="email" />
-        </div>
-
-        <div>
-          <p className="pt-4 text-lg leading-normal text-paragraph text-justify">
-            Love reading? Sign up for our newsletter to receive the latest updates on web
-            development and more!
-          </p>
-        </div>
+    <section className="relative divider-fade-top py-10 space-y-4">
+      <div className="flex items-baseline justify-between gap-4">
+        <label htmlFor="newsletter-email" className="type-label">Newsletter</label>
+        <p className="type-meta">New posts, now and then.</p>
       </div>
+      <PlaceholdersAndVanishInput
+        placeholder="Email"
+        className="w-full"
+        id="newsletter-email"
+        onSubmit={(email) => {
+          subscribe({ email })
+            .then(() => setStatus("done"))
+            .catch(() => setStatus("error"));
+        }}
+      />
+      <p aria-live="polite" className="type-meta min-h-5">
+        {status === "done" && "Got it. You're on the list."}
+        {status === "error" && <span className="text-destructive">Check the address and try again.</span>}
+      </p>
     </section>
   );
 }

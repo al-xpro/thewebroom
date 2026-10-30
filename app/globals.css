@@ -95,7 +95,7 @@ body::-webkit-scrollbar {
   --destructive: #CB2A2E;
   --border: #EAEAEA;
   --input: oklch(0.92 0.004 286.32);
-  --ring: #ffc7bb;
+  --ring: #FF3400;
   --chart-1: oklch(0.82 0.13 41);
   --chart-2: oklch(0.69 0.22 41);
   --chart-3: oklch(0.66 0.23 41);
@@ -136,7 +136,7 @@ body::-webkit-scrollbar {
   --destructive: #FF6166;
   --border: #1E1E1E;
   --input: oklch(1 0 0 / 15%);
-  --ring: #660900;
+  --ring: #FF3400;
   --chart-1: oklch(0.82 0.13 41);
   --chart-2: oklch(0.69 0.22 41);
   --chart-3: oklch(0.66 0.23 41);
@@ -176,7 +176,7 @@ body::-webkit-scrollbar {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply text-foreground bg-white dark:bg-black font-sans;
+    @apply text-foreground bg-white dark:bg-black font-sans font-light;
   }
 }
 
@@ -302,6 +302,19 @@ html:not(.dark) .shiki span {
   }
 }
 
+@utility divider-fade-bottom {
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--border);
+    mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent);
+    pointer-events: none;
+  }
+}
+
 @utility divider-dashed-fade-bottom {
   &::after {
     content: "";
@@ -313,4 +326,124 @@ html:not(.dark) .shiki span {
     mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent);
     pointer-events: none;
   }
+}
+
+/* ── Minimal type scale ─────────────────────────────────────────────────────
+   Light body text; medium and semibold titles. Use these instead of one-off sizes. */
+@utility type-display {
+  @apply text-4xl md:text-5xl font-semibold tracking-tight text-black dark:text-white;
+}
+@utility type-title {
+  @apply text-2xl md:text-3xl font-semibold tracking-tight text-black dark:text-white;
+}
+@utility type-heading {
+  @apply text-lg font-medium tracking-tight text-black dark:text-white;
+}
+@utility type-body {
+  @apply text-base font-light leading-relaxed text-[#666666] dark:text-[#A0A0A0];
+}
+@utility type-meta {
+  @apply text-sm font-light text-[#666666] dark:text-[#A0A0A0];
+}
+@utility type-label {
+  @apply text-xs font-medium uppercase tracking-[0.18em] text-[#666666] dark:text-[#A0A0A0];
+}
+
+/* Images fade in once loaded: set data-loaded="true" on load (components/ui/fade-image.tsx). */
+@utility fade-in-image {
+  opacity: 0;
+  transition: opacity 600ms ease;
+  &[data-loaded="true"] {
+    opacity: 1;
+  }
+}
+
+/* A page section without a card: a faded divider above, even spacing inside. */
+@utility section-minimal {
+  @apply relative py-8 space-y-6 divider-fade-top;
+}
+
+/* Fields are a bottom line that fades at both ends; it turns orange on focus and red
+   when invalid. Works on inputs and on wrappers such as the newsletter form. */
+@utility input-underline {
+  --underline: var(--border);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: linear-gradient(to right, transparent, var(--underline) 12%, var(--underline) 88%, transparent);
+  background-size: 100% 1px;
+  background-position: bottom;
+  background-repeat: no-repeat;
+  outline: none;
+  &:focus-visible,
+  &:focus-within {
+    --underline: var(--primary);
+  }
+  &[aria-invalid="true"] {
+    --underline: var(--destructive);
+  }
+}
+
+/* Tables in posts and the editor. Columns get room to breathe (a minimum width per cell),
+   so a wide table scrolls sideways instead of squeezing its text; a soft shadow at the left
+   and right edge shows there's more to scroll, and only while there is (the "local"
+   backgrounds cover the shadows once an edge is reached). Row lines fade out at both ends. */
+:is(.post-content, .ProseMirror) table {
+  /* The page colour (main is white or black), so the edge covers blend in. */
+  --table-fade: #ffffff;
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-collapse: collapse;
+  margin-block: 2rem;
+  font-size: 0.875rem;
+  background:
+    linear-gradient(to right, var(--table-fade) 30%, transparent) left center / 3rem 100% no-repeat local,
+    linear-gradient(to left, var(--table-fade) 30%, transparent) right center / 3rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.14), transparent) left center / 1rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.14), transparent) right center / 1rem 100% no-repeat scroll;
+  background-color: var(--table-fade);
+}
+.dark :is(.post-content, .ProseMirror) table {
+  --table-fade: #000000;
+  background:
+    linear-gradient(to right, var(--table-fade) 30%, transparent) left center / 3rem 100% no-repeat local,
+    linear-gradient(to left, var(--table-fade) 30%, transparent) right center / 3rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(255 255 255 / 0.12), transparent) left center / 1rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(255 255 255 / 0.12), transparent) right center / 1rem 100% no-repeat scroll;
+  background-color: var(--table-fade);
+}
+:is(.post-content, .ProseMirror) tr {
+  background-image: linear-gradient(to right, transparent, var(--table-border) 8%, var(--table-border) 92%, transparent);
+  background-size: 100% 1px;
+  background-position: bottom;
+  background-repeat: no-repeat;
+}
+:is(.post-content, .ProseMirror) tr:has(th) {
+  background-image: linear-gradient(to right, transparent, var(--foreground) 8%, var(--foreground) 92%, transparent);
+}
+:is(.post-content, .ProseMirror) :is(th, td) {
+  min-width: 8.5rem;
+  max-width: 22rem;
+  padding: 0.75rem 1.25rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: break-word;
+  font-weight: 300;
+  line-height: 1.6;
+}
+:is(.post-content, .ProseMirror) th {
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+:is(.post-content, .ProseMirror) :is(th, td) > p {
+  margin: 0;
+}
+.ProseMirror .tableWrapper {
+  overflow: visible;
 }

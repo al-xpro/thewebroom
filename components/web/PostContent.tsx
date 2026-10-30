@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Copy, Check, Terminal } from "lucide-react";
-import { SiNextdotjs, SiReact } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { LogoTypescript } from "../ui/LogoTypescript";
-import { LogoJavascript } from "../ui/LogoJavascript";
+import { FileIcon } from "@/components/ui/file-icon";
 
 // ─── Copy button ──────────────────────────────────────────────────────────────
 
@@ -175,20 +173,7 @@ function FileCodeBlock({ data }: { data: FileData }) {
     if (data.ssrDark !== null) setDarkHtml(data.ssrDark);
   }, [data.ssrLight, data.ssrDark]);
 
-  const getFileIcon = (lang: string) => {
-    switch (lang) {
-      case "ts":
-        return <LogoTypescript className="size-4" />;
-      case "tsx":
-        return <SiNextdotjs className="size-4 scale-110" />;
-      case "js":
-        return <LogoJavascript className="size-4" />;
-      case "jsx":
-        return <SiReact className="size-4 scale-130" />;
-      default:
-        return null;
-    }
-  };
+  const getFileIcon = (lang: string) => <FileIcon lang={lang} />;
 
   const languages = ["ts", "tsx", "js", "jsx"];
 
@@ -340,7 +325,6 @@ function HtmlChunk({ html }: { html: string }) {
         [&_.ProseMirror_blockquote]:leading-6.5
         [&_[data-type='file-code-block']]:my-12
         [&_[data-type='file-code-block']:has(+figcaption)]:mb-0
-        [&_table]:my-12
         [&_table:has(+figcaption)]:mb-0
 
 
@@ -362,29 +346,11 @@ function HtmlChunk({ html }: { html: string }) {
 
         [&_a]:text-primary [&_a:hover]:underline
 
-        [&_table]:table-fixed [&_table]:my-12 [&_table]:rounded-xl [&_table]:py-2 [&_table]:px-4 [&_table]:relative 
-        [&_table]:border-separate [&_table]:border-spacing-0 [&_table]:[scrollbar-width:none] [&_table]:[-ms-overflow-style:none] [&_table]:[&::-webkit-scrollbar]:hidden
-        [&_table]:flex [&_table]:w-full [&_table]:overflow-x-auto [&_table]:overflow-y-hidden  [&_table]:justify-center-safe [&_colgroup]:hidden [&_col]:hidden
-        [&_table]:mask-[linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
-        [&_table]:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_3%,black_97%,transparent_100%)]
-        [&_td]:min-w-[150px]
-        [&_th]:min-w-[150px]
-
-        [&_td]:h-20 [&_th]:h-20
 
 
-        [&_th]:border-t [&_th]:border-l [&_th]:border-[#EAEAEA] dark:[&_th]:border-[#1E1E1E]
-        [&_td]:border-t [&_td]:border-l [&_td]:border-[#EAEAEA] dark:[&_td]:border-[#1E1E1E]
-        [&_tr_th:last-child]:border-r [&_tr_td:last-child]:border-r
-        [&_tr:last-child_td]:border-b [&_tr:last-child_th]:border-b
 
-        [&_tr:first-child_th:first-child]:rounded-tl-xl [&_tr:first-child_td:first-child]:rounded-tl-xl
-        [&_tr:first-child_th:last-child]:rounded-tr-xl  [&_tr:first-child_td:last-child]:rounded-tr-xl
-        [&_tr:last-child_th:first-child]:rounded-bl-xl  [&_tr:last-child_td:first-child]:rounded-bl-xl
-        [&_tr:last-child_th:last-child]:rounded-br-xl   [&_tr:last-child_td:last-child]:rounded-br-xl
 
-        [&_th]:bg-[#FAFAFA] dark:[&_th]:bg-black [&_th]:font-bold [&_th]:align-middle [&_th]:pl-4 [&_th]:text-left
-        [&_td]:bg-white dark:[&_td]:bg-[#0A0A0A] [&_td]:align-middle [&_td]:pl-4 [&_td]:text-left
+
       "
       dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />

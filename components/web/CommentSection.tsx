@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2, Edit2, Trash2, MessagesSquare, ArrowUp, Reply } from "lucide-react";
-import { Card, CardContent, CardHeader } from "../ui/card";
+import { Loader2, Edit2, Trash2, ArrowUp, Reply } from "lucide-react";
+import Link from "next/link";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { commentSchema } from "@/app/schemas/comment";
@@ -14,7 +14,6 @@ import { api } from "@/convex/_generated/api";
 import z from "zod";
 import { useTransition, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Separator } from "../ui/separator";
 import { Preloaded, usePreloadedQuery } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { showErrorToast, showSuccessToast } from "../ui/toast";
@@ -30,12 +29,14 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
+import { ReportButton } from "@/components/web/ReportButton";
 
 const COMMENT_MAX = 300;
 
 type Comment = {
   _id: Id<"comments">;
   _creationTime: number;
+  authorAvatarUrl?: string | null;
   body: string;
   authorId: string;
   authorName: string;
@@ -83,14 +84,7 @@ function CommentForm({
 
   return (
     <div className="w-full space-y-2">
-      <div
-        className={`rounded-xl overflow-hidden bg-white dark:bg-black border transition-all
-        ${
-          error
-            ? "border-[#CB2A2E] dark:border-[#FF6166] ring-3 ring-[#FFE6E6] dark:ring-[#561A1E]"
-            : "border-transparent focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-within:border-[#FF3400]"
-        }`}
-      >
+      <div className="input-underline" aria-invalid={!!error}>
         <label htmlFor="comment-body" className="sr-only">
           Comment body
         </label>
@@ -107,7 +101,7 @@ function CommentForm({
           className="break-word"
           autoFocus
         />
-        <div className="flex items-center justify-between px-3 py-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E] gap-1">
+        <div className="flex items-center justify-between py-2 gap-1">
           <span
             className={`text-xs tabular-nums transition-colors ${counterColor(value.length, COMMENT_MAX)}`}
           >
@@ -115,12 +109,12 @@ function CommentForm({
           </span>
           <div className="flex items-center gap-2">
             {onCancel && (
-              <Button size="sm" variant="secondary" type="button" onClick={onCancel}>
+              <Button size="sm" variant="ghost" type="button" onClick={onCancel}>
                 Cancel
               </Button>
             )}
             <Button
-              size="icon"
+              size="icon-sm"
               type="button"
               aria-label="submit"
               disabled={isPending || !value.trim() || value.length > COMMENT_MAX}
@@ -180,7 +174,7 @@ function CommentRow({
     <div className="flex gap-4">
       <Avatar className="size-10 shrink-0">
         <AvatarImage
-          src={`https://avatar.vercel.sh/${comment.authorName}`}
+          src={comment.authorAvatarUrl ?? `https://avatar.vercel.sh/${comment.authorName}`}
           alt={comment.authorName}
         />
         <AvatarFallback>{comment.authorName.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -189,14 +183,7 @@ function CommentRow({
       <div className="flex-1 min-w-0">
         {editingId === comment._id ? (
           <div className="space-y-2">
-            <div
-              className={`rounded-xl overflow-hidden bg-white dark:bg-black border transition-all
-              ${
-                editError
-                  ? "border-[#CB2A2E] dark:border-[#FF6166] ring-3 ring-[#FFE6E6] dark:ring-[#561A1E]"
-                  : "border-transparent focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-within:border-[#FF3400]"
-              }`}
-            >
+            <div className="input-underline" aria-invalid={!!editError}>
               <label htmlFor="comment-edit-body" className="sr-only">
                 Edit comment body
               </label>
@@ -210,7 +197,7 @@ function CommentRow({
                 autoFocus
                 id="comment-edit-body"
               />
-              <div className="px-3 py-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
+              <div className="py-2">
                 <span
                   className={`text-xs tabular-nums ${counterColor(editText.length, COMMENT_MAX)}`}
                 >
@@ -230,7 +217,7 @@ function CommentRow({
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 Save
               </Button>
-              <Button size="sm" variant="secondary" type="button" onClick={onEditCancel}>
+              <Button size="sm" variant="ghost" type="button" onClick={onEditCancel}>
                 Cancel
               </Button>
             </div>
@@ -268,6 +255,7 @@ function CommentRow({
                   <Reply className="size-4" />
                 </Button>
               )}
+              <ReportButton targetType="comment" targetId={comment._id} authorId={comment.authorId} />
               {canEdit && (
                 <>
                   <Button
@@ -287,7 +275,7 @@ function CommentRow({
                         variant="ghost"
                         aria-label="delete"
                         type="button"
-                        className="hover:bg-[#DA2E34] dark:hover:bg-[#D93036] hover:text-white"
+                        className="hover:text-destructive"
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -481,17 +469,19 @@ export function CommentSection(props: {
   if (data === undefined) return <p>loading...</p>;
 
   return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center text-black dark:text-white gap-2">
-        <MessagesSquare className="size-5" />
-        <h2 className="text-xl font-bold">{data.length} Comments</h2>
-      </CardHeader>
+    <section className="section-minimal w-full">
+      <h2 className="type-label">
+        {data.length} {data.length === 1 ? "comment" : "comments"}
+      </h2>
 
-      <CardContent className="space-y-8">
+      <div className="space-y-8">
         {!isLoading && !isAuthenticated ? (
-          <div className="rounded-lg border border-primary bg-primary/10 p-6 text-center">
-            <p className="text-md text-paragraph">You need to be signed in to leave a comment.</p>
-          </div>
+          <p className="type-meta">
+            <Link href="/auth/login" className="text-black dark:text-white underline underline-offset-4">
+              Log in
+            </Link>{" "}
+            to comment.
+          </p>
         ) : (
           <form className="relative" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
             <Controller
@@ -499,33 +489,23 @@ export function CommentSection(props: {
               control={form.control}
               render={({ field }) => (
                 <Field>
-                  <label
-                    htmlFor="comment-body"
-                    className="text-black dark:text-white font-bold cursor-text"
-                  >
-                    Start a conversation with the community
+                  <label htmlFor="comment-body" className="sr-only">
+                    Comment
                   </label>
-                  <div
-                    className={`rounded-xl overflow-hidden bg-white dark:bg-black border transition-all
-                    ${
-                      visibleErrors.body
-                        ? "border-[#CB2A2E] dark:border-[#FF6166] ring-3 ring-[#FFE6E6] dark:ring-[#561A1E]"
-                        : "border-transparent focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] focus-within:border-[#FF3400]"
-                    }`}
-                  >
+                  <div className="input-underline" aria-invalid={!!visibleErrors.body}>
                     <Textarea
                       {...field}
                       rows={5}
                       id="comment-body"
                       name="comment-body"
-                      placeholder="Share your thoughts"
+                      placeholder="Add a comment"
                       maxLength={COMMENT_MAX}
                       onChange={(e) => {
                         field.onChange(e);
                         if (visibleErrors.body) setVisibleErrors({});
                       }}
                     />
-                    <div className="flex items-center justify-between px-3 py-2 border-t border-[#EAEAEA] dark:border-[#1E1E1E]">
+                    <div className="flex items-center justify-between py-2">
                       <span
                         className={`text-xs tabular-nums transition-colors ${counterColor(bodyValue.length, COMMENT_MAX)}`}
                       >
@@ -533,7 +513,7 @@ export function CommentSection(props: {
                       </span>
                       <Button
                         type="submit"
-                        size="icon"
+                        size="icon-sm"
                         aria-label="publish"
                         disabled={
                           isSubmitting || !field.value?.trim() || field.value.length > COMMENT_MAX
@@ -554,7 +534,6 @@ export function CommentSection(props: {
           </form>
         )}
 
-        {topLevel.length > 0 && <Separator />}
 
         <section className="space-y-6">
           {topLevel.map((comment) => {
@@ -628,7 +607,7 @@ export function CommentSection(props: {
             );
           })}
         </section>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

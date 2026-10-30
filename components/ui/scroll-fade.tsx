@@ -5,9 +5,15 @@ import { cn } from "@/lib/utils";
 
 const FADE = "28px";
 
-// A scroll container whose top and bottom edges fade out, each only while there's more
+// A scroll container whose edges (top and bottom, or left and right) fade out, each only while there's more
 // to scroll that way. A mask rather than an overlay, so it works on any background.
-export function ScrollFade({ className, style, children, ...props }: ComponentProps<"div">) {
+export function ScrollFade({
+  className,
+  style,
+  children,
+  orientation = "vertical",
+  ...props
+}: ComponentProps<"div"> & { orientation?: "vertical" | "horizontal" }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ top: false, bottom: false });
 
@@ -16,8 +22,12 @@ export function ScrollFade({ className, style, children, ...props }: ComponentPr
     if (!el) return;
 
     const update = () => {
-      const top = el.scrollTop > 1;
-      const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+      const horizontal = orientation === "horizontal";
+      const offset = horizontal ? el.scrollLeft : el.scrollTop;
+      const view = horizontal ? el.clientWidth : el.clientHeight;
+      const size = horizontal ? el.scrollWidth : el.scrollHeight;
+      const top = offset > 1;
+      const bottom = offset + view < size - 1;
       setEdges((prev) => (prev.top === top && prev.bottom === bottom ? prev : { top, bottom }));
     };
 
@@ -34,14 +44,14 @@ export function ScrollFade({ className, style, children, ...props }: ComponentPr
       resize.disconnect();
       mutations.disconnect();
     };
-  }, []);
+  }, [orientation]);
 
-  const mask = `linear-gradient(to bottom, ${edges.top ? "transparent" : "#000"} 0, #000 ${FADE}, #000 calc(100% - ${FADE}), ${edges.bottom ? "transparent" : "#000"} 100%)`;
+  const mask = `linear-gradient(${orientation === "horizontal" ? "to right" : "to bottom"}, ${edges.top ? "transparent" : "#000"} 0, #000 ${FADE}, #000 calc(100% - ${FADE}), ${edges.bottom ? "transparent" : "#000"} 100%)`;
 
   return (
     <div
       ref={ref}
-      className={cn("overflow-y-auto", className)}
+      className={cn(orientation === "horizontal" ? "overflow-x-auto" : "overflow-y-auto", className)}
       style={{ ...style, maskImage: mask, WebkitMaskImage: mask }}
       {...props}
     >

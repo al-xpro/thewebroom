@@ -12,21 +12,21 @@ import { connection } from "next/server";
 
 export const metadata: Metadata = {
   title: "The Web Room",
-  description: "Read our latest articles and insights.",
+  description: "Every post on The Web Room, newest first.",
   category: "Blog",
   authors: [{ name: "The Community at The Web Room" }],
 };
 
 interface BlogPageProps {
-  searchParams: Promise<{ topics?: string; page?: string }>;
+  searchParams: Promise<{ topics?: string }>;
 }
 
 export default function BlogPage({ searchParams }: BlogPageProps) {
   return (
     <div className="flex flex-col pt-20 max-w-3xl mx-auto px-4">
-      <section className="flex-1 flex flex-col items-start gap-5 py-5 border-b">
-        <h1 className="text-4xl font-extrabold text-primary">Posts</h1>
-        <Suspense fallback={<FiltersSkeleton />}>
+      <section className="relative flex flex-col items-start gap-5 py-10 divider-fade-bottom">
+        <h1 className="type-display">Posts</h1>
+        <Suspense fallback={<BlogFilters activeTopics={[]} />}>
           <DynamicContent searchParams={searchParams} />
         </Suspense>
       </section>
@@ -36,7 +36,7 @@ export default function BlogPage({ searchParams }: BlogPageProps) {
       </Suspense>
 
       <Newsletter />
-      <Suspense fallback={<div>Loading ...</div>}>
+      <Suspense fallback={null}>
         <Footer />
       </Suspense>
     </div>
@@ -53,23 +53,15 @@ async function DynamicContent({ searchParams }: { searchParams: Promise<{ topics
 async function LoadBlogList({
   searchParams,
 }: {
-  searchParams: Promise<{ topics?: string; page?: string }>;
+  searchParams: Promise<{ topics?: string }>;
 }) {
   await connection();
-  const { topics, page } = await searchParams;
+  const { topics } = await searchParams;
   const activeTopics = topics ? topics.split(",").filter(Boolean) : [];
-  // Parse page server-side and pass as prop — keeps PaginatedPosts off useSearchParams for reads
-  const currentPage = Math.max(1, Number(page ?? 1));
-  return <FilteredPosts activeTopics={activeTopics} currentPage={currentPage} />;
+  return <FilteredPosts activeTopics={activeTopics} />;
 }
 
-async function FilteredPosts({
-  activeTopics,
-  currentPage,
-}: {
-  activeTopics: string[];
-  currentPage: number;
-}) {
+async function FilteredPosts({ activeTopics }: { activeTopics: string[] }) {
   "use cache";
   cacheLife("seconds");
   cacheTag("blog");
@@ -81,27 +73,14 @@ async function FilteredPosts({
 
   if (filtered.length === 0) {
     return (
-      <div className="py-20 text-center">
-        <p className="text-paragraph">No posts found for the selected topic.</p>
-      </div>
+      <p className="type-meta py-20 text-center">No posts on this topic yet.</p>
     );
   }
 
-  return <PaginatedPosts posts={filtered} currentPage={currentPage} />;
+  // Keyed by the filter, so changing topics starts again at ten posts.
+  return <PaginatedPosts key={activeTopics.join(",")} posts={filtered} />;
 }
 
-function FiltersSkeleton() {
-  return (
-    <div className="flex gap-2 flex-wrap">
-      {[...Array(4)].map((_, i) => (
-        <div
-          key={i}
-          className="h-9 w-28 rounded-full bg-[#EDEDED] dark:bg-[#202020] animate-pulse"
-        />
-      ))}
-    </div>
-  );
-}
 
 function SkeletonLoadingUi() {
   return (

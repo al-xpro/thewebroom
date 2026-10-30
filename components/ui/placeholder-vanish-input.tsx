@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Send } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "./button";
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -62,13 +62,17 @@ export function PlaceholdersAndVanishInput({
     canvas.height = 800;
     ctx.clearRect(0, 0, 800, 800);
 
-    const computedStyles = getComputedStyle(inputRef.current);
+    // Draw the text exactly where the input shows it (the canvas is drawn at 2x and shown
+    // at half size), so the vanishing copy lines up with the typed text.
+    const input = inputRef.current;
+    const computedStyles = getComputedStyle(input);
     const fontSize = parseFloat(computedStyles.fontSize);
-    ctx.font = `${fontSize * 2}px ${computedStyles.fontFamily}`;
-
-    // Draw with the actual text color instead of always white
+    ctx.font = `${computedStyles.fontWeight} ${fontSize * 2}px ${computedStyles.fontFamily}`;
     ctx.fillStyle = computedStyles.color;
-    ctx.fillText(value, 16, 40);
+    ctx.textBaseline = "middle";
+    const x = input.offsetLeft + parseFloat(computedStyles.paddingLeft);
+    const y = input.offsetTop + input.offsetHeight / 2;
+    ctx.fillText(value, x * 2, y * 2);
 
     const imageData = ctx.getImageData(0, 0, 800, 800);
     const pixelData = imageData.data;
@@ -173,14 +177,14 @@ export function PlaceholdersAndVanishInput({
     <form
       onSubmit={handleSubmit}
       className={cn(
-        "relative w-full h-12 rounded-xl overflow-hidden bg-white dark:bg-black flex items-center focus-within:ring-3 focus-within:ring-[#ffc7bb] dark:focus-within:ring-[#660900] border border-transparent focus-within:border-[#FF3400] focus-within:outline-none",
+        "input-underline relative w-full h-11 overflow-hidden flex items-center",
         className
       )}
     >
       <canvas
         ref={canvasRef}
         className={cn(
-          "absolute pointer-events-none scale-50 top-[20%] left-2 origin-top-left",
+          "absolute pointer-events-none scale-50 top-0 left-0 origin-top-left",
           animating ? "opacity-100" : "opacity-0"
         )}
       />
@@ -197,15 +201,15 @@ export function PlaceholdersAndVanishInput({
         pattern={EMAIL_REGEX.source}
         onChange={(e) => !animating && setValue(e.target.value)}
         className={cn(
-          "w-full h-full bg-transparent pl-4 pr-32 text-sm sm:text-base text-black dark:text-white outline-none truncate",
+          "w-full h-full bg-transparent pl-0 pr-12 text-base font-light text-black dark:text-white outline-none truncate",
           animating && "text-transparent dark:text-transparent"
         )}
       />
 
       {/* Static placeholder */}
-      <div className="absolute left-4 inset-y-0 flex items-center pointer-events-none">
+      <div className="absolute left-0 inset-y-0 flex items-center pointer-events-none">
         {!value && (
-          <p className="text-sm sm:text-base text-neutral-400 dark:text-zinc-500 truncate">
+          <p className="text-base font-light text-[#A0A0A0] dark:text-[#666666] truncate">
             {placeholder}
           </p>
         )}
@@ -214,21 +218,13 @@ export function PlaceholdersAndVanishInput({
       <Button
         type="submit"
         tabIndex={-1}
-        className={cn(
-          "absolute right-2 top-1/2 -translate-y-1/2 z-20 cursor-pointer",
-          "flex items-center gap-2 rounded-full px-3 sm:px-4 py-1.5 text-sm font-medium transition",
-          submitted ? "bg-transparent! border-transparent! cursor-text" : "default"
-        )}
-        variant="default"
+        aria-label="Subscribe"
+        disabled={submitted}
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-20"
+        variant="ghost"
+        size="icon-sm"
       >
-        {submitted ? (
-          "Thank you!"
-        ) : (
-          <>
-            Subscribe
-            <Send className="w-4 h-4" />
-          </>
-        )}
+        <ArrowRight className="size-4" />
       </Button>
     </form>
   );

@@ -9,23 +9,18 @@ import { Separator } from "@/components/ui/separator";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
-  Book,
-  BookDashed,
-  CalendarClock,
   BookType,
   Calendar,
   Check,
   ClockFading,
   Copy,
   Loader2,
-  Upload,
   User,
 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import Footer from "@/components/web/Footer";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import Image from "next/image";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { updatePostAction } from "@/app/actions";
 import Link from "next/link";
@@ -37,6 +32,7 @@ import { api } from "@/convex/_generated/api";
 import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
 import { FunctionReturnType } from "convex/server";
 import { TOPICS, type Topic } from "@/convex/topics";
+import { CoverImageField } from "@/components/web/CoverImageField";
 
 const TOPIC_OPTIONS = TOPICS;
 
@@ -98,7 +94,12 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
     (post as { imageUrl?: string }).imageUrl ?? null
   );
   const [isMetaEditing, setIsMetaEditing] = useState(false);
+  // The author removed the cover image; saving deletes it.
+  const [removeImage, setRemoveImage] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
+  const [aiAssisted, setAiAssisted] = useState(false);
+  // A scheduled post opens the picker at its current time (#60).
+  const scheduledAt = post.status === "scheduled" && post.publishAt ? post.publishAt : undefined;
   const [isTopicOpen, setIsTopicOpen] = useState(false);
   const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
@@ -144,7 +145,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
       setDraftPending(true);
       try {
         if (!post.slug) throw new Error("Post slug is missing");
-        await updatePostAction(post._id, post.slug, values, post.imageStorageId, "draft");
+        await updatePostAction(post._id, post.slug, values, post.imageStorageId, "draft", removeImage, aiAssisted);
         await schedulePost({ postId: post._id, publishAt });
         showSuccessToast(`Scheduled for ${formatPublishAt(publishAt)}`);
         router.push("/my-posts");
@@ -166,7 +167,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
 
     try {
       if (!post.slug) throw new Error("Post slug is missing");
-      const response = await updatePostAction(post._id, post.slug, values, post.imageStorageId, status);
+      const response = await updatePostAction(post._id, post.slug, values, post.imageStorageId, status, removeImage, aiAssisted);
       const nextSlug = response.slug ?? post.slug;
 
       if (status === "draft") {
@@ -220,7 +221,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
 
   useEffect(() => {
     if (!imageFile) {
-      setPreviewUrl((post as { imageUrl?: string }).imageUrl ?? null);
+      setPreviewUrl(removeImage ? null : ((post as { imageUrl?: string }).imageUrl ?? null));
       return;
     }
 
@@ -228,7 +229,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
     setPreviewUrl(objectUrl);
 
     return () => URL.revokeObjectURL(objectUrl);
-  }, [imageFile, post]);
+  }, [imageFile, post, removeImage]);
 
   useEffect(() => {
     const handleDragEnter = (e: DragEvent) => {
@@ -281,47 +282,43 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
       )}
 
       <form
-        onSubmit={form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)();
+        }}
         className="flex flex-col gap-8 pb-16"
       >
         <div className="flex items-center justify-between gap-5">
           <Link href="/my-posts" className="flex items-center justify-center gap-2">
-            <Button variant="outline" size="sm" className="relative z-20">
+            <Button variant="ghost" size="sm" className="relative z-20 -ml-3">
               <ArrowLeft className="h-4 w-4" />
-              My Posts
+              Posts
             </Button>
           </Link>
 
-          <div className="flex flex-wrap items-end justify-end gap-2">
-            <SchedulePicker onConfirm={scheduleAt}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={isPending || draftPending}
-                className="shrink-0"
-              >
-                <span className="flex items-center gap-2">
-                  Schedule… <CalendarClock className="size-4" />
-                </span>
-              </Button>
-            </SchedulePicker>
+          <div className="flex items-center gap-1">
             <Button
-              disabled={isPending || draftPending}
-              size="sm"
               type="button"
-              className="shrink-0"
-              onClick={form.handleSubmit((values) => onSubmit(values, "draft"), onInvalid)}
+              variant="ghost"
+              size="sm"
+              disabled={isPending || draftPending}
+              onClick={() => {
+                // A draft saves whatever is there; publishing checks the whole post.
+                setVisibleErrors({});
+                void onSubmit(form.getValues(), "draft");
+              }}
             >
               {draftPending && <Loader2 className="size-4 animate-spin" />}
-              <span className="flex items-center gap-2">Save as Draft <BookDashed className="size-4" /></span>
+              Draft
             </Button>
-
-            <Button disabled={isPending || draftPending} size="sm" type="submit" className="shrink-0">
+            <SchedulePicker confirmLabel="Schedule" initial={scheduledAt} onConfirm={scheduleAt}>
+              <Button type="button" variant="ghost" size="sm" disabled={isPending || draftPending}>
+                Schedule
+              </Button>
+            </SchedulePicker>
+            <Button type="submit" size="sm" disabled={isPending || draftPending}>
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              <span className="flex items-center gap-2">
-                Save & Publish <Book className="size-4" />
-              </span>
+              Publish
             </Button>
           </div>
         </div>
@@ -412,14 +409,14 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
 
             <Separator className="my-4" />
 
-            <div className="flex flex-wrap items-center justify-between sm:gap-14 text-[11px] sm:text-sm text-paragraph">
+            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-1 text-[11px] sm:text-sm text-paragraph">
               <div className="flex flex-col items-center gap-2 text-black dark:text-white">
                 <User className="size-4 sm:size-5" />
                 <p>{user?.name || ""}</p>
               </div>
               <div className="flex flex-col items-center gap-2 text-black dark:text-white">
                 <Calendar className="size-4 sm:size-5" />
-                <p>{new Date().toLocaleDateString("en-US")}</p>
+                <p>{scheduledAt ? formatPublishAt(scheduledAt) : new Date().toLocaleDateString("en-US")}</p>
               </div>
               <Controller
                 name="topic"
@@ -550,82 +547,19 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
             control={form.control}
             render={({ field }) => (
               <section className="flex flex-col gap-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="image"
-                  className="hidden"
-                  onChange={(e) => {
-                    field.onChange(e.target.files?.[0]);
+                <CoverImageField
+                  previewUrl={previewUrl}
+                  onPick={(file) => {
+                    field.onChange(file);
+                    setRemoveImage(false);
+                    clearError("image");
+                  }}
+                  onRemove={() => {
+                    field.onChange(undefined);
+                    setRemoveImage(true);
                     clearError("image");
                   }}
                 />
-
-                <div
-                  className={cn(
-                    "relative mb-2 h-[280px] w-full overflow-hidden rounded-md shadow-sm sm:h-[380px]",
-                    previewUrl
-                      ? "bg-[#FAFAFA] dark:bg-[#0A0A0A]"
-                      : "border border-dashed border-[#EAEAEA] bg-white dark:border-[#1E1E1E] dark:bg-black hover:bg-[#FAFAFA] dark:hover:bg-[#0A0A0A]"
-                  )}
-                >
-                  {previewUrl && (
-                    <div className="relative flex w-full h-full p-6 border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black rounded-md">
-                      <Image
-                        src={previewUrl}
-                        alt="Featured image preview"
-                        fill
-                        sizes="100%"
-                        loading="eager"
-                        className="object-cover rounded-4xl p-6"
-                      />
-                    </div>
-                  )}
-
-                  {/* This label now covers 100% of the area */}
-                  <label
-                    htmlFor="image"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) {
-                        field.onChange(file);
-                        clearError("image");
-                      }
-                    }}
-                    className="absolute inset-0 cursor-pointer flex flex-col items-center justify-end pb-12"
-                  >
-                    {/* Badge logic positioned at the bottom center */}
-                    <div className="px-10 w-full flex justify-center">
-                      {field.value instanceof File ? (
-                        <span className="flex items-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-4 py-2 text-xs font-medium text-black dark:text-white shadow-xl">
-                          <Upload className="size-3.5" />
-                          <p className="max-w-[200px] truncate">{field.value.name}</p>
-                          <p className="shrink-0">
-                            {`${(field.value.size / 1024 / 1024).toFixed(2)}MB`}
-                          </p>
-                        </span>
-                      ) : previewUrl ? (
-                        <span className="flex items-center gap-2 rounded-full border border-[#EAEAEA] dark:border-[#1E1E1E] bg-white dark:bg-black px-6 py-2 text-xs font-medium text-black dark:text-white shadow-xl">
-                          <Upload className="size-3.5" />
-                          <p>Click or drag to replace</p>
-                        </span>
-                      ) : (
-                        /* Empty state icon when no image exists at all */
-                        <div className="flex flex-col items-center gap-3 text-center mb-24">
-                          <Upload className="size-6 text-paragraph" />
-                          <div className="space-y-1">
-                            <p className="text-base font-semibold text-black dark:text-white">
-                              Upload a featured image
-                            </p>
-                            <p className="text-xs text-paragraph">PNG, JPG, WebP up to 1MB</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </label>
-                </div>
                 <EditorialError message={visibleErrors.image} />
               </section>
             )}
@@ -646,6 +580,11 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                 });
                 clearError("content");
                 clearError("contentHtml");
+              }}
+              assistant={{
+                title: form.watch("title"),
+                subtitle: form.watch("subtitle"),
+                onApplied: () => setAiAssisted(true),
               }}
               placeholder="Write something worth reading."
             />

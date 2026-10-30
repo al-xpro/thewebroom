@@ -1,7 +1,7 @@
 "use server";
 
 import z from "zod";
-import { editPostSchema, postSchema } from "./schemas/blog";
+import { draftSchema, editPostSchema, postSchema } from "./schemas/blog";
 import { fetchMutation } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { getToken } from "@/lib/auth-server";
@@ -15,9 +15,11 @@ import { ConvexError } from "convex/values";
 // including showSuccessToast.
 export async function createBlogAction(
   values: z.infer<typeof postSchema>,
-  status: "published" | "draft" = "published"
+  status: "published" | "draft" = "published",
+  aiAssisted = false
 ) {
-  const parsed = postSchema.safeParse(values);
+  // Drafts need nothing filled in; publishing needs the whole post.
+  const parsed = status === "draft" ? draftSchema.safeParse(values) : postSchema.safeParse(values);
   if (!parsed.success) throw new Error("Validation failed");
 
   const token = await getToken();
@@ -48,6 +50,7 @@ export async function createBlogAction(
       topic: parsed.data.topic,
       status,
       imageStorageId: storageId,
+      aiAssisted: aiAssisted || undefined,
     },
     { token }
   );
@@ -79,12 +82,14 @@ export async function updatePostAction(
   slug: string,
   values: z.infer<typeof editPostSchema>,
   existingImageStorageId: Id<"_storage"> | undefined,
-  status: "published" | "draft" = "published"
+  status: "published" | "draft" = "published",
+  removeImage = false,
+  aiAssisted = false
 ) {
   const token = await getToken();
   if (!token) throw new Error("Not authenticated");
 
-  let imageStorageId: Id<"_storage"> | undefined = existingImageStorageId;
+  let imageStorageId: Id<"_storage"> | undefined = removeImage ? undefined : existingImageStorageId;
 
   if (values.image) {
     const imageUrl = await fetchMutation(api.posts.generateImageUploadUrl, {}, { token });
@@ -102,14 +107,17 @@ export async function updatePostAction(
     api.posts.updatePost,
     {
       postId: postId as Id<"posts">,
-      title: values.title,
+      // A draft may be saved with no title yet.
+      title: values.title?.trim() || (status === "draft" ? "Untitled draft" : values.title),
       body: values.content,
       subtitle: values.subtitle,
       minRead: values.minRead,
       contentHtml: values.contentHtml,
       imageStorageId,
+      removeImage: removeImage && !values.image,
       topic: values.topic,
       status,
+      aiAssisted: aiAssisted || undefined,
     },
     { token }
   );
@@ -142,4 +150,24 @@ export async function updateDisplayNameAction(name: string) {
   for (const postId of result.commentPostIds) updateTag(`comments-${postId}`);
 
   return { ok: true as const, name: result.name };
+}
+
+// Publishes a draft or scheduled post now (My posts). A scheduled post's job is cancelled
+// first, so it doesn't keep its future date.
+export async function publishPostAction(postId: string, slug: string, scheduled: boolean) {
+  const token = await getToken();
+  if (!token) throw new Error("Not authenticated");
+
+  try {
+    if (scheduled) {
+      await fetchMutation(api.scheduledPosts.unschedulePost, { postId: postId as Id<"posts"> }, { token });
+    }
+    await fetchMutation(api.posts.updatePost, { postId: postId as Id<"posts">, status: "published" }, { token });
+  } catch (error) {
+    return { ok: false as const, message: error instanceof ConvexError ? String(error.data) : "Failed to publish" };
+  }
+
+  updateTag("blog");
+  updateTag(`post-${slug}`);
+  return { ok: true as const };
 }

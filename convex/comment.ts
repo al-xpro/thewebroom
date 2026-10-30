@@ -1,8 +1,30 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
+import { components } from "./_generated/api";
+import { getAvatarUrls } from "./avatars";
+import { notify } from "./notifications";
 
 const COMMENT_MAX_LENGTH = 300;
+
+// Each comment's author photo: uploaded (#95), then GitHub's. The UI falls back to a
+// generated one.
+async function withAuthorAvatars<T extends { authorId: string }>(ctx: QueryCtx, comments: T[]) {
+  const uploaded = await getAvatarUrls(ctx, comments.map((c) => c.authorId));
+  const github = new Map<string, string>();
+  for (const authorId of new Set(comments.map((c) => c.authorId))) {
+    if (uploaded.has(authorId)) continue;
+    const author = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "_id", operator: "eq", value: authorId }],
+    })) as { image?: string | null } | null;
+    if (author?.image) github.set(authorId, author.image);
+  }
+  return comments.map((c) => ({
+    ...c,
+    authorAvatarUrl: uploaded.get(c.authorId) ?? github.get(c.authorId) ?? null,
+  }));
+}
 
 export const getIsAdmin = query({
   args: {},
@@ -21,24 +43,26 @@ export const getIsAdmin = query({
 export const getCommentsByPostId = query({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const comments = await ctx.db
       .query("comments")
       .filter((q) => q.eq(q.field("postId"), args.postId))
       .order("desc")
       .collect();
+    return await withAuthorAvatars(ctx, comments);
   },
 });
 
 export const getVisibleCommentsByPostId = query({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const comments = await ctx.db
       .query("comments")
       .filter((q) =>
         q.and(q.eq(q.field("postId"), args.postId), q.eq(q.field("status"), "visible"))
       )
       .order("desc")
       .collect();
+    return await withAuthorAvatars(ctx, comments);
   },
 });
 
@@ -94,6 +118,17 @@ export const createComment = mutation({
       authorName: user.name || "",
       status: "visible",
     });
+
+    // Tell the post's author, and the author of the comment replied to.
+    const post = await ctx.db.get(args.postId);
+    const parent = args.parentId ? await ctx.db.get(args.parentId) : null;
+    const about = { actorId: user._id, actorName: user.name || "", postId: args.postId, postSlug: post?.slug, postTitle: post?.title };
+    if (parent && parent.authorId !== user._id) {
+      await notify(ctx, { userId: parent.authorId, kind: "reply", ...about });
+    }
+    if (post && post.authorId !== parent?.authorId) {
+      await notify(ctx, { userId: post.authorId, kind: "comment", ...about });
+    }
 
     // Update rate limit
     if (rateLimit) {
