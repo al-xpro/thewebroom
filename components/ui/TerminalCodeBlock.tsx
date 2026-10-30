@@ -4,6 +4,7 @@ import { NodeViewWrapper, NodeViewContent } from "@tiptap/react";
 import { Terminal, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { convertCommands, type PackageManager } from "@/lib/package-manager-command";
 
 const managers = ["npm", "pnpm", "yarn", "bun"];
 
@@ -20,9 +21,11 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
       const currentNode = state.doc.nodeAt(pos);
       if (!currentNode) return false;
 
-      const currentManager = currentNode.attrs.packageManager;
+      // Whatever is written in the current tab is converted for the target tab, so a
+      // command is typed once for every package manager.
+      const currentManager = currentNode.attrs.packageManager as PackageManager;
       const currentText = currentNode.textContent;
-      const targetContent = currentNode.attrs[`${targetManager}Content`] || "";
+      const targetContent = convertCommands(currentText, currentManager, targetManager as PackageManager);
 
       //  1. Capture cursor position RELATIVE to node
       const { from } = state.selection;
@@ -136,6 +139,9 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
                 </button>
               ))}
             </div>
+            <span className="hidden sm:inline text-xs text-paragraph">
+              Write once, the other tabs follow
+            </span>
           </div>
           <button
             type="button"
