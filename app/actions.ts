@@ -147,3 +147,23 @@ export async function updateDisplayNameAction(name: string) {
 
   return { ok: true as const, name: result.name };
 }
+
+// Publishes a draft or scheduled post now (My posts). A scheduled post's job is cancelled
+// first, so it doesn't keep its future date.
+export async function publishPostAction(postId: string, slug: string, scheduled: boolean) {
+  const token = await getToken();
+  if (!token) throw new Error("Not authenticated");
+
+  try {
+    if (scheduled) {
+      await fetchMutation(api.scheduledPosts.unschedulePost, { postId: postId as Id<"posts"> }, { token });
+    }
+    await fetchMutation(api.posts.updatePost, { postId: postId as Id<"posts">, status: "published" }, { token });
+  } catch (error) {
+    return { ok: false as const, message: error instanceof ConvexError ? String(error.data) : "Failed to publish" };
+  }
+
+  updateTag("blog");
+  updateTag(`post-${slug}`);
+  return { ok: true as const };
+}

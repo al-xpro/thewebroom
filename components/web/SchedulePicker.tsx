@@ -29,7 +29,7 @@ export function timeZoneName() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-function startOfToday() {
+export function startOfToday() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today;
@@ -37,6 +37,52 @@ function startOfToday() {
 
 function timeOf(date: Date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+// A day (calendar with month and year dropdowns, past days disabled) and a time, in the
+// author's time zone. Shared by the schedule picker and the schedule dialog.
+export function DateTimeFields({
+  day,
+  onDay,
+  time,
+  onTime,
+}: {
+  day: Date | undefined;
+  onDay: (day: Date | undefined) => void;
+  time: string;
+  onTime: (time: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <Calendar
+        mode="single"
+        selected={day}
+        onSelect={onDay}
+        captionLayout="dropdown"
+        startMonth={startOfToday()}
+        endMonth={new Date(new Date().getFullYear() + 1, 11)}
+        disabled={{ before: startOfToday() }}
+        className="mx-auto p-0"
+      />
+      <div className="flex items-center justify-between gap-3 border-b border-black/10 dark:border-white/15 pb-2">
+        <label htmlFor="publish-time" className="type-meta">Time</label>
+        <input
+          id="publish-time"
+          type="time"
+          value={time}
+          onChange={(e) => onTime(e.target.value)}
+          className="bg-transparent text-sm outline-none tabular-nums"
+        />
+      </div>
+      <p className="type-meta text-xs">{timeZoneName()}</p>
+    </div>
+  );
+}
+
+// The time a day and an "HH:MM" time stand for, or NaN without a day.
+export function combineDayAndTime(day: Date | undefined, time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return day ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), hours, minutes).getTime() : NaN;
 }
 
 interface SchedulePickerProps {
@@ -60,10 +106,7 @@ export function SchedulePicker({ children, initial, confirmLabel = "Set", onConf
   // Read when the picker opens; the server checks the time again.
   const [now, setNow] = useState(() => Date.now());
 
-  const [hours, minutes] = time.split(":").map(Number);
-  const publishAt = day
-    ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), hours, minutes).getTime()
-    : NaN;
+  const publishAt = combineDayAndTime(day, time);
   const valid = Number.isFinite(publishAt) && publishAt > now + 60_000;
 
   const onOpenChange = (next: boolean) => {
@@ -88,27 +131,7 @@ export function SchedulePicker({ children, initial, confirmLabel = "Set", onConf
 
   const panel = (
     <div className="space-y-4">
-      <Calendar
-        mode="single"
-        selected={day}
-        onSelect={setDay}
-        captionLayout="dropdown"
-        startMonth={startOfToday()}
-        endMonth={new Date(new Date().getFullYear() + 1, 11)}
-        disabled={{ before: startOfToday() }}
-        className="mx-auto p-0"
-      />
-      <div className="flex items-center justify-between gap-3 border-b border-black/10 dark:border-white/15 pb-2">
-        <label htmlFor="publish-time" className="type-meta">Time</label>
-        <input
-          id="publish-time"
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          className="bg-transparent text-sm outline-none tabular-nums"
-        />
-      </div>
-      <p className="type-meta text-xs">{timeZoneName()}</p>
+      <DateTimeFields day={day} onDay={setDay} time={time} onTime={setTime} />
       {day && !valid && <p className="text-xs text-destructive">At least a minute from now.</p>}
       <div className="flex gap-2">
         {onClear && (
