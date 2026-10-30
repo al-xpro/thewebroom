@@ -75,7 +75,7 @@ export function ScheduleDialog({ posts, onClose, onScheduled }: ScheduleDialogPr
       aria-labelledby="schedule-title"
       className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
     >
-      <div className="flex max-h-[90svh] w-full max-w-sm flex-col gap-5 overflow-y-auto rounded-2xl border bg-white p-6 dark:bg-black">
+      <div className="flex max-h-[90svh] w-full max-w-sm flex-col gap-5 overflow-y-auto rounded-3xl border border-black/5 bg-white p-6 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-black">
         <h2 id="schedule-title" className="type-heading">
           {many ? `Schedule ${posts.length} posts` : "Schedule"}
         </h2>
