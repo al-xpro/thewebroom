@@ -26,6 +26,7 @@ import { updatePostAction } from "@/app/actions";
 import Link from "next/link";
 import { generateSlug } from "@/lib/slug";
 import { cn } from "@/lib/utils";
+import { estimateMinRead } from "@/lib/reading-time";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -101,7 +102,6 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
   // A scheduled post opens the picker at its current time (#60).
   const scheduledAt = post.status === "scheduled" && post.publishAt ? post.publishAt : undefined;
   const [isTopicOpen, setIsTopicOpen] = useState(false);
-  const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
   const userQuery = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
   const user = userQuery ?? initialUser;
@@ -133,9 +133,6 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
     },
   });
 
-  const clamp = (value: number, min: number, max: number) => {
-    return Math.min(Math.max(value, min), max);
-  };
 
   const schedulePost = useMutation(api.scheduledPosts.schedulePost);
 
@@ -467,77 +464,13 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
                   );
                 }}
               />
-              <Controller
-                name="minRead"
-                control={form.control}
-                render={({ field }) => (
-                    <div className="flex flex-col items-center gap-2 text-black dark:text-white">
-                      <ClockFading className="size-4 sm:size-5" />
-                      {isMinReadEditing ? (
-                        <>
-                          <label htmlFor="minutes-read" className="sr-only">
-                            Min read
-                          </label>
-
-                          <input
-                            id="minutes-read"
-                            aria-label="minutes read"
-                            type="number"
-                            min="1"
-                            max="30"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.currentTarget.blur();
-                                setIsMinReadEditing(false);
-                              }
-                              // prevent non-numeric characters like "e", "+", "-"
-                              if (["e", "E", "+", "-", "."].includes(e.key)) {
-                                e.preventDefault();
-                              }
-                            }}
-                            value={field.value ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              // allow empty while typing
-                              if (raw === "") {
-                                field.onChange("");
-                                return;
-                              }
-                              let value = Number(raw);
-                              // ignore invalid numbers (like "e", "-", etc.)
-                              if (isNaN(value)) return;
-                              // clamp immediately
-                              value = clamp(value, 1, 30);
-                              field.onChange(value);
-                              clearError("minRead");
-                            }}
-                            onBlur={() => {
-                              let value = Number(field.value);
-                              if (!value || isNaN(value)) value = 5;
-                              field.onChange(clamp(value, 1, 30));
-                              setIsMinReadEditing(false);
-                            }}
-                            className="w-[61px] sm:w-20 text-center bg-[#EDEDED] dark:bg-[#0A0A0A] outline-none rounded-md no-spinner"
-                          />
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setIsMinReadEditing(true)}
-                          className="w-[61px] sm:w-20 hover:opacity-70 transition cursor-pointer"
-                        >
-                          {field.value || 5} min read
-                        </button>
-                      )}
-
-                      <EditorialError
-                        message={visibleErrors.minRead}
-                        className="text-xs text-center"
-                      />
-                    </div>
-                )}
-              />
+              <div
+                className="flex flex-col items-center gap-2 text-black dark:text-white"
+                title="Estimated from the text, about 220 words a minute"
+              >
+                <ClockFading className="size-4 sm:size-5" />
+                <p className="w-[61px] sm:w-20 text-center">{form.watch("minRead") || 1} min read</p>
+              </div>
               <CopySlugButton slug={slugPreview} />
             </div>
           </header>
@@ -574,6 +507,7 @@ export function EditPostClient({ post, initialUser }: EditPostClientProps) {
               hasError={!!visibleErrors.content}
               onChange={(text, html) => {
                 form.setValue("content", text, { shouldValidate: false });
+                form.setValue("minRead", estimateMinRead(text));
                 form.setValue("contentHtml", html, {
                   shouldValidate: false,
                   shouldDirty: true,
