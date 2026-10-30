@@ -27,6 +27,7 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { generateSlug } from "@/lib/slug";
 import { cn } from "@/lib/utils";
+import { estimateMinRead } from "@/lib/reading-time";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
 import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
@@ -117,7 +118,6 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
   const [aiAssisted, setAiAssisted] = useState(false);
   const onboarding = useCreateOnboarding();
   const [isTopicOpen, setIsTopicOpen] = useState(false);
-  const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
   const userQuery = useQuery(api.auth.getCurrentUser, isAuthenticated ? undefined : "skip");
   const user = userQuery ?? initialUser;
@@ -155,9 +155,6 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
     },
   });
 
-  const clamp = (value: number, min: number, max: number) => {
-    return Math.min(Math.max(value, min), max);
-  };
 
   // Bring back the post saved in this browser (after a reload or a detour through sign-in).
   useEffect(() => {
@@ -423,8 +420,8 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
             </Button>
           </Link>
 
-          <div className="flex items-center gap-1">
-            <Button type="button" variant="ghost" size="sm" onClick={onboarding.show} className="text-[#A0A0A0]">
+          <div className="flex items-center sm:gap-1">
+            <Button type="button" variant="ghost" size="sm" onClick={onboarding.show} className="text-[#A0A0A0] max-sm:px-2">
               Guide
             </Button>
             <Button
@@ -581,77 +578,13 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                   );
                 }}
               />
-              <Controller
-                name="minRead"
-                control={form.control}
-                render={({ field }) => (
-                  <div className="flex flex-col items-center gap-2 text-black dark:text-white">
-                    <ClockFading className="size-4 sm:size-5" />
-                    {isMinReadEditing ? (
-                      <>
-                        <label htmlFor="minutes-read" className="sr-only">
-                          Min read
-                        </label>
-
-                        <input
-                          id="minutes-read"
-                          aria-label="minutes read"
-                          type="number"
-                          min="1"
-                          max="30"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.currentTarget.blur();
-                              setIsMinReadEditing(false);
-                            }
-                            // prevent non-numeric characters like "e", "+", "-"
-                            if (["e", "E", "+", "-", "."].includes(e.key)) {
-                              e.preventDefault();
-                            }
-                          }}
-                          value={field.value ?? ""}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            // allow empty while typing
-                            if (raw === "") {
-                              field.onChange("");
-                              return;
-                            }
-                            let value = Number(raw);
-                            // ignore invalid numbers (like "e", "-", etc.)
-                            if (isNaN(value)) return;
-                            // clamp immediately
-                            value = clamp(value, 1, 30);
-                            field.onChange(value);
-                            clearError("minRead");
-                          }}
-                          onBlur={() => {
-                            let value = Number(field.value);
-                            if (!value || isNaN(value)) value = 5;
-                            field.onChange(clamp(value, 1, 30));
-                            setIsMinReadEditing(false);
-                          }}
-                          className="w-[61px] sm:w-20 text-center bg-[#EDEDED] dark:bg-[#0A0A0A] outline-none rounded-md no-spinner"
-                        />
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setIsMinReadEditing(true)}
-                        className="w-[61px] sm:w-20 hover:opacity-70 transition cursor-pointer"
-                      >
-                        {field.value || 5} min read
-                      </button>
-                    )}
-
-                    <EditorialError
-                      message={visibleErrors.minRead}
-                      className="text-xs text-center"
-                    />
-                  </div>
-                )}
-              />
+              <div
+                className="flex flex-col items-center gap-2 text-black dark:text-white"
+                title="Estimated from the text, about 220 words a minute"
+              >
+                <ClockFading className="size-4 sm:size-5" />
+                <p className="w-[61px] sm:w-20 text-center">{form.watch("minRead") || 1} min read</p>
+              </div>
               <CopySlugButton slug={slugPreview} />
             </div>
           </header>
@@ -687,6 +620,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                 hasError={!!visibleErrors.content}
                 onChange={(text, html) => {
                   form.setValue("content", text, { shouldValidate: true });
+                  form.setValue("minRead", estimateMinRead(text));
                   form.setValue("contentHtml", html, { shouldValidate: true });
                   clearError("content");
                 }}

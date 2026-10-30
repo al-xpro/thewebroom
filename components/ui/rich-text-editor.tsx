@@ -413,7 +413,8 @@ export function RichTextEditor({
     Icon: typeof ArrowUp;
   }> = [
     { label: "Top", value: "top", Icon: ArrowUp },
-    ...(isWide
+    // The agent needs a row, so it keeps the toolbar at the top or the bottom.
+    ...(isWide && toolbarMode !== "agent"
       ? [
           { label: "Left", value: "left" as const, Icon: ArrowLeft },
           { label: "Right", value: "right" as const, Icon: ArrowRight },
@@ -515,6 +516,13 @@ export function RichTextEditor({
                     : "mx-auto w-max items-center px-3 py-2"
               )}
             >
+              {/* Where the toolbar sits, the count and the agent: they slide into place when the
+                  toolbar switches between formatting and the agent. */}
+              <motion.div
+                layout="position"
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                className={cn("flex shrink-0 gap-2", isToolbarVertical ? "flex-col items-center" : "items-center")}
+              >
               <Popover
                 open={isToolbarPositionPopoverOpen}
                 onOpenChange={setIsToolbarPositionPopoverOpen}
@@ -548,7 +556,8 @@ export function RichTextEditor({
               <div
                 className={cn(
                   "flex items-center text-xs",
-                  isToolbarVertical ? "w-full justify-center" : "w-16 justify-between"
+                  isToolbarVertical ? "w-full justify-center" : "w-16 justify-between",
+                  toolbarMode === "agent" && "hidden sm:flex"
                 )}
               >
                 <span
@@ -566,9 +575,25 @@ export function RichTextEditor({
                 title={toolbarMode === "agent" ? "Back to formatting" : "Ask the agent"}
                 aria-pressed={toolbarMode === "agent"}
                 disabled={!agent}
-                onClick={() => setToolbarMode(toolbarMode === "agent" ? "format" : "agent")}
+                onClick={() => {
+                  // The agent needs a row: from a side, the toolbar moves to the bottom.
+                  if (toolbarMode === "format" && isToolbarVertical) setToolbarPosition("bottom");
+                  setToolbarMode(toolbarMode === "agent" ? "format" : "agent");
+                }}
+                className="overflow-hidden"
               >
-                {toolbarMode === "agent" ? <Type className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.span
+                    key={toolbarMode}
+                    initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex"
+                  >
+                    {toolbarMode === "agent" ? <Type className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                  </motion.span>
+                </AnimatePresence>
                 {!isToolbarVertical && <span className="hidden sm:inline">{toolbarMode === "agent" ? "Format" : "Agent"}</span>}
               </Button>
 
@@ -578,9 +603,21 @@ export function RichTextEditor({
                   isToolbarVertical ? "h-px w-8" : "h-8 w-px"
                 )}
               />
+              </motion.div>
 
-              {toolbarMode === "agent" && agent ? (
-                isToolbarVertical ? null : (
+              {/* One after the other: the tools leave, then the agent grows from its button. */}
+              <AnimatePresence mode="wait" initial={false}>
+              {toolbarMode === "agent" && agent && !isToolbarVertical ? (
+                <motion.div
+                  key="agent"
+                  // Grows from the Agent button. A clip, not a transform, so the agent's panel
+                  // still spans the whole toolbar.
+                  initial={{ opacity: 0, clipPath: "inset(0 100% 0 0 round 999px)" }}
+                  animate={{ opacity: 1, clipPath: "inset(0 0% 0 0 round 999px)", transitionEnd: { clipPath: "none" } }}
+                  exit={{ opacity: 0, clipPath: "inset(0 100% 0 0 round 999px)", transition: { duration: 0.15 } }}
+                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                  className="flex min-w-0 flex-1"
+                >
                   <AgentChat
                     editor={editor}
                     title={agent.title}
@@ -589,9 +626,16 @@ export function RichTextEditor({
                     panel={toolbarPosition === "top" ? "below" : "above"}
                     className="min-w-0 flex-1"
                   />
-                )
+                </motion.div>
               ) : (
-              <>
+              <motion.div
+                key="format"
+                initial={{ opacity: 0, x: isToolbarVertical ? 0 : 16, y: isToolbarVertical ? 16 : 0 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0, x: isToolbarVertical ? 0 : 16, y: isToolbarVertical ? 16 : 0, transition: { duration: 0.12 } }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className={cn("flex gap-2", isToolbarVertical ? "flex-col items-center" : "items-center")}
+              >
               <Button
                 type="button"
                 onClick={() => editor.chain().focus().undo().run()}
@@ -989,31 +1033,13 @@ export function RichTextEditor({
                 </Popover>
               </div>
 
-              </>
+              </motion.div>
               )}
+              </AnimatePresence>
             </div>
           </div>
         </motion.div>
       </AnimatePresence>
-
-      {/* With the toolbar on a side, the agent opens as a card next to it. */}
-      {toolbarMode === "agent" && agent && isToolbarVertical && (
-        <div
-          className={cn(
-            "fixed bottom-6 z-50 w-[min(28rem,calc(100vw-6rem))]",
-            toolbarPosition === "left" ? "left-[66px]" : "right-[66px]"
-          )}
-        >
-          <AgentChat
-            editor={editor}
-            title={agent.title}
-            subtitle={agent.subtitle}
-            onApplied={agent.onApplied}
-            panel="above"
-            className="rounded-full bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:bg-black"
-          />
-        </div>
-      )}
 
       <EditorContent
         editor={editor}

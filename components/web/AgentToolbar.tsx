@@ -277,7 +277,8 @@ export function AgentChat({ editor, title, subtitle, onApplied, panel, className
   const open = showSuggestions || result !== null || pending;
 
   return (
-    <div ref={rootRef} data-toolbar className={cn("relative w-full", className)}>
+    // Not positioned: the panel spans the nearest positioned box (the whole toolbar row).
+    <div ref={rootRef} data-toolbar className={cn("w-full", className)}>
       <AnimatePresence>
         {open && (
           <motion.div
