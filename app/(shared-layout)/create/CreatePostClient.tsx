@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
 import { SchedulePicker, formatPublishAt } from "@/components/web/SchedulePicker";
+import { CreateOnboarding, useCreateOnboarding } from "@/components/web/CreateOnboarding";
 import { FunctionReturnType } from "convex/server";
 import {
   clearSavedPost,
@@ -114,6 +115,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
   const [isMetaEditing, setIsMetaEditing] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false);
+  const onboarding = useCreateOnboarding();
   const [isTopicOpen, setIsTopicOpen] = useState(false);
   const [isMinReadEditing, setIsMinReadEditing] = useState(false);
 
@@ -404,6 +406,8 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
         </div>
       )}
 
+      <CreateOnboarding open={onboarding.open} onClose={onboarding.close} />
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -420,6 +424,9 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
           </Link>
 
           <div className="flex items-center gap-1">
+            <Button type="button" variant="ghost" size="sm" onClick={onboarding.show} className="text-[#A0A0A0]">
+              Guide
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -684,7 +691,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                   clearError("content");
                 }}
                 placeholder="Write your content here... Use the toolbar for formatting"
-                assistant={{
+                agent={{
                   title: form.watch("title"),
                   subtitle: form.watch("subtitle"),
                   onApplied: () => setAiAssisted(true),

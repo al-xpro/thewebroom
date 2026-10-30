@@ -10,6 +10,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
   ArrowUp,
+  Sparkles,
+  Type,
   Bold,
   Italic,
   List,
@@ -60,7 +62,7 @@ import { cn } from "@/lib/utils";
 import { AlignmentExtension } from "@/lib/extension/alignment";
 import { ShortcutsExtension } from "@/lib/extension/shortcuts";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { AgentReviewBar, AgentSelectionMenu } from "@/components/web/AgentToolbar";
+import { AgentChat } from "@/components/web/AgentToolbar";
 
 interface RichTextEditorProps {
   value?: string;
@@ -70,8 +72,8 @@ interface RichTextEditorProps {
   name?: string;
   id?: string;
   isMetaEditing?: boolean;
-  // Turns on the agent toolbar: a menu on selected text and a review of the draft.
-  assistant?: { title?: string; subtitle?: string; onApplied?: () => void };
+  // Turns on the agentic toolbar: ask the agent to write, rewrite or add, and review.
+  agent?: { title?: string; subtitle?: string; onApplied?: () => void };
 }
 
 type ToolbarPosition = "top" | "left" | "right" | "bottom";
@@ -111,7 +113,7 @@ export function RichTextEditor({
   name,
   id,
   isMetaEditing = false,
-  assistant,
+  agent,
 }: RichTextEditorProps) {
   const [, forceUpdate] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -130,6 +132,7 @@ export function RichTextEditor({
       ? "bottom"
       : chosenToolbarPosition;
   const [isToolbarPositionPopoverOpen, setIsToolbarPositionPopoverOpen] = useState(false);
+  const [toolbarMode, setToolbarMode] = useState<"format" | "agent">("format");
 
   // Table Configuration State
   const [tableRows, setTableRows] = useState(2);
@@ -497,7 +500,9 @@ export function RichTextEditor({
               "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
               isToolbarVertical
                 ? "flex h-full items-center mx-auto overflow-y-auto overflow-x-hidden"
-                : "w-full overflow-x-auto overflow-y-hidden"
+                : toolbarMode === "agent"
+                  ? "w-full overflow-visible"
+                  : "w-full overflow-x-auto overflow-y-hidden"
             )}
           >
             <div
@@ -505,9 +510,88 @@ export function RichTextEditor({
                 "relative flex gap-2",
                 isToolbarVertical
                   ? "my-auto h-max flex-col items-center justify-center px-2 py-3"
-                  : "mx-auto w-max items-center px-3 py-2"
+                  : toolbarMode === "agent"
+                    ? "mx-auto w-full max-w-3xl items-center px-3 py-2"
+                    : "mx-auto w-max items-center px-3 py-2"
               )}
             >
+              <Popover
+                open={isToolbarPositionPopoverOpen}
+                onOpenChange={setIsToolbarPositionPopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" title="Toolbar position">
+                    <ActiveToolbarPositionIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="w-56 rounded-xl border bg-white p-3 dark:bg-black">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      {toolbarDirectionOptions.map(({ label, value, Icon }) => (
+                        <Button
+                          key={value}
+                          type="button"
+                          variant={toolbarPosition === value ? "default" : "secondary"}
+                          className="w-full"
+                          onClick={() => handleToolbarPositionChange(value)}
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{label}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Character Counter */}
+              <div
+                className={cn(
+                  "flex items-center text-xs",
+                  isToolbarVertical ? "w-full justify-center" : "w-16 justify-between"
+                )}
+              >
+                <span
+                  className={`text-xs tabular-nums transition-colors ${counterColor(bodyValue.length, MAX_CHARS)}`}
+                >
+                  {formatCount(bodyValue.length)} / {formatCount(MAX_CHARS)}
+                </span>
+              </div>
+
+              {/* Formatting tools, or the agent: the same place, one at a time. */}
+              <Button
+                type="button"
+                variant={toolbarMode === "agent" ? "default" : "outline"}
+                size="sm"
+                title={toolbarMode === "agent" ? "Back to formatting" : "Ask the agent"}
+                aria-pressed={toolbarMode === "agent"}
+                disabled={!agent}
+                onClick={() => setToolbarMode(toolbarMode === "agent" ? "format" : "agent")}
+              >
+                {toolbarMode === "agent" ? <Type className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                {!isToolbarVertical && <span className="hidden sm:inline">{toolbarMode === "agent" ? "Format" : "Agent"}</span>}
+              </Button>
+
+              <div
+                className={cn(
+                  "bg-[#EAEAEA] dark:bg-[#1E1E1E]",
+                  isToolbarVertical ? "h-px w-8" : "h-8 w-px"
+                )}
+              />
+
+              {toolbarMode === "agent" && agent ? (
+                isToolbarVertical ? null : (
+                  <AgentChat
+                    editor={editor}
+                    title={agent.title}
+                    subtitle={agent.subtitle}
+                    onApplied={agent.onApplied}
+                    panel={toolbarPosition === "top" ? "below" : "above"}
+                    className="min-w-0 flex-1"
+                  />
+                )
+              ) : (
+              <>
               <Button
                 type="button"
                 onClick={() => editor.chain().focus().undo().run()}
@@ -905,70 +989,30 @@ export function RichTextEditor({
                 </Popover>
               </div>
 
-              <div
-                className={cn(
-                  "bg-[#EAEAEA] dark:bg-[#1E1E1E]",
-                  isToolbarVertical ? "h-px w-8" : "h-8 w-px"
-                )}
-              />
-
-              <Popover
-                open={isToolbarPositionPopoverOpen}
-                onOpenChange={setIsToolbarPositionPopoverOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" size="sm" title="Toolbar position">
-                    <ActiveToolbarPositionIcon className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align={getPopoverAlign()} side={getPopoverSide()} className="w-56 rounded-xl border bg-white p-3 dark:bg-black">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      {toolbarDirectionOptions.map(({ label, value, Icon }) => (
-                        <Button
-                          key={value}
-                          type="button"
-                          variant={toolbarPosition === value ? "default" : "secondary"}
-                          className="w-full"
-                          onClick={() => handleToolbarPositionChange(value)}
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span>{label}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* Character Counter */}
-              <div
-                className={cn(
-                  "flex items-center text-xs",
-                  isToolbarVertical ? "w-full justify-center" : "w-16 justify-between"
-                )}
-              >
-                <span
-                  className={`text-xs tabular-nums transition-colors ${counterColor(bodyValue.length, MAX_CHARS)}`}
-                >
-                  {formatCount(bodyValue.length)} / {formatCount(MAX_CHARS)}
-                </span>
-              </div>
+              </>
+              )}
             </div>
           </div>
         </motion.div>
       </AnimatePresence>
 
-      {assistant && editor && (
-        <>
-          <AgentReviewBar
+      {/* With the toolbar on a side, the agent opens as a card next to it. */}
+      {toolbarMode === "agent" && agent && isToolbarVertical && (
+        <div
+          className={cn(
+            "fixed bottom-6 z-50 w-[min(28rem,calc(100vw-6rem))]",
+            toolbarPosition === "left" ? "left-[66px]" : "right-[66px]"
+          )}
+        >
+          <AgentChat
             editor={editor}
-            title={assistant.title}
-            subtitle={assistant.subtitle}
-            onApplied={assistant.onApplied}
+            title={agent.title}
+            subtitle={agent.subtitle}
+            onApplied={agent.onApplied}
+            panel="above"
+            className="rounded-full bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:bg-black"
           />
-          <AgentSelectionMenu editor={editor} onApplied={assistant.onApplied} />
-        </>
+        </div>
       )}
 
       <EditorContent

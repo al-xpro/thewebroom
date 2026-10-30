@@ -1,33 +1,83 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import type { Editor } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { ArrowUp, Loader2, Sparkles, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { showErrorToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import {
-  assistSelectionAction,
+  agentEditAction,
   reviewDraftAction,
-  type AssistantAction,
+  type AgentBlock,
+  type AgentEdit,
   type ReviewSuggestion,
 } from "@/app/assistant-actions";
 
-// The agent toolbar in the editor: a menu on selected text (clarify, shorten, fix,
-// explain) and a review of the whole draft before publishing. Nothing changes until the
-// writer accepts a suggestion; accepting one marks the post as AI-assisted.
+// The agentic toolbar: the writer asks the agent in their own words, or picks one of the
+// suggestions below, and gets a reply and a preview of the change to accept or reject.
+// Accepting marks the post as AI-assisted.
 
-const ACTIONS: { id: AssistantAction; label: string }[] = [
-  { id: "clarify", label: "Clarify" },
-  { id: "shorten", label: "Shorten" },
-  { id: "fix", label: "Fix" },
-  { id: "explain", label: "Explain" },
+type Suggestion = { label: string; prompt: string; send: boolean; selection?: boolean; review?: boolean };
+
+const SUGGESTIONS: Suggestion[] = [
+  { label: "Proofread selection", prompt: "Proofread the selection.", send: true, selection: true },
+  { label: "Rewrite selection", prompt: "Rewrite the selection so it's clearer.", send: true, selection: true },
+  { label: "Make it shorter", prompt: "Make the selection shorter, keeping what matters.", send: true, selection: true },
+  { label: "New paragraph", prompt: "Write a new paragraph about ", send: false },
+  { label: "New heading", prompt: "Write a heading for the next section about ", send: false },
+  { label: "Code block", prompt: "Add a code block that ", send: false },
+  { label: "Terminal block", prompt: "Add a terminal block that installs ", send: false },
+  { label: "Table", prompt: "Add a table comparing ", send: false },
+  { label: "Comment", prompt: "Add a short comment for the reader about ", send: false },
+  { label: "Review the draft", prompt: "", send: true, review: true },
 ];
+
+// ---- Blocks to the editor's own HTML (the same markup it saves) ----
+
+function escapeHtml(text: string) {
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+// **bold**, *italic* and `code`, on escaped text.
+function inline(text: string) {
+  return escapeHtml(text)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+const FILE_ICONS = new Set(["ts", "tsx", "js", "jsx", "json"]);
+
+function blockToHtml(block: AgentBlock): string {
+  switch (block.type) {
+    case "paragraph":
+      return `<p>${inline(block.text)}</p>`;
+    case "heading":
+      return `<h${block.level}>${inline(block.text)}</h${block.level}>`;
+    case "list": {
+      const tag = block.ordered ? "ol" : "ul";
+      return `<${tag}>${block.items.map((item) => `<li><p>${inline(item)}</p></li>`).join("")}</${tag}>`;
+    }
+    case "code": {
+      const icon = FILE_ICONS.has(block.language) ? block.language : "text";
+      return `<pre data-type="file-code-block" data-show-header="true" data-filename="${escapeHtml(block.filename)}" data-language="${block.language}" data-file-icon="${icon}"><code class="language-${block.language}">${escapeHtml(block.code)}</code></pre>`;
+    }
+    case "terminal":
+      return `<div data-type="terminal-block" data-show-header="true" data-package-manager="npm">${escapeHtml(block.command)}</div>`;
+    case "table": {
+      const head = `<tr>${block.header.map((cell) => `<th><p>${inline(cell)}</p></th>`).join("")}</tr>`;
+      const rows = block.rows.map((row) => `<tr>${row.map((cell) => `<td><p>${inline(cell)}</p></td>`).join("")}</tr>`).join("");
+      return `<table><tbody>${head}${rows}</tbody></table>`;
+    }
+    case "callout":
+      return `<div data-callout>${inline(block.text)}</div>`;
+  }
+}
 
 // Replaces a range with plain text; blank lines become paragraphs.
 function replaceRange(editor: Editor, from: number, to: number, text: string) {
@@ -64,139 +114,153 @@ function findText(doc: PMNode, needle: string): { from: number; to: number } | n
   return found;
 }
 
-function isInCode(editor: Editor) {
-  const { $from } = editor.state.selection;
-  return Boolean($from.parent.type.spec.code) || $from.parent.type.name.toLowerCase().includes("code");
+// After the top-level block that holds `pos`; an empty paragraph is replaced instead.
+function blockRangeAfter(editor: Editor, pos: number): { from: number; to: number } {
+  const doc = editor.state.doc;
+  const $pos = doc.resolve(Math.min(pos, doc.content.size));
+  if ($pos.depth === 0) return { from: pos, to: pos };
+  const block = $pos.node(1);
+  if (block.type.name === "paragraph" && block.content.size === 0) return { from: $pos.before(1), to: $pos.after(1) };
+  return { from: $pos.after(1), to: $pos.after(1) };
 }
 
-type SelectionResult = { action: AssistantAction; text: string; from: number; to: number };
+type Pending = { request: string; from: number; to: number };
+type Result =
+  | { kind: "edit"; edit: AgentEdit; at: Pending; state: "open" | "accepted" | "rejected" }
+  | { kind: "review"; items: { suggestion: ReviewSuggestion; state: "open" | "accepted" | "rejected" | "missing" }[] };
 
-export function AgentSelectionMenu({ editor, onApplied }: { editor: Editor; onApplied?: () => void }) {
-  const remaining = useQuery(api.assistant.remaining);
-  const [pending, startTransition] = useTransition();
-  const [running, setRunning] = useState<AssistantAction | null>(null);
-  const [result, setResult] = useState<SelectionResult | null>(null);
-  // The menu stays open while it works and while a result waits for a decision.
-  const busyRef = useRef(false);
-  useEffect(() => {
-    busyRef.current = pending || result !== null;
-  }, [pending, result]);
+const PLACEMENT_LABEL: Record<AgentEdit["placement"], string> = {
+  replace_selection: "Replaces the selection",
+  after_selection: "Goes after the selection",
+  at_cursor: "Goes at the cursor",
+  end_of_document: "Goes at the end",
+  none: "",
+};
 
-  if (remaining === null) return null;
-
-  const run = (action: AssistantAction) => {
-    const { from, to } = editor.state.selection;
-    const selection = editor.state.doc.textBetween(from, to, "\n\n");
-    const $from = editor.state.doc.resolve(from);
-    const context = $from.parent.textContent;
-    setRunning(action);
-    startTransition(async () => {
-      const response = await assistSelectionAction({ action, selection, context });
-      setRunning(null);
-      if (!response.ok) {
-        showErrorToast(response.error);
-        return;
-      }
-      setResult({ action, text: response.value, from, to });
-    });
-  };
-
-  const accept = () => {
-    if (!result) return;
-    replaceRange(editor, result.from, result.to, result.text);
-    setResult(null);
-    onApplied?.();
-  };
-
-  return (
-    <BubbleMenu
-      editor={editor}
-      options={{ placement: "top", offset: 10 }}
-      shouldShow={({ editor: current, from, to }) =>
-        busyRef.current || (from !== to && current.isEditable && !isInCode(current as Editor))
-      }
-      className="z-50"
-    >
-      <div
-        data-toolbar
-        className={cn(
-          "rounded-2xl border border-black/5 bg-white/95 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-black/95",
-          result ? "w-[min(26rem,calc(100vw-2rem))] p-3" : "p-1"
-        )}
-      >
-        {result ? (
-          <div className="space-y-3">
-            <p className="type-label">{ACTIONS.find((a) => a.id === result.action)?.label}</p>
-            <p className="max-h-60 overflow-y-auto whitespace-pre-wrap text-sm font-light leading-relaxed">{result.text}</p>
-            <div className="flex justify-end gap-1">
-              <Button type="button" size="sm" variant="ghost" onClick={() => setResult(null)}>
-                {result.action === "explain" ? "Close" : "Reject"}
-              </Button>
-              {result.action !== "explain" && (
-                <Button type="button" size="sm" onClick={accept}>
-                  Accept
-                </Button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-0.5">
-            <Sparkles aria-hidden className="mx-1.5 size-3.5 text-[#A0A0A0]" />
-            {ACTIONS.map((action) => (
-              <button
-                key={action.id}
-                type="button"
-                disabled={pending || remaining === 0}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => run(action.id)}
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs hover:bg-black/5 disabled:opacity-50 dark:hover:bg-white/10 cursor-pointer"
-              >
-                {running === action.id && <Loader2 className="size-3 animate-spin" />}
-                {action.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </BubbleMenu>
-  );
-}
-
-type Review = { suggestion: ReviewSuggestion; state: "open" | "accepted" | "rejected" | "missing" };
-
-export function AgentReviewBar({
-  editor,
-  title,
-  subtitle,
-  onApplied,
-}: {
+interface AgentChatProps {
   editor: Editor;
   title?: string;
   subtitle?: string;
   onApplied?: () => void;
-}) {
-  const remaining = useQuery(api.assistant.remaining);
-  const [pending, startTransition] = useTransition();
-  const [reviews, setReviews] = useState<Review[] | null>(null);
+  // Where the panel with suggestions and results opens, from the bar.
+  panel: "above" | "below";
+  className?: string;
+}
 
-  const review = () =>
+export function AgentChat({ editor, title, subtitle, onApplied, panel, className }: AgentChatProps) {
+  const remaining = useQuery(api.assistant.remaining);
+  const [request, setRequest] = useState("");
+  const [focused, setFocused] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
+  const [selectionSize, setSelectionSize] = useState(0);
+  const [pending, startTransition] = useTransition();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // How much text is selected in the editor, shown next to the input.
+  useEffect(() => {
+    const update = () => {
+      const { from, to } = editor.state.selection;
+      setSelectionSize(to - from);
+    };
+    update();
+    editor.on("selectionUpdate", update);
+    return () => {
+      editor.off("selectionUpdate", update);
+    };
+  }, [editor]);
+
+  // Clicking elsewhere closes the suggestions (not a result waiting for a decision).
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setFocused(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  const signedOut = remaining === null;
+  const disabled = signedOut || remaining === 0 || pending;
+
+  const send = (text: string) => {
+    const { from, to } = editor.state.selection;
+    const doc = editor.state.doc;
+    const at: Pending = { request: text, from, to };
+    const selection = doc.textBetween(from, to, "\n\n");
+    const context = doc.resolve(from).parent.textContent;
     startTransition(async () => {
-      const response = await reviewDraftAction({
+      const response = await agentEditAction({
+        request: text,
+        selection,
+        context,
+        document: doc.textBetween(0, doc.content.size, "\n\n"),
         title: title ?? "",
         subtitle: subtitle ?? "",
-        body: editor.state.doc.textBetween(0, editor.state.doc.content.size, "\n\n"),
       });
       if (!response.ok) {
         showErrorToast(response.error);
         return;
       }
-      setReviews(response.value.map((suggestion) => ({ suggestion, state: "open" })));
+      setRequest("");
+      setResult({ kind: "edit", edit: response.value, at, state: "open" });
+    });
+  };
+
+  const review = () =>
+    startTransition(async () => {
+      const doc = editor.state.doc;
+      const response = await reviewDraftAction({
+        title: title ?? "",
+        subtitle: subtitle ?? "",
+        body: doc.textBetween(0, doc.content.size, "\n\n"),
+      });
+      if (!response.ok) {
+        showErrorToast(response.error);
+        return;
+      }
+      setResult({ kind: "review", items: response.value.map((suggestion) => ({ suggestion, state: "open" })) });
     });
 
-  const decide = (index: number, accept: boolean) => {
-    if (!reviews) return;
-    const item = reviews[index];
-    let state: Review["state"] = accept ? "accepted" : "rejected";
+  const pick = (suggestion: Suggestion) => {
+    if (suggestion.review) return review();
+    if (suggestion.selection && selectionSize === 0) {
+      showErrorToast("Select some text in the post first.");
+      return;
+    }
+    if (suggestion.send) return send(suggestion.prompt);
+    setRequest(suggestion.prompt);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(suggestion.prompt.length, suggestion.prompt.length);
+    });
+  };
+
+  const acceptEdit = () => {
+    if (result?.kind !== "edit") return;
+    const { edit, at } = result;
+    const html = edit.blocks.map(blockToHtml).join("");
+    const size = editor.state.doc.content.size;
+    const from = Math.min(at.from, size);
+    const to = Math.min(at.to, size);
+    const range =
+      edit.placement === "replace_selection"
+        ? { from, to }
+        : edit.placement === "after_selection"
+          ? blockRangeAfter(editor, to)
+          : edit.placement === "end_of_document"
+            ? { from: size, to: size }
+            : blockRangeAfter(editor, from);
+    editor.chain().focus().insertContentAt(range, html).run();
+    setResult({ ...result, state: "accepted" });
+    onApplied?.();
+    // The change is in the post now; the panel steps aside.
+    setTimeout(() => setResult((current) => (current?.kind === "edit" && current.state === "accepted" ? null : current)), 1200);
+  };
+
+  const decideReview = (index: number, accept: boolean) => {
+    if (result?.kind !== "review") return;
+    const item = result.items[index];
+    let state: "accepted" | "rejected" | "missing" = accept ? "accepted" : "rejected";
     if (accept) {
       const range = findText(editor.state.doc, item.suggestion.before);
       if (range) {
@@ -206,82 +270,209 @@ export function AgentReviewBar({
         state = "missing";
       }
     }
-    setReviews(reviews.map((current, i) => (i === index ? { ...current, state } : current)));
+    setResult({ ...result, items: result.items.map((current, i) => (i === index ? { ...current, state } : current)) });
   };
 
-  return (
-    <div data-toolbar className="relative divider-fade-bottom mb-6 space-y-4 pb-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="inline-flex items-center gap-1.5 type-label">
-          <Sparkles aria-hidden className="size-3.5" /> Assistant
-        </span>
-        <p className="type-meta flex-1 text-xs">
-          {remaining === null
-            ? "Sign in to use the assistant."
-            : "Select text to clarify, shorten, fix or explain it, or review the whole draft."}
-          {typeof remaining === "number" && ` ${remaining} left today.`}
-        </p>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={pending || !remaining}
-          onClick={review}
-        >
-          {pending && <Loader2 className="size-4 animate-spin" />}
-          Review
-        </Button>
-      </div>
+  const showSuggestions = focused && !result && !pending;
+  const open = showSuggestions || result !== null || pending;
 
-      <AnimatePresence initial={false}>
-        {reviews && (
+  return (
+    <div ref={rootRef} data-toolbar className={cn("relative w-full", className)}>
+      <AnimatePresence>
+        {open && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
+            initial={{ opacity: 0, y: panel === "above" ? 8 : -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: panel === "above" ? 8 : -8 }}
+            transition={{ duration: 0.15 }}
+            className={cn(
+              "absolute inset-x-0 z-50 max-h-[60svh] overflow-y-auto rounded-2xl border border-black/5 bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-black",
+              panel === "above" ? "bottom-full mb-3" : "top-full mt-3"
+            )}
           >
-            <div className="flex items-center justify-between">
-              <p className="type-meta text-xs">
-                {reviews.length === 0 ? "Nothing to change. Ready to publish." : `${reviews.length} suggestions`}
+            {pending && (
+              <p className="type-meta flex items-center gap-2 text-sm">
+                <Loader2 className="size-4 animate-spin" /> The agent is working…
               </p>
-              <button type="button" aria-label="Close review" onClick={() => setReviews(null)} className="cursor-pointer text-[#A0A0A0] hover:text-black dark:hover:text-white">
-                <X className="size-4" />
-              </button>
-            </div>
-            <ul>
-              {reviews.map((item, index) => (
-                <li key={index} className="relative divider-fade-top space-y-1.5 py-4">
-                  <p className="type-label">{item.suggestion.kind}</p>
-                  <p className="text-sm font-light text-[#A0A0A0] line-through dark:text-[#666666]">{item.suggestion.before}</p>
-                  <p className="text-sm">{item.suggestion.after}</p>
-                  <p className="type-meta text-xs">{item.suggestion.reason}</p>
-                  <div className="-ml-3 flex gap-1 pt-1">
-                    {item.state === "open" ? (
-                      <>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => decide(index, true)}>
-                          Accept
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => decide(index, false)}>
-                          Reject
-                        </Button>
-                      </>
-                    ) : (
-                      <p className="type-meta pl-3 text-xs">
-                        {item.state === "accepted"
-                          ? "Applied."
-                          : item.state === "missing"
-                            ? "This text changed since the review."
-                            : "Left as is."}
-                      </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            )}
+
+            {showSuggestions && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {SUGGESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion.label}
+                      type="button"
+                      disabled={disabled}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => pick(suggestion)}
+                      className={cn(
+                        "rounded-full bg-black/5 px-3 py-1 text-xs cursor-pointer transition-colors hover:bg-black/10 disabled:cursor-default disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/15",
+                        suggestion.selection && selectionSize === 0 && "opacity-50"
+                      )}
+                    >
+                      {suggestion.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="type-meta text-xs">
+                  Select text to proofread, rewrite or shorten it; place the cursor where new content should go. Nothing
+                  changes until you accept.
+                  {typeof remaining === "number" && ` ${remaining} requests left today.`}
+                </p>
+              </div>
+            )}
+
+            {result?.kind === "edit" && !pending && (
+              <EditResult
+                edit={result.edit}
+                request={result.at.request}
+                state={result.state}
+                onAccept={acceptEdit}
+                onReject={() => setResult({ ...result, state: "rejected" })}
+                onClose={() => setResult(null)}
+              />
+            )}
+
+            {result?.kind === "review" && !pending && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="type-label">Review</p>
+                  <CloseButton onClick={() => setResult(null)} />
+                </div>
+                {result.items.length === 0 && <p className="text-sm font-light">Nothing to change. Ready to publish.</p>}
+                <ul>
+                  {result.items.map((item, index) => (
+                    <li key={index} className="relative divider-fade-top space-y-1.5 py-3">
+                      <p className="type-label text-[10px]">{item.suggestion.kind}</p>
+                      <p className="text-sm font-light text-[#A0A0A0] line-through dark:text-[#666666]">{item.suggestion.before}</p>
+                      <p className="text-sm">{item.suggestion.after}</p>
+                      <p className="type-meta text-xs">{item.suggestion.reason}</p>
+                      {item.state === "open" ? (
+                        <div className="-ml-3 flex gap-1">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => decideReview(index, true)}>
+                            Accept
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => decideReview(index, false)}>
+                            Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="type-meta text-xs">
+                          {item.state === "accepted" ? "Applied." : item.state === "missing" ? "This text changed since the review." : "Left as is."}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Not a form: the editor already sits inside the post's form. */}
+      <div className="flex h-9 items-center gap-2 rounded-full bg-black/5 pl-3 pr-1 dark:bg-white/10">
+        <Sparkles aria-hidden className="size-4 shrink-0 text-[#A0A0A0]" />
+        <input
+          ref={inputRef}
+          value={request}
+          onChange={(event) => setRequest(event.target.value)}
+          onFocus={() => setFocused(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              if (request.trim() && !disabled) send(request.trim());
+            } else if (event.key === "Escape") {
+              setFocused(false);
+              setResult(null);
+              inputRef.current?.blur();
+            }
+          }}
+          disabled={signedOut}
+          maxLength={1000}
+          placeholder={signedOut ? "Sign in to ask the agent" : "Ask the agent to write, rewrite or add something…"}
+          aria-label="Ask the agent"
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#A0A0A0]"
+        />
+        {selectionSize > 0 && (
+          <span className="hidden shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] text-[#666666] sm:inline dark:bg-black dark:text-[#A0A0A0]">
+            {selectionSize} selected
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => request.trim() && !disabled && send(request.trim())}
+          aria-label="Send"
+          disabled={disabled || !request.trim()}
+          className="grid size-7 shrink-0 place-items-center rounded-full bg-black text-white cursor-pointer disabled:cursor-default disabled:opacity-30 dark:bg-white dark:text-black"
+        >
+          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUp className="size-3.5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" aria-label="Close" onClick={onClick} className="cursor-pointer text-[#A0A0A0] hover:text-black dark:hover:text-white">
+      <X className="size-4" />
+    </button>
+  );
+}
+
+function EditResult({
+  edit,
+  request,
+  state,
+  onAccept,
+  onReject,
+  onClose,
+}: {
+  edit: AgentEdit;
+  request: string;
+  state: "open" | "accepted" | "rejected";
+  onAccept: () => void;
+  onReject: () => void;
+  onClose: () => void;
+}) {
+  const hasChange = edit.placement !== "none" && edit.blocks.length > 0;
+  let preview: ReactNode = null;
+  if (hasChange) {
+    preview = (
+      <div
+        className="post-content max-h-72 overflow-y-auto rounded-xl bg-black/[0.03] px-4 py-3 text-sm font-light leading-relaxed dark:bg-white/[0.04] [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-(--alxpro-terminal-background) [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-[12px] [&_[data-type=terminal-block]]:my-2 [&_[data-type=terminal-block]]:rounded-lg [&_[data-type=terminal-block]]:bg-(--alxpro-terminal-background) [&_[data-type=terminal-block]]:p-3 [&_[data-type=terminal-block]]:font-mono [&_[data-type=terminal-block]]:text-[12px] [&_[data-type=terminal-block]]:whitespace-pre [&_[data-callout]]:rounded-md [&_[data-callout]]:bg-black/5 [&_[data-callout]]:px-3 [&_[data-callout]]:py-2 dark:[&_[data-callout]]:bg-white/10 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1.5"
+        // Built from escaped text by blockToHtml.
+        dangerouslySetInnerHTML={{ __html: edit.blocks.map(blockToHtml).join("") }}
+      />
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <p className="type-meta text-xs">“{request || "Your request"}”</p>
+        <CloseButton onClick={onClose} />
+      </div>
+      <p className="text-sm">{edit.reply}</p>
+      {preview}
+      {hasChange && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="type-meta text-xs">{PLACEMENT_LABEL[edit.placement]}</p>
+          {state === "open" ? (
+            <div className="flex gap-1">
+              <Button type="button" variant="ghost" size="sm" onClick={onReject}>
+                Reject
+              </Button>
+              <Button type="button" size="sm" onClick={onAccept}>
+                Accept
+              </Button>
+            </div>
+          ) : (
+            <p className="type-meta text-xs">{state === "accepted" ? "Added to the post." : "Left as is."}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
