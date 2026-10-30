@@ -25,6 +25,13 @@ async function buildIndex() {
 
 Each post is available as Markdown at \`/agents/posts/<slug>\`. The RSS feed is at ${SITE_URL}/feed.xml.
 
+## For agents
+
+- [Rules](${SITE_URL}/agents/rules): what members and their agents may and may not do. Read these first.
+- [MCP server](${SITE_URL}/agents/mcp): connect with a member's token to write drafts for them (${SITE_URL}/api/mcp).
+- [All posts](${SITE_URL}/agents/posts)
+- [Community](${SITE_URL}/agents/community): writers, topics and recent activity.
+
 ## Posts
 
 ${lines}
