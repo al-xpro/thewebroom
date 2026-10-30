@@ -3,7 +3,9 @@
 import { useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { formatDistanceToNowStrict } from "date-fns";
+import { Calendar, TimeField } from "@/components/ui/date-picker";
+import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Drawer,
@@ -39,8 +41,28 @@ function timeOf(date: Date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-// A day (calendar with month and year dropdowns, past days disabled) and a time, in the
-// author's time zone. Shared by the schedule picker and the schedule dialog.
+function addDays(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+// Days a writer picks most, relative to today.
+function quickDays() {
+  const today = startOfToday();
+  const nextMonday = addDays(today, ((8 - today.getDay()) % 7) || 7);
+  return [
+    { label: "Tomorrow", day: addDays(today, 1) },
+    { label: "In 3 days", day: addDays(today, 3) },
+    { label: "Monday", day: nextMonday },
+    { label: "In a week", day: addDays(today, 7) },
+  ];
+}
+
+function sameDay(a: Date | undefined, b: Date) {
+  return Boolean(a) && a!.toDateString() === b.toDateString();
+}
+
+// A day and a time, in the author's time zone, with a line saying when that is. Shared
+// by the schedule picker and the schedule dialog.
 export function DateTimeFields({
   day,
   onDay,
@@ -52,29 +74,54 @@ export function DateTimeFields({
   time: string;
   onTime: (time: string) => void;
 }) {
+  const at = combineDayAndTime(day, time);
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <div className="grid grid-cols-4 gap-1">
+        {quickDays().map((quick) => (
+          <button
+            key={quick.label}
+            type="button"
+            aria-pressed={sameDay(day, quick.day)}
+            onClick={() => onDay(quick.day)}
+            className={cn(
+              "rounded-full px-1 py-1 text-xs whitespace-nowrap cursor-pointer transition-colors",
+              sameDay(day, quick.day)
+                ? "bg-black text-white dark:bg-white dark:text-black"
+                : "bg-black/5 text-[#666666] hover:text-black dark:bg-white/10 dark:text-[#A0A0A0] dark:hover:text-white"
+            )}
+          >
+            {quick.label}
+          </button>
+        ))}
+      </div>
+
       <Calendar
-        mode="single"
         selected={day}
         onSelect={onDay}
-        captionLayout="dropdown"
-        startMonth={startOfToday()}
-        endMonth={new Date(new Date().getFullYear() + 1, 11)}
-        disabled={{ before: startOfToday() }}
-        className="mx-auto p-0"
+        min={startOfToday()}
+        max={new Date(new Date().getFullYear() + 1, 11, 31)}
       />
-      <div className="flex items-center justify-between gap-3 border-b border-black/10 dark:border-white/15 pb-2">
-        <label htmlFor="publish-time" className="type-meta">Time</label>
-        <input
-          id="publish-time"
-          type="time"
-          value={time}
-          onChange={(e) => onTime(e.target.value)}
-          className="bg-transparent text-sm outline-none tabular-nums"
-        />
+
+      <div className="relative divider-fade-top pt-5">
+        <label htmlFor="publish-time" className="sr-only">Time</label>
+        <TimeField id="publish-time" value={time} onChange={onTime} />
       </div>
-      <p className="type-meta text-xs">{timeZoneName()}</p>
+
+      <p className="text-center text-xs font-light text-[#666666] dark:text-[#A0A0A0]">
+        {Number.isFinite(at) ? (
+          <>
+            <span className="text-black dark:text-white">
+              {new Date(at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+            </span>
+            {` · ${formatDistanceToNowStrict(at, { addSuffix: true })}`}
+            <br />
+          </>
+        ) : (
+          <>Pick a day<br /></>
+        )}
+        {timeZoneName()}
+      </p>
     </div>
   );
 }
@@ -159,7 +206,11 @@ export function SchedulePicker({ children, initial, confirmLabel = "Set", onConf
     return (
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>{children}</PopoverTrigger>
-        <PopoverContent align="start" className="w-auto rounded-2xl p-4">
+        <PopoverContent
+          align="start"
+          sideOffset={8}
+          className="w-[20rem] rounded-3xl border border-black/5 bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-black"
+        >
           {panel}
         </PopoverContent>
       </Popover>
@@ -173,7 +224,7 @@ export function SchedulePicker({ children, initial, confirmLabel = "Set", onConf
         <DrawerHeader className="sr-only">
           <DrawerTitle>Publish date</DrawerTitle>
         </DrawerHeader>
-        <div className="mx-auto w-full max-w-sm px-4 pb-8 pt-2">{panel}</div>
+        <div className="mx-auto w-full max-w-sm px-5 pb-8 pt-2">{panel}</div>
       </DrawerContent>
     </Drawer>
   );
