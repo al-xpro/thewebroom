@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { Separator } from "../ui/separator";
 import {
   Sun,
@@ -199,8 +199,11 @@ export function DockNavigation() {
   // the dock across the viewport, e.g. when leaving a post with the browser's back button.
   const targetMode = isSearching ? "search" : showMinimap ? "minimap" : "dock";
   const [frameMode, setFrameMode] = useState(targetMode);
+  // The frame leaves "dock" as soon as the dock does; it comes back to "dock" only when the
+  // dock's items mount (OnMount below).
+  if (targetMode !== "dock" && frameMode !== targetMode) setFrameMode(targetMode);
   // Entering the minimap resizes at once (waiting showed it squeezed while the dock grew);
-  // leaving it waits for the minimap to go.
+  // leaving it waits for the dock's items to arrive.
   const frame = isSearching ? "search" : targetMode === "minimap" ? "minimap" : frameMode;
 
   // --- Drag Controls ---
@@ -586,8 +589,13 @@ export function DockNavigation() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {(!isPostPage || postExists) && (
-          <div className={getContainerStyles()} ref={containerRef}>
+        {/* Posts wait for their article so the dock doesn't flash before the minimap; the
+            editor keeps the dock while it loads, so it never disappears on /create. */}
+        {(!isPostPage || postExists || isEditorRoute) && (
+          // layoutRoot: the dock sits in a fixed container, so its layout animations must not
+          // include the page's scroll. Without it, leaving a scrolled post (minimap) made the
+          // dock rise from far below.
+          <motion.div layoutRoot className={getContainerStyles()} ref={containerRef}>
             <motion.div
               ref={dockRef}
               layout // Crucial for fluid transition between Dock and Minimap sizes
@@ -661,7 +669,7 @@ export function DockNavigation() {
                 </>
               )}
 
-              <AnimatePresence mode="wait" onExitComplete={() => setFrameMode(targetMode)}>
+              <AnimatePresence mode="wait">
                 {isSearching ? (
                   <motion.div
                     key="search"
@@ -700,12 +708,12 @@ export function DockNavigation() {
                   />
                 ) : (
                   // --- DOCK MODE ---
-                  // One container for every group: items fade and slide in place while the
-                  // dock resizes, so switching groups never blinks or jumps.
+                  // One container for every group: the old items pop out and the new ones fade
+                  // in while the dock resizes, so switching groups never blinks or jumps.
                   <motion.div
                     key="dock"
                     initial={{ opacity: 0, y: isVertical ? 0 : 20, x: isVertical ? 20 : 0 }}
-                    animate={{ opacity: 1, y: 0, x: 0, transition: { delay: 0.5 } }}
+                    animate={{ opacity: 1, y: 0, x: 0, transition: { delay: 0.15 } }}
                     exit={{
                       opacity: 0,
                       y: isVertical ? 0 : 20,
@@ -719,6 +727,9 @@ export function DockNavigation() {
                       isDragging && "pointer-events-none"
                     )}
                   >
+                    {/* The frame takes the dock's size only now that its items are here: measured
+                        empty, it was scaled up to the minimap's width and stretched. */}
+                    <OnMount onMount={() => setFrameMode("dock")} />
                     {/* DOCK ITEMS RENDER */}
                     <AnimatePresence mode="popLayout" initial={false}>
                       {entries.map((entry) => {
@@ -765,9 +776,13 @@ export function DockNavigation() {
                       )}
                     </AnimatePresence>
 
+                    {/* Keyed by group so it fades in at its new place; nothing in the dock keeps a
+                        layout node, so dragging it to another side keeps its own motion. */}
                     <motion.div
-                      layout="position"
-                      transition={DOCK_ITEM_TRANSITION}
+                      key={`grip-${group ?? "root"}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
                       className={cn("flex items-center", isVertical ? "flex-col" : "flex-row")}
                     >
                       <Separator
@@ -798,7 +813,7 @@ export function DockNavigation() {
                 )}
               </AnimatePresence>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
@@ -1286,16 +1301,28 @@ function DockIconWrapper({
   );
 }
 
+// Runs once, before paint, when it mounts.
+function OnMount({ onMount }: { onMount: () => void }) {
+  const ref = useRef(onMount);
+  useLayoutEffect(() => {
+    ref.current();
+  }, []);
+  return null;
+}
+
 const DOCK_ITEM_TRANSITION = { type: "spring", stiffness: 420, damping: 36, mass: 0.8 } as const;
 
 const DockItem = React.forwardRef<
   HTMLDivElement,
-  { children: React.ReactNode; index: number; onHover: (e: React.MouseEvent<HTMLElement>, index: number) => void }
+  {
+    children: React.ReactNode;
+    index: number;
+    onHover: (e: React.MouseEvent<HTMLElement>, index: number) => void;
+  }
 >(function DockItem({ children, index, onHover }, ref) {
   return (
     <motion.div
       ref={ref}
-      layout="position"
       initial={{ opacity: 0, scale: 0.6, filter: "blur(4px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
       exit={{ opacity: 0, scale: 0.6, filter: "blur(4px)", transition: { duration: 0.15 } }}
