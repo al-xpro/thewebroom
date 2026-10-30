@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast";
 import { Mail, CheckCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { safeNextPath, withNext } from "@/lib/next-path";
 
 const RESEND_COOLDOWN_SECONDS = 30;
 const MAX_RESENDS = 2;
@@ -21,6 +22,7 @@ const LINK_ERRORS: Record<string, string> = {
 export default function EmailVerificationClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const next = safeNextPath(searchParams.get("next"));
 
   const [isResending, setIsResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -44,9 +46,9 @@ export default function EmailVerificationClient() {
   // The link signed the member in; post-auth sends them to onboarding (or home).
   useEffect(() => {
     if (!verified || error) return;
-    const id = setTimeout(() => router.replace("/onboarding/post-auth"), 1000);
+    const id = setTimeout(() => router.replace(withNext("/onboarding/post-auth", next)), 1000);
     return () => clearTimeout(id);
-  }, [verified, error, router]);
+  }, [verified, error, next, router]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -60,7 +62,7 @@ export default function EmailVerificationClient() {
     setIsResending(true);
     const { error: resendError } = await authClient.sendVerificationEmail({
       email,
-      callbackURL: `/auth/verify-email?verified=1&email=${encodeURIComponent(email)}`,
+      callbackURL: withNext(`/auth/verify-email?verified=1&email=${encodeURIComponent(email)}`, next),
     });
     setIsResending(false);
 
@@ -91,7 +93,7 @@ export default function EmailVerificationClient() {
   );
 
   const backToSignUp = (
-    <Link href="/auth/sign-up">
+    <Link href={withNext("/auth/sign-up", next)}>
       <Button variant="outline" size="sm" className="flex items-center gap-1">
         <ArrowLeft className="h-4 w-4" /> Sign up
       </Button>
@@ -133,7 +135,7 @@ export default function EmailVerificationClient() {
             </p>
           </div>
           {resendButton ?? (
-            <Link href="/auth/login" className="w-full">
+            <Link href={withNext("/auth/login", next)} className="w-full">
               <Button variant="outline" className="w-full">
                 Sign in
               </Button>

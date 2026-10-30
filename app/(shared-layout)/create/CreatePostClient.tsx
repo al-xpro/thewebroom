@@ -36,6 +36,14 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/convex/_generated/api";
 import { FunctionReturnType } from "convex/server";
+import {
+  clearSavedPost,
+  loadPostImage,
+  loadPostText,
+  savePostImage,
+  savePostText,
+} from "@/lib/post-draft";
+import { withNext } from "@/lib/next-path";
 import { TOPICS } from "@/convex/topics";
 
 const TOPIC_OPTIONS = TOPICS;
@@ -44,6 +52,17 @@ type PostValues = z.infer<typeof postSchema>;
 type PostFields = keyof PostValues;
 
 type UserType = FunctionReturnType<typeof api.auth.getCurrentUser>;
+
+function pickPostText(values: PostValues) {
+  return {
+    title: values.title ?? "",
+    subtitle: values.subtitle ?? "",
+    content: values.content ?? "",
+    contentHtml: values.contentHtml ?? "",
+    minRead: values.minRead,
+    topic: values.topic,
+  };
+}
 
 interface CreatePostClientProps {
   initialUser: UserType;
@@ -108,8 +127,9 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
     setHasMounted(true);
   }, []);
 
-  // Login nudge modal — shown after 3 seconds for unauthenticated visitors
+  // Shown when someone without an account tries to publish or save a draft.
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [restored, setRestored] = useState(false);
 
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<PostFields, string>>>({});
 
@@ -140,16 +160,55 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
     return Math.min(Math.max(value, min), max);
   };
 
-  // Show modal after 3 s only for unauthenticated users.
-  // The server component already redirects logged-out users on hard nav,
-  // but client-side transitions or slow auth restores may land here briefly.
+  // Bring back the post saved in this browser (after a reload or a detour through sign-in).
   useEffect(() => {
-    if (isLoading) return;
-    if (isAuthenticated) return;
+    let cancelled = false;
+    const saved = loadPostText();
+    if (saved) {
+      const { topic, ...text } = saved;
+      const knownTopic = TOPIC_OPTIONS.find((option) => option === topic);
+      form.reset({ ...form.getValues(), ...text, ...(knownTopic ? { topic: knownTopic } : {}) });
+    }
+    void loadPostImage().then((image) => {
+      if (cancelled) return;
+      if (image) form.setValue("image", image, { shouldDirty: true });
+      setRestored(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [form]);
 
-    const timer = setTimeout(() => setShowAuthModal(true), 3000);
-    return () => clearTimeout(timer);
-  }, [isAuthenticated, isLoading]);
+  // Keep saving it while it's written, once the saved copy has been restored.
+  useEffect(() => {
+    if (!restored) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const subscription = form.watch((values, { name }) => {
+      if (name === "image") {
+        void savePostImage(values.image as File | undefined);
+        return;
+      }
+      clearTimeout(timer);
+      timer = setTimeout(() => savePostText(pickPostText(form.getValues())), 400);
+    });
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
+  }, [form, restored]);
+
+  // Without an account, publishing or saving a draft asks to sign in first. The post is
+  // saved now, so it's here when they come back.
+  function submitAs(status: "published" | "draft") {
+    if (!isAuthenticated) {
+      const values = form.getValues();
+      savePostText(pickPostText(values));
+      void savePostImage(values.image);
+      setShowAuthModal(true);
+      return;
+    }
+    void form.handleSubmit((values) => onSubmit(values, status), onInvalid)();
+  }
 
   async function onSubmit(values: PostValues, status: "published" | "draft" = "published") {
     if (status === "draft") {
@@ -160,6 +219,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
 
     try {
       const { slug } = await createBlogAction(values, status);
+      await clearSavedPost();
 
       if (status === "draft") {
         showSuccessToast("Draft saved successfully!");
@@ -184,13 +244,15 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
   }
 
   useEffect(() => {
-    if (showAuthModal) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (!showAuthModal) return;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowAuthModal(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", closeOnEscape);
     };
   }, [showAuthModal]);
 
@@ -257,24 +319,28 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
   return (
     <>
       {showAuthModal && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auth-dialog-title"
+          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+        >
           <div className="relative flex w-full max-w-md flex-col items-center gap-6 rounded-2xl bg-[#EDEDED] p-8 text-center dark:bg-[#0A0A0A]">
             <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
               <Pen className="size-7 text-primary" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-extrabold text-black dark:text-white">
-                Ready to write?
+              <h2 id="auth-dialog-title" className="text-2xl font-extrabold text-black dark:text-white">
+                Ready to share it?
               </h2>
               <p className="text-sm leading-relaxed text-paragraph">
-                Creating posts is reserved for signed-in members. <br className="hidden sm:block" />
-                &nbsp; Join the community or log in to start sharing{" "}
-                <span className="whitespace-nowrap">your ideas.</span>
+                Publishing and drafts are for signed-in members. Log in or create an account:
+                your post is saved in this browser and will be here when you come back.
               </p>
             </div>
             <div className="flex w-full flex-col gap-3">
               <Link
-                href="/auth/login"
+                href={withNext("/auth/login", "/create")}
                 className={buttonVariants({
                   variant: "outline",
                   className: "w-full bg-white dark:bg-black",
@@ -283,7 +349,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
                 Log in
               </Link>
               <Link
-                href="/auth/sign-up"
+                href={withNext("/auth/sign-up", "/create")}
                 className={buttonVariants({
                   className: "w-full bg-white dark:bg-black",
                   variant: "outline",
@@ -291,6 +357,15 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
               >
                 Create account
               </Link>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                autoFocus
+                onClick={() => setShowAuthModal(false)}
+              >
+                Keep writing
+              </Button>
             </div>
           </div>
         </div>
@@ -306,7 +381,10 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
       )}
 
       <form
-        onSubmit={form.handleSubmit((values) => onSubmit(values, "published"), onInvalid)}
+        onSubmit={(event) => {
+          event.preventDefault();
+          submitAs("published");
+        }}
         className="flex flex-col gap-8 pb-16"
       >
         <div className="flex items-center justify-between gap-5">
@@ -323,7 +401,7 @@ export function CreatePostClient({ initialUser }: CreatePostClientProps) {
               size="sm"
               type="button"
               className="shrink-0"
-              onClick={form.handleSubmit((values) => onSubmit(values, "draft"), onInvalid)}
+              onClick={() => submitAs("draft")}
             >
               {draftPending && <Loader2 className="size-4 animate-spin" />}
               <span className="flex items-center gap-2">
