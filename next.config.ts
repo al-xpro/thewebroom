@@ -47,8 +47,8 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live`,
-      `script-src-elem 'self' 'unsafe-inline' https://vercel.live`,
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://va.vercel-scripts.com`,
+      `script-src-elem 'self' 'unsafe-inline' https://vercel.live https://va.vercel-scripts.com`,
 
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com`,
@@ -57,7 +57,8 @@ const securityHeaders = [
 
       `img-src 'self' https: data: blob:`,
 
-      `connect-src 'self' ${convexOrigins} https://avatar.vercel.sh`,
+      // Sentry's ingest (error tracking) and Vercel's analytics scripts in development.
+      `connect-src 'self' ${convexOrigins} https://avatar.vercel.sh https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://va.vercel-scripts.com`,
 
       `frame-src https://vercel.live`,
       `frame-ancestors 'none'`,

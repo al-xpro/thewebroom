@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@/lib/analytics";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import type { Editor } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
@@ -253,6 +254,7 @@ export function AgentChat({ editor, title, subtitle, onApplied, panel, className
     editor.chain().focus().insertContentAt(range, html).run();
     setResult({ ...result, state: "accepted" });
     onApplied?.();
+    trackEvent("agent_used", { kind: "edit", placement: edit.placement });
     // The change is in the post now; the panel steps aside.
     setTimeout(() => setResult((current) => (current?.kind === "edit" && current.state === "accepted" ? null : current)), 1200);
   };

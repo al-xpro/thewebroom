@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@/lib/analytics";
 import { signUpSchema } from "@/app/schemas/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,6 +88,7 @@ export default function SignUpClient() {
         fetchOptions: {
           onSuccess: () => {
             showSuccessToast("Account created! Check your email to verify.");
+            trackEvent("sign_up", { method: "email" });
             // No session exists until the address is verified, so the waiting room gets
             // the address from the URL.
             router.push(withNext(`/auth/verify-email?email=${emailParam}`, next));

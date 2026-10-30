@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@/lib/analytics";
 import { Loader2, Edit2, Trash2, ArrowUp, Reply } from "lucide-react";
 import Link from "next/link";
 import { Controller, useForm } from "react-hook-form";
@@ -355,6 +356,7 @@ export function CommentSection(props: {
         form.reset();
         setVisibleErrors({});
         showSuccessToast("Comment posted");
+        trackEvent("comment_posted", { reply: false });
       } catch (error) {
         setVisibleErrors({ body: error instanceof Error ? error.message : "Failed to post" });
       }
@@ -374,6 +376,7 @@ export function CommentSection(props: {
         setReplyParentId(null);
         setReplyToName("");
         showSuccessToast("Reply posted");
+        trackEvent("comment_posted", { reply: true });
       } catch (error) {
         showErrorToast(error instanceof Error ? error.message : "Failed to post reply");
       }

@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@/lib/analytics";
 import { useEffect, useState, useTransition } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -111,6 +112,7 @@ export default function CompleteProfileClient() {
         await completeProfileOnboarding({ name: values.name });
         await setFollowedTopics({ topics: values.topics });
         showSuccessToast("Profile completed successfully");
+        trackEvent("onboarding_completed", { topics: values.topics.length });
         router.replace(next ?? "/");
       } catch (error) {
         showErrorToast(error instanceof Error ? error.message : "Failed to update profile");
