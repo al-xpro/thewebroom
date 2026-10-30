@@ -159,6 +159,22 @@ export default defineSchema({
     .index("by_target", ["targetType", "targetId"])
     .index("by_reporter", ["reporterId", "createdAt"]),
 
+  // The moderation agent's review of a post, and what an admin decided. The agent never
+  // hides or deletes anything; an admin does.
+  moderationReviews: defineTable({
+    postId: v.id("posts"),
+    verdict: v.union(v.literal("ok"), v.literal("needs_changes"), v.literal("hide")),
+    categories: v.array(v.string()),
+    confidence: v.number(),
+    reasons: v.array(v.string()),
+    model: v.string(),
+    reviewedAt: v.number(),
+    requestedBy: v.string(),
+    decision: v.optional(v.union(v.literal("kept"), v.literal("hidden"))),
+    decidedBy: v.optional(v.string()),
+    decidedAt: v.optional(v.number()),
+  }).index("by_post", ["postId", "reviewedAt"]),
+
   // Newsletter sign-ups: one row per address.
   newsletterSubscribers: defineTable({
     email: v.string(),
