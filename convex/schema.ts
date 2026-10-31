@@ -32,7 +32,10 @@ export default defineSchema({
     .searchIndex("search_body", { searchField: "body" })
     .index("by_slug", ["slug"])
     .index("by_authorId", ["authorId"])
-    .index("by_series", ["seriesId", "seriesPart"]),
+    .index("by_series", ["seriesId", "seriesPart"])
+    // Published lists read through these (#18) instead of scanning the table.
+    .index("by_status", ["status"])
+    .index("by_status_topic", ["status", "topic"]),
 
   // Posts a member saved to read later.
   bookmarks: defineTable({
