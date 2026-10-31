@@ -19,7 +19,7 @@
     "@radix-ui/react-label": "^2.1.17",
     "@radix-ui/react-separator": "^1.2.0",
     "@radix-ui/react-slot": "^1.2.4",
-    "@sentry/nextjs": "^10.78.0",
+    "@sentry/nextjs": "^11.9.0",
     "@thesvg/react": "3.4.0",
     "@tiptap/extension-code-block-lowlight": "^3.32.0",
     "@tiptap/extension-image": "^3.32.0",
