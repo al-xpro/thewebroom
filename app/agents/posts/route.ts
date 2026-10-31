@@ -9,7 +9,7 @@ async function build() {
   cacheLife("hours");
   cacheTag("blog");
 
-  const posts = await fetchQuery(api.posts.getPublishedPosts);
+  const posts = await fetchQuery(api.posts.getPublishedPosts, { limit: 500 });
   const rows = posts
     .filter((post) => post.slug)
     .map((post) => {

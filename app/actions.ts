@@ -9,6 +9,21 @@ import { updateTag } from "next/cache";
 import { Id } from "@/convex/_generated/dataModel";
 import { ConvexError } from "convex/values";
 
+// Uploads a cover image and has the server check it (#19): files that aren't images within
+// the limits are deleted, and only the uploader can attach the file to a post.
+async function uploadPostImage(image: File, token: string): Promise<Id<"_storage">> {
+  const imageUrl = await fetchMutation(api.posts.generateImageUploadUrl, {}, { token });
+  const uploadResult = await fetch(imageUrl, {
+    method: "POST",
+    headers: { "Content-Type": image.type },
+    body: image,
+  });
+  if (!uploadResult.ok) throw new Error("Failed to upload image");
+  const { storageId } = (await uploadResult.json()) as { storageId: Id<"_storage"> };
+  await fetchMutation(api.uploads.registerPostImage, { storageId }, { token });
+  return storageId;
+}
+
 // Returns the slug instead of calling redirect() so the client can
 // show the success toast before navigating. redirect() throws internally,
 // which means any code after await createBlogAction() never executes —
@@ -28,15 +43,7 @@ export async function createBlogAction(
   let storageId = undefined;
 
   if (parsed.data.image) {
-    const imageUrl = await fetchMutation(api.posts.generateImageUploadUrl, {}, { token });
-    const uploadResult = await fetch(imageUrl, {
-      method: "POST",
-      headers: { "Content-Type": parsed.data.image.type },
-      body: parsed.data.image,
-    });
-    if (!uploadResult.ok) throw new Error("Failed to upload image");
-    const result = await uploadResult.json();
-    storageId = result.storageId;
+    storageId = await uploadPostImage(parsed.data.image, token);
   }
 
   const response = await fetchMutation(
@@ -92,15 +99,7 @@ export async function updatePostAction(
   let imageStorageId: Id<"_storage"> | undefined = removeImage ? undefined : existingImageStorageId;
 
   if (values.image) {
-    const imageUrl = await fetchMutation(api.posts.generateImageUploadUrl, {}, { token });
-    const uploadResult = await fetch(imageUrl, {
-      method: "POST",
-      headers: { "Content-Type": values.image.type },
-      body: values.image,
-    });
-    if (!uploadResult.ok) throw new Error("Failed to upload image");
-    const result = await uploadResult.json();
-    imageStorageId = result.storageId as Id<"_storage">;
+    imageStorageId = await uploadPostImage(values.image, token);
   }
 
   const response = await fetchMutation(

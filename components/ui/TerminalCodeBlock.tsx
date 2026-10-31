@@ -1,6 +1,7 @@
 "use client";
 
-import { NodeViewWrapper, NodeViewContent } from "@tiptap/react";
+import { NodeViewWrapper, NodeViewContent, type NodeViewProps } from "@tiptap/react";
+import { Selection } from "@tiptap/pm/state";
 import { Terminal, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -8,13 +9,13 @@ import { convertCommands, type PackageManager } from "@/lib/package-manager-comm
 
 const managers = ["npm", "pnpm", "yarn", "bun"];
 
-export default function TerminalCodeBlockComponent({ node, editor, getPos }: any) {
+export default function TerminalCodeBlockComponent({ node, editor, getPos }: NodeViewProps) {
   const [copied, setCopied] = useState(false);
 
   const switchManager = (targetManager: string) => {
     if (targetManager === node.attrs.packageManager) return;
 
-    editor.commands.command(({ tr, state, dispatch }: any) => {
+    editor.commands.command(({ tr, state, dispatch }) => {
       const pos = getPos();
       if (typeof pos !== "number") return false;
 
@@ -53,7 +54,7 @@ export default function TerminalCodeBlockComponent({ node, editor, getPos }: any
         const newOffset = Math.min(relativeOffset, targetContent.length);
         const newPos = contentStart + newOffset;
 
-        tr.setSelection(state.selection.constructor.near(tr.doc.resolve(newPos)));
+        tr.setSelection(Selection.near(tr.doc.resolve(newPos)));
       }
 
       return true;

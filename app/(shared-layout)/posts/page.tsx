@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
+import { isTopic } from "@/convex/topics";
 import Footer from "@/components/web/Footer";
 import { fetchQuery } from "convex/nextjs";
 import { Metadata } from "next";
@@ -66,10 +67,12 @@ async function FilteredPosts({ activeTopics }: { activeTopics: string[] }) {
   cacheLife("seconds");
   cacheTag("blog");
 
-  const data = await fetchQuery(api.posts.getPublishedPosts);
-
-  const filtered =
-    activeTopics.length > 0 ? data.filter((post) => activeTopics.includes(post.topic ?? "")) : data;
+  // Filtered by topic in Convex, through the status and topic index (#18).
+  const topics = activeTopics.filter(isTopic);
+  const filtered = await fetchQuery(api.posts.getPublishedPosts, {
+    limit: 500,
+    ...(topics.length > 0 ? { topics } : {}),
+  });
 
   if (filtered.length === 0) {
     return (

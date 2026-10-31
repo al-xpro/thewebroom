@@ -85,5 +85,5 @@ export async function LoadHomePostList() {
 }
 
 async function fetchPublishedPosts() {
-  return (await fetchQuery(api.posts.getPublishedPosts)) ?? [];
+  return (await fetchQuery(api.posts.getPublishedPosts, { limit: 3 })) ?? [];
 }

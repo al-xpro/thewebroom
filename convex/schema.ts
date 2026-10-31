@@ -32,7 +32,10 @@ export default defineSchema({
     .searchIndex("search_body", { searchField: "body" })
     .index("by_slug", ["slug"])
     .index("by_authorId", ["authorId"])
-    .index("by_series", ["seriesId", "seriesPart"]),
+    .index("by_series", ["seriesId", "seriesPart"])
+    // Published lists read through these (#18) instead of scanning the table.
+    .index("by_status", ["status"])
+    .index("by_status_topic", ["status", "topic"]),
 
   // Posts a member saved to read later.
   bookmarks: defineTable({
@@ -77,10 +80,16 @@ export default defineSchema({
     body: v.string(),
     parentId: v.optional(v.id("comments")),
     status: v.optional(v.union(v.literal("visible"), v.literal("hidden"))),
-  }).index("by_authorId", ["authorId"]),
+  })
+    .index("by_authorId", ["authorId"])
+    .index("by_postId", ["postId"])
+    .index("by_parentId", ["parentId"]),
 
   rateLimits: defineTable({
     userId: v.string(),
+    // Post image uploads, per hour (#19).
+    uploadWindowStart: v.optional(v.number()),
+    uploadCount: v.optional(v.number()),
     postWindowStart: v.optional(v.number()),
     postCount: v.optional(v.number()),
     commentWindowStart: v.optional(v.number()),
@@ -174,6 +183,17 @@ export default defineSchema({
     decidedBy: v.optional(v.string()),
     decidedAt: v.optional(v.number()),
   }).index("by_post", ["postId", "reviewedAt"]),
+
+  // Post images uploaded through generateImageUploadUrl, checked by registerPostImage
+  // (#19): who uploaded each file, and the post it's attached to.
+  uploads: defineTable({
+    storageId: v.id("_storage"),
+    userId: v.string(),
+    createdAt: v.number(),
+    postId: v.optional(v.id("posts")),
+  })
+    .index("by_storageId", ["storageId"])
+    .index("by_createdAt", ["createdAt"]),
 
   // Newsletter sign-ups: one row per address.
   newsletterSubscribers: defineTable({

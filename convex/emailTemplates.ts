@@ -99,19 +99,19 @@ export function buildEmailVerificationEmail(params: {
   const subject = "Confirm your e-mail — The Web Room";
   const content = `
     ${h1("Confirm your e-mail")}
-    ${p("One click and you're signed in.")}
+    ${p("One click confirms this address for your account.")}
     ${btn(params.verificationLink, "Confirm")}
-    ${p(`The link works for 1 hour. Didn't sign up? Ignore this e-mail.`)}`;
+    ${p(`The link works for 1 hour. Didn't ask for this? Ignore this e-mail.`)}`;
 
   return {
     subject,
     html: wrap(subject, content),
     body: [
-      "Confirm your e-mail for The Web Room. One click and you're signed in:",
+      "Confirm this e-mail address for your account on The Web Room:",
       "",
       params.verificationLink,
       "",
-      "The link works for 1 hour. Didn't sign up? Ignore this e-mail.",
+      "The link works for 1 hour. Didn't ask for this? Ignore this e-mail.",
     ].join("\n"),
   };
 }

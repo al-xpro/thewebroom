@@ -17,9 +17,11 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TOPICS } from "@/convex/topics";
 import { TopicFollowPicker } from "@/components/web/TopicFollowPicker";
+import { DownloadMyData } from "@/components/web/DownloadMyData";
 import { useTopicFollows } from "@/hooks/use-topic-follows";
 import Github from "@thesvg/react/github";
 import { AvatarCropper } from "@/components/web/AvatarCropper";
+import { ChangeEmail } from "@/components/web/ChangeEmail";
 
 export default function ProfileClient() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -31,7 +33,9 @@ export default function ProfileClient() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isReauthenticatingGithub, setIsReauthenticatingGithub] = useState(false);
-  const [isCompletingGithubReauth, setIsCompletingGithubReauth] = useState(false);
+  // The GitHub reauthentication token that has been checked; until then, it's in progress.
+  const [settledReauthToken, setSettledReauthToken] = useState("");
+  const isCompletingGithubReauth = isAuthenticated && deleteReauthToken !== "" && settledReauthToken !== deleteReauthToken;
   const [confirmText, setConfirmText] = useState("");
   const [open, setOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
@@ -67,7 +71,6 @@ export default function ProfileClient() {
     if (!deleteReauthToken) return;
 
     let cancelled = false;
-    setIsCompletingGithubReauth(true);
 
     void (async () => {
       try {
@@ -79,7 +82,7 @@ export default function ProfileClient() {
         }
       } finally {
         if (!cancelled) {
-          setIsCompletingGithubReauth(false);
+          setSettledReauthToken(deleteReauthToken);
           router.replace("/profile");
         }
       }
@@ -310,6 +313,12 @@ export default function ProfileClient() {
                 ) : (
                   <Skeleton className="h-9 w-full rounded-md" />
                 )}
+                {profileReady && deleteGuard?.hasCredentialPassword && user?.email && (
+                  <ChangeEmail currentEmail={user.email} />
+                )}
+                {profileReady && deleteGuard && !deleteGuard.hasCredentialPassword && (
+                  <p className="type-meta text-xs">Your address comes from GitHub; change it there.</p>
+                )}
               </div>
             </div>
           </section>
@@ -326,6 +335,14 @@ export default function ProfileClient() {
                 <Skeleton className="h-9 w-full rounded-full" />
               )}
             </div>
+          </section>
+
+          <section className="section-minimal">
+            <h2 className="type-label">Your data</h2>
+            <p className="type-meta -mt-3">
+              Your account, posts, comments, follows, reading list and more, as a JSON file.
+            </p>
+            <DownloadMyData />
           </section>
 
           <section className="section-minimal">

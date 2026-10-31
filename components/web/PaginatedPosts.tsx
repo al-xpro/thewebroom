@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { Button } from "../ui/button";
 import { PostCard } from "@/components/web/PostCard";
 
 const PAGE_SIZE = 10;
 
+type Post = ComponentProps<typeof PostCard>["post"] & { _id: string };
+
 // Ten posts, then More adds ten at a time.
-export default function PaginatedPosts({ posts }: { posts: any[] }) {
+export default function PaginatedPosts({ posts }: { posts: Post[] }) {
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   return (

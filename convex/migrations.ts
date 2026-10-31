@@ -1,4 +1,5 @@
 import { internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 async function sha256Hex(value: string): Promise<string> {
   const encoded = new TextEncoder().encode(value);
@@ -52,5 +53,21 @@ export const deleteEmailVerificationTokens = internalMutation({
     const tokens = await ctx.db.query("emailVerificationTokens").collect();
     for (const token of tokens) await ctx.db.delete(token._id);
     return { deleted: tokens.length };
+  },
+});
+
+// #18: legacy posts have no status and count as published. Gives them "published", 200 at
+// a time, scheduling itself until none are left. Run once:
+//   npx convex run migrations:backfillPostStatus
+export const backfillPostStatus = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const batch = await ctx.db
+      .query("posts")
+      .withIndex("by_status", (q) => q.eq("status", undefined))
+      .take(200);
+    for (const post of batch) await ctx.db.patch(post._id, { status: "published" });
+    if (batch.length === 200) await ctx.scheduler.runAfter(0, internal.migrations.backfillPostStatus, {});
+    return { updated: batch.length, done: batch.length < 200 };
   },
 });

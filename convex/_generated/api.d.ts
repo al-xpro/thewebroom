@@ -8,12 +8,15 @@
  * @module
  */
 
+import type * as account from "../account.js";
+import type * as accountCleanup from "../accountCleanup.js";
 import type * as agentLimits from "../agentLimits.js";
 import type * as agents from "../agents.js";
 import type * as assistant from "../assistant.js";
 import type * as auth from "../auth.js";
 import type * as avatars from "../avatars.js";
 import type * as comment from "../comment.js";
+import type * as commentTree from "../commentTree.js";
 import type * as community from "../community.js";
 import type * as crons from "../crons.js";
 import type * as emailSender from "../emailSender.js";
@@ -36,6 +39,7 @@ import type * as reading from "../reading.js";
 import type * as revalidate from "../revalidate.js";
 import type * as scheduledPosts from "../scheduledPosts.js";
 import type * as topics from "../topics.js";
+import type * as uploads from "../uploads.js";
 
 import type {
   ApiFromModules,
@@ -44,12 +48,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  account: typeof account;
+  accountCleanup: typeof accountCleanup;
   agentLimits: typeof agentLimits;
   agents: typeof agents;
   assistant: typeof assistant;
   auth: typeof auth;
   avatars: typeof avatars;
   comment: typeof comment;
+  commentTree: typeof commentTree;
   community: typeof community;
   crons: typeof crons;
   emailSender: typeof emailSender;
@@ -72,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   revalidate: typeof revalidate;
   scheduledPosts: typeof scheduledPosts;
   topics: typeof topics;
+  uploads: typeof uploads;
 }>;
 
 /**

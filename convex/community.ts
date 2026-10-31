@@ -33,9 +33,13 @@ async function avatarsFor(ctx: QueryCtx, userIds: string[]) {
 export const overview = query({
   args: {},
   handler: async (ctx) => {
-    const posts = (await ctx.db.query("posts").order("desc").collect()).filter(
-      (post) => isPublished(post) && post.slug
-    );
+    // Published posts through the status index (#18): marked published, and legacy rows.
+    const posts = [
+      ...(await ctx.db.query("posts").withIndex("by_status", (q) => q.eq("status", "published")).order("desc").take(1000)),
+      ...(await ctx.db.query("posts").withIndex("by_status", (q) => q.eq("status", undefined)).order("desc").take(1000)),
+    ]
+      .filter((post) => isPublished(post) && post.slug)
+      .sort((a, b) => publishedAt(b) - publishedAt(a));
 
     const writers = new Map<string, { id: string; name: string; posts: number; lastPostAt: number; topics: Set<string> }>();
     for (const post of posts) {

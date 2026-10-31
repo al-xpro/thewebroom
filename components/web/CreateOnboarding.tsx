@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, CalendarClock, PenLine, Sparkles, Type, X, type LucideIcon } from "lucide-react";
@@ -48,22 +48,30 @@ const STEPS: Step[] = [
   },
 ];
 
+const noSubscribe = () => () => {};
+
+function hasSeenTour() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) !== null;
+  } catch {
+    // Storage blocked: no tour, nothing breaks.
+    return true;
+  }
+}
+
+// The tour opens on a first visit to the editor (after hydrating), and on request.
 export function useCreateOnboarding() {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(STORAGE_KEY)) setOpen(true);
-    } catch {
-      // Storage blocked: no tour, nothing breaks.
-    }
-  }, []);
+  const seen = useSyncExternalStore(noSubscribe, hasSeenTour, () => true);
+  // What the member chose in this visit; until then, the stored answer.
+  const [choice, setChoice] = useState<boolean | null>(null);
+  const open = choice ?? !seen;
   const close = () => {
-    setOpen(false);
+    setChoice(false);
     try {
       localStorage.setItem(STORAGE_KEY, "done");
     } catch {}
   };
-  return { open, show: () => setOpen(true), close };
+  return { open, show: () => setChoice(true), close };
 }
 
 export function CreateOnboarding({ open, onClose }: { open: boolean; onClose: () => void }) {
