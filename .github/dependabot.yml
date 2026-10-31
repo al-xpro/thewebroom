@@ -31,6 +31,10 @@ updates:
         versions: [">27.0.1"]
       - dependency-name: "@types/jsdom"
         versions: [">27.0.0"]
+      # typescript-eslint (through eslint-config-next) supports TypeScript <6.1; with 7.0 the
+      # linter doesn't start. Remove once a typescript-eslint release supports 7.
+      - dependency-name: "typescript"
+        versions: [">=6.1.0"]
 
   - package-ecosystem: github-actions
     directory: /
