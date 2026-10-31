@@ -84,6 +84,9 @@ export default defineSchema({
 
   rateLimits: defineTable({
     userId: v.string(),
+    // Post image uploads, per hour (#19).
+    uploadWindowStart: v.optional(v.number()),
+    uploadCount: v.optional(v.number()),
     postWindowStart: v.optional(v.number()),
     postCount: v.optional(v.number()),
     commentWindowStart: v.optional(v.number()),
@@ -177,6 +180,17 @@ export default defineSchema({
     decidedBy: v.optional(v.string()),
     decidedAt: v.optional(v.number()),
   }).index("by_post", ["postId", "reviewedAt"]),
+
+  // Post images uploaded through generateImageUploadUrl, checked by registerPostImage
+  // (#19): who uploaded each file, and the post it's attached to.
+  uploads: defineTable({
+    storageId: v.id("_storage"),
+    userId: v.string(),
+    createdAt: v.number(),
+    postId: v.optional(v.id("posts")),
+  })
+    .index("by_storageId", ["storageId"])
+    .index("by_createdAt", ["createdAt"]),
 
   // Newsletter sign-ups: one row per address.
   newsletterSubscribers: defineTable({
