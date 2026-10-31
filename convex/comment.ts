@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query, type QueryCtx } from "./_generated/server";
+import { deleteCommentTree } from "./commentTree";
 import { assertUserNotBanned, authComponent, isAdminUserRecord } from "./auth";
 import { components } from "./_generated/api";
 import { getAvatarUrls } from "./avatars";
@@ -40,15 +41,21 @@ export const getIsAdmin = query({
   },
 });
 
+// A post's comments, newest first. Hidden ones only for admins and for their own author.
 export const getCommentsByPostId = query({
   args: { postId: v.id("posts") },
   handler: async (ctx, args) => {
+    const viewer = await authComponent.safeGetAuthUser(ctx).catch(() => null);
+    const isAdmin = viewer ? isAdminUserRecord(viewer) : false;
     const comments = await ctx.db
       .query("comments")
-      .filter((q) => q.eq(q.field("postId"), args.postId))
+      .withIndex("by_postId", (q) => q.eq("postId", args.postId))
       .order("desc")
       .collect();
-    return await withAuthorAvatars(ctx, comments);
+    const visible = comments.filter(
+      (comment) => comment.status !== "hidden" || isAdmin || comment.authorId === viewer?._id
+    );
+    return await withAuthorAvatars(ctx, visible);
   },
 });
 
@@ -57,12 +64,13 @@ export const getVisibleCommentsByPostId = query({
   handler: async (ctx, args) => {
     const comments = await ctx.db
       .query("comments")
-      .filter((q) =>
-        q.and(q.eq(q.field("postId"), args.postId), q.eq(q.field("status"), "visible"))
-      )
+      .withIndex("by_postId", (q) => q.eq("postId", args.postId))
       .order("desc")
       .collect();
-    return await withAuthorAvatars(ctx, comments);
+    return await withAuthorAvatars(
+      ctx,
+      comments.filter((comment) => comment.status !== "hidden")
+    );
   },
 });
 
@@ -83,6 +91,18 @@ export const createComment = mutation({
     if (body.length === 0) throw new ConvexError("Comment cannot be empty");
     if (body.length > COMMENT_MAX_LENGTH) {
       throw new ConvexError(`Comment cannot exceed ${COMMENT_MAX_LENGTH} characters`);
+    }
+
+    // Only on published posts; a reply must answer a visible comment on the same post.
+    const target = await ctx.db.get(args.postId);
+    if (!target || (target.status !== undefined && target.status !== "published")) {
+      throw new ConvexError("You can only comment on published posts");
+    }
+    if (args.parentId) {
+      const parentComment = await ctx.db.get(args.parentId);
+      if (!parentComment || parentComment.postId !== args.postId || parentComment.status === "hidden") {
+        throw new ConvexError("You can't reply to this comment");
+      }
     }
 
     // Rate limit
@@ -161,6 +181,7 @@ export const updateComment = mutation({
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) throw new ConvexError("Not authenticated");
+    await assertUserNotBanned(ctx, { _id: user._id, email: user.email });
 
     const comment = await ctx.db.get(args.commentId);
     if (!comment) throw new ConvexError("Comment not found");
@@ -196,14 +217,8 @@ export const deleteComment = mutation({
       throw new ConvexError("Not authorized to delete this comment");
     }
 
-    // Delete all replies to this comment first
-    const replies = await ctx.db
-      .query("comments")
-      .filter((q) => q.eq(q.field("parentId"), args.commentId))
-      .collect();
-    await Promise.all(replies.map((r) => ctx.db.delete(r._id)));
-
-    await ctx.db.delete(args.commentId);
+    // The whole thread under it goes too, however deep.
+    await deleteCommentTree(ctx, args.commentId);
     return args.commentId;
   },
 });

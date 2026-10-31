@@ -14,6 +14,7 @@ import type * as assistant from "../assistant.js";
 import type * as auth from "../auth.js";
 import type * as avatars from "../avatars.js";
 import type * as comment from "../comment.js";
+import type * as commentTree from "../commentTree.js";
 import type * as community from "../community.js";
 import type * as crons from "../crons.js";
 import type * as emailSender from "../emailSender.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   avatars: typeof avatars;
   comment: typeof comment;
+  commentTree: typeof commentTree;
   community: typeof community;
   crons: typeof crons;
   emailSender: typeof emailSender;

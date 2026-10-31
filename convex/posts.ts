@@ -469,6 +469,13 @@ export const deletePost = mutation({
 
     await ctx.db.delete(args.postId);
 
+    // Its comments go with it, replies included.
+    const postComments = await ctx.db
+      .query("comments")
+      .withIndex("by_postId", (q) => q.eq("postId", args.postId))
+      .collect();
+    for (const comment of postComments) await ctx.db.delete(comment._id);
+
     // Saved and "helpful" rows go with the post; its series closes the gap.
     for (const table of ["bookmarks", "reactions"] as const) {
       const rows = await ctx.db
