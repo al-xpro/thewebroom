@@ -39,7 +39,8 @@ interface DockSearchProps {
 // The dock opened as a search over the published posts: titles, subtitles and bodies,
 // with arrow keys and Enter to pick one.
 export function DockSearch({ inputRef, onClose }: DockSearchProps) {
-  const posts = useQuery(api.posts.getPublishedPosts);
+  // The newest published posts (the server's default limit).
+  const posts = useQuery(api.posts.getPublishedPosts, {});
   const router = useRouter();
 
   const [displayTerm, setDisplayTerm] = useState("");
