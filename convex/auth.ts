@@ -18,6 +18,7 @@ import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/a
 import { api } from "./_generated/api";
 import authConfig from "./auth.config";
 import { verifyClientIp } from "../lib/auth-proxy-signature";
+import { deleteMemberActivity } from "./accountCleanup";
 
 const GITHUB_DELETE_REAUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const GITHUB_DELETE_REAUTH_GRANT_TTL_MS = 5 * 60 * 1000;
@@ -934,6 +935,10 @@ export const deleteAccountCascade = mutation({
     for (const completion of onboardingCompletions) {
       await ctx.db.delete(completion._id);
     }
+
+    // Follows, reading list, reactions, notifications, series, agent tokens, reports,
+    // newsletter subscription.
+    await deleteMemberActivity(ctx, user._id, user.email);
 
     // ── 2. Delete better-auth records ────────────────────────────────────
     // The adapter requires the `input` wrapper — that shape is correct.

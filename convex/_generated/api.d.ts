@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as account from "../account.js";
+import type * as accountCleanup from "../accountCleanup.js";
 import type * as agentLimits from "../agentLimits.js";
 import type * as agents from "../agents.js";
 import type * as assistant from "../assistant.js";
@@ -46,6 +48,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  account: typeof account;
+  accountCleanup: typeof accountCleanup;
   agentLimits: typeof agentLimits;
   agents: typeof agents;
   assistant: typeof assistant;

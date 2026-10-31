@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-const LAST_UPDATED = "March 14, 2026";
+const LAST_UPDATED = "October 31, 2026";
 
 export default function TermsAndConditionsPage() {
   return (
@@ -156,11 +156,14 @@ export default function TermsAndConditionsPage() {
           <section className="space-y-3">
             <h2 className="text-2xl font-bold text-foreground">7. User Content and Rights</h2>
             <p>
-              You retain <span className="font-bold">ownership</span> of content you create. By
-              posting, you grant The Web Room a worldwide, non-exclusive,{" "}
-              <span className="font-bold">royalty-free license</span> to host, store, process,
-              display, and distribute your content as required to provide and improve services,
-              enforce policy, and ensure reliability.
+              You keep the <span className="font-bold">rights</span> to everything you publish. By
+              publishing, you grant The Web Room a worldwide, non-exclusive,{" "}
+              <span className="font-bold">royalty-free license</span> to host, store and display
+              your posts and comments on the site and in its feeds for readers and their agents
+              (RSS, Markdown versions, llms.txt and the MCP server&apos;s search), and to process
+              them to run the service and enforce these terms. The license ends when you delete
+              the content or your account, apart from copies already fetched by readers or
+              caches. We don&apos;t sell your content or use it to train AI models.
             </p>
             <p>
               You represent that you have <span className="font-bold">rights</span> to publish
@@ -215,8 +218,9 @@ export default function TermsAndConditionsPage() {
           <section className="space-y-3">
             <h2 className="text-2xl font-bold text-foreground">10. Third-Party Services</h2>
             <p>
-              The platform integrates with third-party providers for authentication, infrastructure,
-              and transactional email. Those providers may apply independent service terms. We are{" "}
+              The platform integrates with third-party providers for hosting (Vercel), database and
+              storage (Convex), e-mail (Resend), sign-in (GitHub), AI agents (Anthropic) and error
+              tracking (Sentry); the Privacy Policy lists what each receives. Those providers may apply independent service terms. We are{" "}
               <span className="font-bold">not responsible</span> for external outages, policy
               changes, or service limitations beyond our control. We select processors that meet
               appropriate data protection standards, including GDPR-compliant data processing
