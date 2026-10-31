@@ -6,7 +6,10 @@
 "use client";
 
 import DOMPurify from "dompurify";
-import { COMMENT_CONFIG, POST_CONFIG } from "@/lib/sanitize-config";
+import { COMMENT_CONFIG, POST_CONFIG, styleHook } from "@/lib/sanitize-config";
+
+// Only the inline styles posts need (see cleanStyle).
+if (typeof window !== "undefined") DOMPurify.addHook("uponSanitizeAttribute", styleHook);
 
 /**
  * Sanitize rich post HTML (custom blocks, Shiki output).
