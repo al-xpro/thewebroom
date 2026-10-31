@@ -33,3 +33,49 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+
+  test:
+    # Unit tests (lib/) and Convex functions against convex-test's in-memory backend.
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+  e2e:
+    # Playwright: smoke tests against `next dev`, or against E2E_BASE_URL (a preview or dev
+    # deployment) when that variable is set; the sign-in flows also need the E2E_EMAIL and
+    # E2E_PASSWORD secrets for a test member there, and are skipped without them.
+    name: End-to-end
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_CONVEX_URL: ${{ vars.NEXT_PUBLIC_CONVEX_URL }}
+      CONVEX_SITE_URL: ${{ vars.CONVEX_SITE_URL }}
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
