@@ -129,7 +129,7 @@ async function callTool(token: string, member: { name: string }, name: string, a
       const topic = str(args.topic);
       const limit = Math.min(25, Math.max(1, Number(args.limit) || 10));
       const words = query.split(/\s+/).filter(Boolean);
-      const posts = (await fetchQuery(api.posts.getPublishedPosts))
+      const posts = (await fetchQuery(api.posts.getPublishedPosts, { limit: 200, ...(isTopic(topic) ? { topics: [topic] } : {}) }))
         .filter((post) => post.slug && (!topic || post.topic === topic))
         .filter((post) => {
           const haystack = `${post.title} ${post.subtitle} ${post.authorName}`.toLowerCase();

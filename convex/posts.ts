@@ -225,38 +225,93 @@ export const getMyPosts = query({
   },
 });
 
+// The admin's list: the newest ADMIN_LIST_MAX posts, without image URLs (it shows none).
+const ADMIN_LIST_MAX = 2000;
+
 export const getAllPostsForAdmin = query({
   args: {},
   handler: async (ctx) => {
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user || !isAdminUserRecord(user)) throw new ConvexError("Not authorized");
 
-    const posts = await ctx.db.query("posts").order("desc").collect();
+    return await ctx.db.query("posts").order("desc").take(ADMIN_LIST_MAX);
+  },
+});
+
+const PUBLISHED_DEFAULT = 60;
+const PUBLISHED_MAX = 500;
+
+// The newest published posts, read through the status index: those marked published and
+// legacy rows with no status (until migrations:backfillPostStatus has run). Bounded by
+// `limit`, optionally only some topics; image URLs only for what's returned.
+async function readPublished(ctx: QueryCtx, limit: number, topics?: Topic[]) {
+  const statuses = ["published", undefined] as const;
+  const rows: Doc<"posts">[] = [];
+  if (topics && topics.length > 0) {
+    for (const status of statuses) {
+      for (const topic of topics) {
+        rows.push(
+          ...(await ctx.db
+            .query("posts")
+            .withIndex("by_status_topic", (q) => q.eq("status", status).eq("topic", topic))
+            .order("desc")
+            .take(limit))
+        );
+      }
+    }
+  } else {
+    for (const status of statuses) {
+      rows.push(
+        ...(await ctx.db
+          .query("posts")
+          .withIndex("by_status", (q) => q.eq("status", status))
+          .order("desc")
+          .take(limit))
+      );
+    }
+  }
+  // Newest first by the time they went out: a scheduled post publishes after its draft
+  // was created (#60).
+  return rows
+    .sort((a, b) => (b.publishAt ?? b._creationTime) - (a.publishAt ?? a._creationTime))
+    .slice(0, limit);
+}
+
+export const getPublishedPosts = query({
+  args: {
+    limit: v.optional(v.number()),
+    topics: v.optional(v.array(topicValidator)),
+  },
+  handler: async (ctx, args) => {
+    const limit = Math.max(1, Math.min(PUBLISHED_MAX, args.limit ?? PUBLISHED_DEFAULT));
+    const posts = await readPublished(ctx, limit, args.topics);
     return await Promise.all(posts.map((post) => withImageUrl(ctx, post)));
   },
 });
 
-export const getPublishedPosts = query({
-  args: {},
-  handler: async (ctx) => {
-    const posts = await ctx.db.query("posts").order("desc").collect();
-
-    // Filter to published-only in JS — no unsafe TypeScript cast needed.
-    // A post is "published" if status is explicitly "published" OR
-    // if the status field was never set (legacy posts before status existed).
-    // Newest first by the time they went out: a scheduled post publishes after its draft
-    // was created (#60).
-    const publishedPosts = posts
-      .filter((p) => p.status === "published" || p.status === undefined)
-      .sort((a, b) => (b.publishAt ?? b._creationTime) - (a.publishAt ?? a._creationTime));
-
-    return await Promise.all(
-      publishedPosts.map(async (post) => {
-        const resolvedImageUrl =
-          post.imageStorageId !== undefined ? await ctx.storage.getUrl(post.imageStorageId) : null;
-        return { ...post, imageUrl: resolvedImageUrl };
-      })
-    );
+// One page of published slugs, for the sitemap and static params; legacy rows with no
+// status come on the first page.
+export const publishedSlugsPage = query({
+  args: { cursor: v.union(v.string(), v.null()), numItems: v.optional(v.number()) },
+  handler: async (ctx, { cursor, numItems }) => {
+    const page = await ctx.db
+      .query("posts")
+      .withIndex("by_status", (q) => q.eq("status", "published"))
+      .order("desc")
+      .paginate({ cursor, numItems: Math.min(500, numItems ?? 200) });
+    const legacy =
+      cursor === null
+        ? await ctx.db
+            .query("posts")
+            .withIndex("by_status", (q) => q.eq("status", undefined))
+            .take(500)
+        : [];
+    const toEntry = (post: Doc<"posts">) => ({ slug: post.slug, createdAt: post.publishAt ?? post._creationTime });
+    return {
+      entries: [...legacy, ...page.page].filter((post) => post.slug).map(toEntry),
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
   },
 });
 
@@ -493,9 +548,7 @@ export const deletePost = mutation({
 
 export const getAllPostSlugs = query({
   handler: async (ctx) => {
-    const posts = await ctx.db.query("posts").collect();
-    return posts
-      .filter((p) => p.status === "published" || p.status === undefined)
-      .map((p) => ({ slug: p.slug }));
+    const posts = await readPublished(ctx, PUBLISHED_MAX);
+    return posts.map((p) => ({ slug: p.slug }));
   },
 });

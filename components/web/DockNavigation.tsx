@@ -1448,7 +1448,7 @@ interface DockSearchContentProps {
 }
 
 function DockSearchContent({ initialTerm, inputRef, onClose, router }: DockSearchContentProps) {
-  const posts = useQuery(api.posts.getPublishedPosts);
+  const posts = useQuery(api.posts.getPublishedPosts, { limit: 200 });
 
   const [displayTerm, setDisplayTerm] = useState(initialTerm);
   const [debouncedTerm, setDebouncedTerm] = useState(initialTerm);
