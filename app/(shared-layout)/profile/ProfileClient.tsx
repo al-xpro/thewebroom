@@ -17,10 +17,10 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TOPICS } from "@/convex/topics";
 import { TopicFollowPicker } from "@/components/web/TopicFollowPicker";
+import { DownloadMyData } from "@/components/web/DownloadMyData";
 import { useTopicFollows } from "@/hooks/use-topic-follows";
 import Github from "@thesvg/react/github";
 import { AvatarCropper } from "@/components/web/AvatarCropper";
-import { DownloadMyData } from "@/components/web/DownloadMyData";
 
 export default function ProfileClient() {
   const { isAuthenticated, isLoading } = useConvexAuth();
