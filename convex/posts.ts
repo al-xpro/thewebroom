@@ -238,7 +238,8 @@ export const getAllPostsForAdmin = query({
   },
 });
 
-const PUBLISHED_DEFAULT = 60;
+// Callers pass a limit; the dock's search (no arguments) reads the newest 200.
+const PUBLISHED_DEFAULT = 200;
 const PUBLISHED_MAX = 500;
 
 // The newest published posts, read through the status index: those marked published and
