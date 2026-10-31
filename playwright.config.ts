@@ -3,7 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 // End-to-end tests (#16). Against E2E_BASE_URL (a preview or dev deployment) when set;
 // otherwise against `next dev` started here. Smoke tests need no account; the flows need
 // E2E_EMAIL and E2E_PASSWORD for a test member on that deployment, and skip without them.
-const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3100";
+// `||`, not `??`: an unset repo variable reaches CI as an empty string.
+const baseURL = process.env.E2E_BASE_URL || "http://localhost:3100";
 
 export default defineConfig({
   testDir: "tests/e2e",
