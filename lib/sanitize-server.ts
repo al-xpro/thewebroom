@@ -2,11 +2,12 @@ import "server-only";
 
 import createDOMPurify from "dompurify";
 import { JSDOM } from "jsdom";
-import { POST_CONFIG } from "@/lib/sanitize-config";
+import { POST_CONFIG, styleHook } from "@/lib/sanitize-config";
 
 // DOMPurify needs a DOM; on the server it runs on jsdom, the window DOMPurify recommends.
 const window = new JSDOM("").window;
 const purify = createDOMPurify(window);
+purify.addHook("uponSanitizeAttribute", styleHook);
 
 /**
  * Sanitize post HTML on the server, before it's rendered or sent to the client.

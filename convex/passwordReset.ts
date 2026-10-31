@@ -253,9 +253,14 @@ export const verifyOTP = query({
   },
 });
 
+// Failures that change state (an attempt counted, a lockout, an expired code removed) are
+// returned, not thrown: a mutation that throws rolls back its writes, so the attempt
+// counter never moved and the lockout never started (#16).
+type OtpResult = { success: true; resetToken: string } | { success: false; error: string };
+
 export const verifyOTPAndCreateSession = mutation({
   args: { email: v.string(), otp: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<OtpResult> => {
     const email = args.email.trim().toLowerCase();
     const otp = args.otp.trim();
     const now = Date.now();
@@ -265,7 +270,7 @@ export const verifyOTPAndCreateSession = mutation({
 
     if (now > otpRecord.expiresAt) {
       await ctx.db.delete(otpRecord._id);
-      throw new ConvexError("Code expired");
+      return { success: false, error: "Code expired" };
     }
 
     if (otpRecord.attempts >= OTP_MAX_ATTEMPTS) {
@@ -284,9 +289,10 @@ export const verifyOTPAndCreateSession = mutation({
         });
       }
 
-      throw new ConvexError(
-        "Too many failed attempts. Your account is locked for 24 hours. Please try again later."
-      );
+      return {
+        success: false,
+        error: "Too many failed attempts. Your account is locked for 24 hours. Please try again later.",
+      };
     }
 
     const expectedOtpHash = await getStoredOtpHash(otpRecord);
@@ -313,12 +319,13 @@ export const verifyOTPAndCreateSession = mutation({
           });
         }
 
-        throw new ConvexError(
-          `Invalid code. Your account is now locked for 24 hours due to ${OTP_MAX_ATTEMPTS} failed attempts.`
-        );
+        return {
+          success: false,
+          error: `Invalid code. Your account is now locked for 24 hours due to ${OTP_MAX_ATTEMPTS} failed attempts.`,
+        };
       }
 
-      throw new ConvexError(`Invalid code. ${OTP_MAX_ATTEMPTS - newAttempts} attempt(s) remaining.`);
+      return { success: false, error: `Invalid code. ${OTP_MAX_ATTEMPTS - newAttempts} attempt(s) remaining.` };
     }
 
     await ctx.db.delete(otpRecord._id);
