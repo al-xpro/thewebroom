@@ -1,6 +1,6 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
-import { api, components, internal } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -13,6 +13,8 @@ import { betterAuth } from "better-auth";
 import { ConvexError, v } from "convex/values";
 import { verifyPassword } from "better-auth/crypto";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
+// Public queries the auth hooks run (separate from the import above to keep diffs apart).
+import { api } from "./_generated/api";
 import authConfig from "./auth.config";
 import { verifyClientIp } from "../lib/auth-proxy-signature";
 
