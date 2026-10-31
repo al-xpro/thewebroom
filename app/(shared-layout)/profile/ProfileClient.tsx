@@ -20,6 +20,7 @@ import { TopicFollowPicker } from "@/components/web/TopicFollowPicker";
 import { useTopicFollows } from "@/hooks/use-topic-follows";
 import Github from "@thesvg/react/github";
 import { AvatarCropper } from "@/components/web/AvatarCropper";
+import { ChangeEmail } from "@/components/web/ChangeEmail";
 
 export default function ProfileClient() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -309,6 +310,12 @@ export default function ProfileClient() {
                     className="bg-white dark:bg-black disabled:cursor-not-allowed disabled:pointer-events-auto" />
                 ) : (
                   <Skeleton className="h-9 w-full rounded-md" />
+                )}
+                {profileReady && deleteGuard?.hasCredentialPassword && user?.email && (
+                  <ChangeEmail currentEmail={user.email} />
+                )}
+                {profileReady && deleteGuard && !deleteGuard.hasCredentialPassword && (
+                  <p className="type-meta text-xs">Your address comes from GitHub; change it there.</p>
                 )}
               </div>
             </div>

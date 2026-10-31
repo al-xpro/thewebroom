@@ -1,6 +1,6 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
-import { components, internal } from "./_generated/api";
+import { api, components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -12,7 +12,7 @@ import {
 import { betterAuth } from "better-auth";
 import { ConvexError, v } from "convex/values";
 import { verifyPassword } from "better-auth/crypto";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import authConfig from "./auth.config";
 import { verifyClientIp } from "../lib/auth-proxy-signature";
 
@@ -238,6 +238,25 @@ async function assertNotExistingAccount(
   });
 }
 
+// Changing the e-mail (#96) is for accounts with a password: GitHub-only accounts take
+// their address from GitHub. A banned address is refused.
+async function assertEmailChangeAllowed(
+  ctx: GenericCtx<DataModel>,
+  authCtx: Parameters<Parameters<typeof createAuthMiddleware>[0]>[0]
+) {
+  const session = await getSessionFromCtx(authCtx);
+  if (!session) throw new APIError("UNAUTHORIZED", { message: "Sign in first." });
+  const accounts = await authCtx.context.internalAdapter.findAccounts(session.user.id);
+  if (!accounts.some((account) => account.providerId === "credential" && account.password)) {
+    throw new APIError("FORBIDDEN", { message: "Your address comes from GitHub; change it there." });
+  }
+  const newEmail = typeof authCtx.body?.newEmail === "string" ? normalizeEmail(authCtx.body.newEmail) : "";
+  if (!newEmail) throw new APIError("BAD_REQUEST", { message: "Enter the new address." });
+  if (!("runQuery" in ctx)) throw new APIError("FORBIDDEN", { message: "Change it on the website." });
+  const ban = await ctx.runQuery(api.auth.getBanStatusByEmail, { email: newEmail });
+  if (ban.banned) throw new APIError("FORBIDDEN", { message: "This address can't be used." });
+}
+
 export const createAuth = (
   ctx: GenericCtx<DataModel>,
   { optionsOnly } = { optionsOnly: false }
@@ -262,6 +281,10 @@ export const createAuth = (
       .filter(Boolean),
     database: authComponent.adapter(ctx),
     emailAndPassword: { enabled: true, requireEmailVerification: true },
+    // A new address (#96): better-auth e-mails a link to it, and the address changes only
+    // when the link is clicked. An address that belongs to another account never changes
+    // anything (without saying so, so addresses can't be tested).
+    user: { changeEmail: { enabled: true } },
     emailVerification: {
       sendOnSignUp: true,
       // Signing in with an unverified address sends a new link, which also covers links
@@ -289,6 +312,10 @@ export const createAuth = (
     ],
     hooks: {
       before: createAuthMiddleware(async (authCtx) => {
+        if (authCtx.path === "/change-email") {
+          await assertEmailChangeAllowed(ctx, authCtx);
+          return;
+        }
         if (authCtx.path !== "/sign-up/email" || typeof authCtx.body?.email !== "string") return;
         await assertNotExistingAccount(
           ctx,
