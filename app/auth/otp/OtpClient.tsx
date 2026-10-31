@@ -58,8 +58,8 @@ export default function OtpClient() {
     try {
       const result = await verifyOTPAndCreateSession({ email, otp: code });
 
-      if (!result?.resetToken) {
-        setOtpError("Unable to verify OTP.");
+      if (!result.success) {
+        setOtpError(result.error);
         setOtpValue("");
         return;
       }
