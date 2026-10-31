@@ -1,5 +1,6 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
+import { deleteCommentTree } from "./commentTree";
 import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import {
@@ -870,7 +871,7 @@ export const deleteAccountCascade = mutation({
     for (const post of posts) {
       const postComments = await ctx.db
         .query("comments")
-        .filter((q) => q.eq(q.field("postId"), post._id))
+        .withIndex("by_postId", (q) => q.eq("postId", post._id))
         .collect();
       for (const c of postComments) await ctx.db.delete(c._id);
       await ctx.db.delete(post._id);
@@ -878,9 +879,12 @@ export const deleteAccountCascade = mutation({
 
     const comments = await ctx.db
       .query("comments")
-      .filter((q) => q.eq(q.field("authorId"), user._id))
+      .withIndex("by_authorId", (q) => q.eq("authorId", user._id))
       .collect();
-    for (const c of comments) await ctx.db.delete(c._id);
+    for (const c of comments) {
+      // A reply thread may already be gone with an earlier comment's tree.
+      if (await ctx.db.get(c._id)) await deleteCommentTree(ctx, c._id);
+    }
 
     const limits = await ctx.db
       .query("rateLimits")
