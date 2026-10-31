@@ -1,15 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { ForAgentsButton } from "@/components/web/ForAgentsButton";
 
 export default function Footer() {
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-
-  useEffect(() => {
-    setCurrentYear(new Date().getFullYear());
-  }, []);
+  const currentYear = new Date().getFullYear();
 
   return (
     <footer className="relative divider-fade-top mb-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 type-meta">

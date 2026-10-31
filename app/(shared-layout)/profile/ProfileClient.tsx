@@ -31,7 +31,9 @@ export default function ProfileClient() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isReauthenticatingGithub, setIsReauthenticatingGithub] = useState(false);
-  const [isCompletingGithubReauth, setIsCompletingGithubReauth] = useState(false);
+  // The GitHub reauthentication token that has been checked; until then, it's in progress.
+  const [settledReauthToken, setSettledReauthToken] = useState("");
+  const isCompletingGithubReauth = isAuthenticated && deleteReauthToken !== "" && settledReauthToken !== deleteReauthToken;
   const [confirmText, setConfirmText] = useState("");
   const [open, setOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
@@ -67,7 +69,6 @@ export default function ProfileClient() {
     if (!deleteReauthToken) return;
 
     let cancelled = false;
-    setIsCompletingGithubReauth(true);
 
     void (async () => {
       try {
@@ -79,7 +80,7 @@ export default function ProfileClient() {
         }
       } finally {
         if (!cancelled) {
-          setIsCompletingGithubReauth(false);
+          setSettledReauthToken(deleteReauthToken);
           router.replace("/profile");
         }
       }

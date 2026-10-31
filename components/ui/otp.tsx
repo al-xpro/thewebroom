@@ -63,11 +63,6 @@ function InteractiveOTP({
     return () => window.clearTimeout(timeoutId);
   }, [autoFocus, disabled]);
 
-  useEffect(() => {
-    if (value === undefined) return;
-    setInternalValue(sanitizeOtp(value));
-  }, [value]);
-
   const commitValue = (nextValue: string) => {
     const next = sanitizeOtp(nextValue);
 

@@ -1,16 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
-const noSubscribe = () => () => {};
-
-// False on the server and while hydrating, true after: the dock renders only in the browser.
-export function useIsClient() {
-  return useSyncExternalStore(
-    noSubscribe,
-    () => true,
-    () => false
-  );
-}
-
 // Which page the dock is on: posts and legal pages get the minimap, the editor keeps the dock.
 export function dockPage(pathname: string) {
   const isEditorRoute = pathname.startsWith("/create") || pathname.startsWith("/edit/");

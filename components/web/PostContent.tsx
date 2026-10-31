@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Check, Terminal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { FileIcon } from "@/components/ui/file-icon";
+import { useIsClient } from "@/hooks/use-is-client";
 
 // ─── Copy button ──────────────────────────────────────────────────────────────
 
@@ -171,13 +172,11 @@ export interface FileData {
 // ─── File Code Block ──────────────────────────────────────────────────────────
 
 export function FileCodeBlock({ data }: { data: FileData }) {
-  const [lightHtml, setLightHtml] = useState<string | null>(data.ssrLight ?? null);
-  const [darkHtml, setDarkHtml] = useState<string | null>(data.ssrDark ?? null);
-
-  useEffect(() => {
-    if (data.ssrLight !== null) setLightHtml(data.ssrLight);
-    if (data.ssrDark !== null) setDarkHtml(data.ssrDark);
-  }, [data.ssrLight, data.ssrDark]);
+  // Highlighted in the browser when the server didn't, for the code it was made from.
+  const [highlighted, setHighlighted] = useState<{ code: string; light: string; dark: string } | null>(null);
+  const fresh = highlighted?.code === data.code ? highlighted : null;
+  const lightHtml = data.ssrLight ?? fresh?.light ?? null;
+  const darkHtml = data.ssrDark ?? fresh?.dark ?? null;
 
   const getFileIcon = (lang: string) => <FileIcon lang={lang} />;
 
@@ -201,10 +200,7 @@ export function FileCodeBlock({ data }: { data: FileData }) {
           themes: { light: "alxpro-light", dark: "alxpro-dark" },
           ...opts,
         });
-        if (active) {
-          setLightHtml(light);
-          setDarkHtml(dark);
-        }
+        if (active) setHighlighted({ code: data.code, light, dark });
       } catch (e) {
         console.warn("Shiki highlight failed:", e);
       }
@@ -492,16 +488,10 @@ interface PostContentProps {
 }
 
 export function PostContent({ html, className = "" }: PostContentProps) {
-  const [mounted, setMounted] = useState(false);
-  const [nodes, setNodes] = useState<PostNode[]>([]);
+  // Parsed in the browser (it needs the DOM); until then the post is laid out, hidden.
+  const mounted = useIsClient();
+  const nodes = useMemo(() => (mounted ? parsePostHtml(html) : []), [mounted, html]);
   const articleRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    setMounted(false);
-    const parsed = parsePostHtml(html);
-    setNodes(parsed);
-    setMounted(true);
-  }, [html]);
 
   const base = `leading-relaxed text-paragraph break-words w-full ${className}`;
 

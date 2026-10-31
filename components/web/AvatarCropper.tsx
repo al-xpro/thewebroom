@@ -24,10 +24,16 @@ export function AvatarCropper({ file, onCancel, onDone }: AvatarCropperProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
 
+  // Shows the photo once it has loaded.
   useEffect(() => {
     const objectUrl = URL.createObjectURL(file);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
+    const image = new Image();
+    image.onload = () => setUrl(objectUrl);
+    image.src = objectUrl;
+    return () => {
+      image.onload = null;
+      URL.revokeObjectURL(objectUrl);
+    };
   }, [file]);
 
   // Scale at which the photo just covers the frame, times the zoom.

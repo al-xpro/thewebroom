@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 // This component now acts as a logical wrapper (like a Link)
 export const AnimatedThemeToggler = ({
@@ -12,23 +12,15 @@ export const AnimatedThemeToggler = ({
   children: React.ReactNode;
   className?: string;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) => {
-  const [isDark, setIsDark] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // FIX 1: Sync theme on mount to prevent reset on refresh
+  // Sync the theme on mount so a refresh keeps it.
   useEffect(() => {
-    const theme = localStorage.getItem("theme");
-    if (theme === "dark") {
-      setIsDark(true);
-      document.documentElement.classList.add("dark");
-    } else {
-      setIsDark(false);
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", localStorage.getItem("theme") === "dark");
   }, []);
 
   const toggleTheme = useCallback(async () => {
-    const newTheme = !isDark;
+    const newTheme = !document.documentElement.classList.contains("dark");
     
     // 1. Prepare View Transition
     if (!buttonRef.current) return;
@@ -42,8 +34,7 @@ export const AnimatedThemeToggler = ({
 
     // 2. Logic Update Function
     const updateTheme = () => {
-      document.documentElement.classList.toggle("dark");
-      setIsDark(newTheme);
+      document.documentElement.classList.toggle("dark", newTheme);
       localStorage.setItem("theme", newTheme ? "dark" : "light");
     };
 
@@ -73,7 +64,7 @@ export const AnimatedThemeToggler = ({
         pseudoElement: "::view-transition-new(root)",
       }
     );
-  }, [isDark]);
+  }, []);
 
   return (
     <button

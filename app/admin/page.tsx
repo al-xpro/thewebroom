@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -16,6 +16,7 @@ import { HorizontalBars, StatusSplit, WeeklyColumns } from "@/components/web/adm
 import { TOPICS } from "@/convex/topics";
 import { computeMetrics } from "@/lib/metrics";
 import Footer from "@/components/web/Footer";
+import { useMountTime } from "@/hooks/use-mount-time";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const WEEKS = 12;
@@ -64,8 +65,7 @@ export default function AdminPage() {
   // Posts: the list, or the moderation agent's review of them.
   const [postsView, setPostsView] = useState<"list" | "agent">("list");
   // Read once after mounting (the page is prerendered); the charts don't need to tick.
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => setNow(Date.now()), []);
+  const now = useMountTime();
 
   const stats = useMemo(() => {
     if (!posts || !users || now === null) return null;
