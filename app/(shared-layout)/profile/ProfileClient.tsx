@@ -20,6 +20,7 @@ import { TopicFollowPicker } from "@/components/web/TopicFollowPicker";
 import { useTopicFollows } from "@/hooks/use-topic-follows";
 import Github from "@thesvg/react/github";
 import { AvatarCropper } from "@/components/web/AvatarCropper";
+import { DownloadMyData } from "@/components/web/DownloadMyData";
 
 export default function ProfileClient() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -326,6 +327,14 @@ export default function ProfileClient() {
                 <Skeleton className="h-9 w-full rounded-full" />
               )}
             </div>
+          </section>
+
+          <section className="section-minimal">
+            <h2 className="type-label">Your data</h2>
+            <p className="type-meta -mt-3">
+              Your account, posts, comments, follows, reading list and more, as a JSON file.
+            </p>
+            <DownloadMyData />
           </section>
 
           <section className="section-minimal">

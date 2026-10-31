@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-const LAST_UPDATED = "March 14, 2026";
+const LAST_UPDATED = "October 31, 2026";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -48,7 +48,7 @@ export default function PrivacyPolicyPage() {
               <span className="font-bold">business</span> under the CCPA/CPRA. For all other
               jurisdictions, we are the <span className="font-bold">operator or equivalent</span>{" "}
               responsible for data processing decisions. Questions about data processing can be
-              directed to our support contact listed in Section 12.
+              directed to our support contact listed in Section 14.
             </p>
           </section>
 
@@ -75,25 +75,34 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-3">
             <h2 className="text-2xl font-bold text-foreground">3. Data We Collect</h2>
             <p>
-              <span className="font-bold">Account data</span> may include email address, display
-              name, authentication provider metadata, and security-related session information. If
-              you sign in with GitHub, we receive the minimum identity information needed to
-              authenticate your account. Passwords are never stored in plaintext — only secure
-              hashes.
+              <span className="font-bold">Account data:</span> your e-mail address, display name, profile photo (uploaded,
+              or from GitHub), the topics and people you follow, whether your e-mail is verified, and your newsletter address if you subscribe.
+              Passwords are stored only as secure hashes. If you sign in with GitHub, we receive your
+              GitHub name, e-mail address and avatar, nothing else.
             </p>
             <p>
-              <span className="font-bold">Content data</span> includes posts, comments, timestamps,
-              status flags, and moderation records.{" "}
-              <span className="font-bold">Security and operational data</span> includes rate-limit
-              state, password reset tokens (hashed), account deletion reauthentication records, and
-              ban records used to enforce platform safety.
+              <span className="font-bold">What you publish and do:</span> posts and drafts (text, cover image, topic,
+              schedule), comments, your reading list, the posts you mark helpful, series, reports you
+              file, and notifications about your activity. Posts written with an agent or the
+              editor&apos;s agent are marked as AI-assisted.
             </p>
             <p>
-              <span className="font-bold">Technical data</span> may include device and network
-              metadata associated with active sessions such as IP information supplied by
-              authentication infrastructure. We use this to prevent fraud and investigate abuse. We
-              do not intentionally collect sensitive categories of personal data through normal
-              product use.
+              <span className="font-bold">Agent tokens:</span> if you connect your own agent through our MCP server, we
+              store the token&apos;s name, a SHA-256 hash of it (never the token itself), when it was
+              created and last used, and request counts for rate limits.
+            </p>
+            <p>
+              <span className="font-bold">Security data:</span> rate-limit counters (posts, comments, follows, uploads,
+              agent requests), password-reset and verification records (hashed), ban records, and
+              <span className="font-bold">IP addresses</span> in three cases only: to limit how many accounts one address
+              can create, to limit sign-up attempts with an e-mail that already has an account, and
+              to enforce IP bans. Our proxy checks the IP of requests to sign-in and sign-up pages for bans and rate limits, keeping it only in memory for a few minutes.
+            </p>
+            <p>
+              <span className="font-bold">Usage and error data:</span> page views and Web Vitals counted by Vercel without
+              cookies or personal identifiers, product events (for example, &quot;a post was
+              published&quot;, never its text), and error reports with the page, browser and stack
+              trace, without your IP address or cookies.
             </p>
           </section>
 
@@ -144,7 +153,7 @@ export default function PrivacyPolicyPage() {
             <p>
               We do not sell personal information as defined by the CCPA/CPRA. We do not share
               personal information for cross-context behavioral advertising. To exercise your
-              rights, contact us at the address in Section 12. We will respond within 45 days as
+              rights, contact us at the address in Section 14. We will respond within 45 days as
               required by law.
             </p>
           </section>
@@ -182,36 +191,55 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-3">
             <h2 className="text-2xl font-bold text-foreground">8. Data Retention</h2>
             <p>
-              We retain account and content data only{" "}
-              <span className="font-bold">as long as needed</span> for platform operations,
-              security, legal obligations, and moderation integrity. Account deletion triggers{" "}
-              <span className="font-bold">cascade deletion</span> for user-generated content where
-              technically supported, but some minimal records{" "}
-              <span className="font-bold">may be retained</span> for abuse prevention, legal
-              compliance, or system integrity.
+              <span className="font-bold">Your account and what you publish</span> stay until you delete them. Deleting your
+              account (Profile → Delete account) deletes your profile, photo, posts, comments and their
+              replies, follows (both ways), reading list, reactions, notifications, series, agent
+              tokens, reports, newsletter subscription and limits, then your sign-in records.
             </p>
             <p>
-              Verification codes and reset sessions expire automatically (15 minutes). Session
-              records and security tokens are pruned according to authentication lifecycle rules.
-              Where GDPR applies, we do not retain personal data longer than necessary for its
-              stated purpose.
+              <span className="font-bold">Security records:</span> account-creation records (IP address and e-mail) are kept
+              30 days; sign-up attempts with an existing e-mail (IP address only) 24 hours;
+              verification links expire after 1 hour and password-reset codes after 15 minutes. Ban
+              records, including banned IP addresses, are kept while the ban is active. Uploaded
+              images that never end up in a post are deleted after a day.
+            </p>
+            <p>
+              <span className="font-bold">Providers:</span> error reports are kept by Sentry for the retention period of our plan; Vercel keeps analytics only in aggregate; Anthropic handles the
+              text sent to it under its commercial terms, under which it isn&apos;t used to train models.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="text-2xl font-bold text-foreground">9. Data Sharing and Processors</h2>
             <p>
-              We use carefully selected infrastructure providers for hosting, authentication,
-              database, and transactional email. These processors{" "}
-              <span className="font-bold">act on our instructions</span> under appropriate data
-              processing agreements. Where required by GDPR, we use Standard Contractual Clauses
-              (SCCs) or equivalent transfer mechanisms for cross-border data transfers.
+              We don&apos;t sell personal data. These providers process it on our behalf, each only
+              for what it&apos;s listed for:
+            </p>
+            <ul className="list-disc space-y-2 pl-6">
+              <li><span className="font-bold">Convex</span> (database, file storage, server functions): all account data,
+                content, images and security records above.</li>
+              <li><span className="font-bold">Vercel</span> (hosting, request logs, Web Analytics, Speed Insights): requests to
+                the site, including IP address and browser in its logs; cookieless page views and Web
+                Vitals.</li>
+              <li><span className="font-bold">Resend</span> (e-mail): your e-mail address and the content of the e-mails we
+                send (verification, password reset, moderation notices).</li>
+              <li><span className="font-bold">GitHub</span> (sign-in, if you choose it): GitHub tells us your name, e-mail and
+                avatar when you sign in.</li>
+              <li><span className="font-bold">Anthropic</span> (the editor&apos;s agent and the moderation agent): the text of a
+                post or selection, its title and subtitle, only when you (or an admin, for moderation)
+                ask the agent; never your e-mail or account details.</li>
+              <li><span className="font-bold">Sentry</span> (error tracking): error reports with the page, browser and stack
+                trace, without IP addresses or cookies.</li>
+            </ul>
+            <p>
+              Agents you connect through our MCP server run on your side: what you send them is
+              between you and their provider. Published posts are public and also offered as RSS,
+              Markdown and through the MCP server&apos;s search, so other members&apos; agents can read them.
             </p>
             <p>
-              We may disclose limited information{" "}
-              <span className="font-bold">when legally required,</span> to respond to valid legal
-              process, to enforce our rights, or to protect users and the public from harm.
-              Disclosures are scoped to the minimum necessary data for the legitimate purpose.
+              We may disclose limited information <span className="font-bold">when legally required,</span> to respond to
+              valid legal process, to enforce our rights, or to protect users and the public from
+              harm, scoped to the minimum necessary.
             </p>
           </section>
 
@@ -249,7 +277,9 @@ export default function PrivacyPolicyPage() {
               personal information.
             </p>
             <p>
-              To exercise any of these rights, contact us at the address in Section 12. We will
+              You can do two of these yourself, any time: <span className="font-bold">download your data</span> as a JSON file
+              (Profile → Your data) and <span className="font-bold">delete your account</span> (Profile → Delete
+              account). For the others, contact us at the address in Section 14. We will
               respond within the timeframe required by your applicable law. We may require identity
               verification before fulfilling sensitive requests.
             </p>
