@@ -445,6 +445,9 @@ export const deletePost = mutation({
       throw new ConvexError("Not authorized to delete this post");
     }
 
+    // Its cover image goes with it.
+    if (post.imageStorageId) await deletePostImage(ctx, post.imageStorageId);
+
     // Only send moderation email if admin is deleting someone else's post, not their own
     const isDeletingOthersPost = isAdmin && post.authorId.toString() !== user._id.toString();
     if (isDeletingOthersPost) {
@@ -468,8 +471,6 @@ export const deletePost = mutation({
     }
 
     await ctx.db.delete(args.postId);
-
-    if (post.imageStorageId) await deletePostImage(ctx, post.imageStorageId);
 
     // Saved and "helpful" rows go with the post; its series closes the gap.
     for (const table of ["bookmarks", "reactions"] as const) {
