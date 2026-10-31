@@ -9,4 +9,10 @@ crons.daily(
   internal.rateLimiting.cleanupOldRateLimitRecords
 );
 
+crons.daily(
+  "delete images never attached to a post",
+  { hourUTC: 3, minuteUTC: 30 },
+  internal.uploads.cleanupOrphanUploads
+);
+
 export default crons;

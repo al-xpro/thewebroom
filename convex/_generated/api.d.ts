@@ -36,6 +36,7 @@ import type * as reading from "../reading.js";
 import type * as revalidate from "../revalidate.js";
 import type * as scheduledPosts from "../scheduledPosts.js";
 import type * as topics from "../topics.js";
+import type * as uploads from "../uploads.js";
 
 import type {
   ApiFromModules,
@@ -72,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   revalidate: typeof revalidate;
   scheduledPosts: typeof scheduledPosts;
   topics: typeof topics;
+  uploads: typeof uploads;
 }>;
 
 /**

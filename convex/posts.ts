@@ -5,6 +5,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { components, internal } from "./_generated/api";
 import { topicValidator, type Topic } from "./topics";
 import { announcePost } from "./notifications";
+import { claimPostImage, createImageUploadUrl, deletePostImage } from "./uploads";
 
 
 type BetterAuthUserContact = {
@@ -205,6 +206,8 @@ export const createPost = mutation({
 
     await announcePost(ctx, blogArticle);
 
+    if (args.imageStorageId) await claimPostImage(ctx, user._id, args.imageStorageId, blogArticle);
+
     return { id: blogArticle, slug: uniqueSlug };
   },
 });
@@ -260,17 +263,11 @@ export const getPublishedPosts = query({
   },
 });
 
+// For members allowed to post, with a per-hour limit; the file is checked afterwards by
+// uploads.registerPostImage (#19).
 export const generateImageUploadUrl = mutation({
   args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    return await ctx.storage.generateUploadUrl();
-  },
+  handler: async (ctx) => await createImageUploadUrl(ctx),
 });
 
 export const getPostBySlug = query({
@@ -357,10 +354,13 @@ export const updatePost = mutation({
       patch.minRead = args.minRead;
     }
     if (args.removeImage && args.imageStorageId === undefined && post.imageStorageId) {
-      await ctx.storage.delete(post.imageStorageId);
+      await deletePostImage(ctx, post.imageStorageId);
       patch.imageStorageId = undefined;
     }
-    if (args.imageStorageId !== undefined) {
+    if (args.imageStorageId !== undefined && args.imageStorageId !== post.imageStorageId) {
+      // Only the author's own uploads; the image it replaces is deleted.
+      await claimPostImage(ctx, post.authorId, args.imageStorageId, post._id);
+      if (post.imageStorageId) await deletePostImage(ctx, post.imageStorageId);
       patch.imageStorageId = args.imageStorageId;
     }
 
@@ -468,6 +468,8 @@ export const deletePost = mutation({
     }
 
     await ctx.db.delete(args.postId);
+
+    if (post.imageStorageId) await deletePostImage(ctx, post.imageStorageId);
 
     // Saved and "helpful" rows go with the post; its series closes the gap.
     for (const table of ["bookmarks", "reactions"] as const) {
