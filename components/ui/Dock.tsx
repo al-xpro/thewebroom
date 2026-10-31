@@ -2,24 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { motion, type MotionValue, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { useEffect } from "react";
-import { useState } from "react";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { createContext, useContext, useRef, type ReactNode } from "react";
-
-function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    setMatches(media.matches);
-
-    const listener = (e: MediaQueryListEvent) => setMatches(e.matches);
-    media.addEventListener("change", listener);
-    return () => media.removeEventListener("change", listener);
-  }, [query]);
-
-  return matches;
-}
 
 interface DockProps {
   className?: string;

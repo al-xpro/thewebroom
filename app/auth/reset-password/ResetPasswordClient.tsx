@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Link from "next/link";
@@ -40,7 +40,7 @@ export default function ResetPasswordClient() {
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [redirectedForInvalidSession, setRedirectedForInvalidSession] = useState(false);
+  const redirectedForInvalidSession = useRef(false);
   const [visibleErrors, setVisibleErrors] = useState<Partial<Record<ResetPasswordFields, string>>>(
     {}
   );
@@ -66,13 +66,13 @@ export default function ResetPasswordClient() {
     // be deleted server-side and validateResetSession will return { valid: false }.
     // Don't treat that as an error — the success state already shows.
     if (isSuccess) return;
-    if (!resetSessionValidation || resetSessionValidation.valid || redirectedForInvalidSession)
+    if (!resetSessionValidation || resetSessionValidation.valid || redirectedForInvalidSession.current)
       return;
 
-    setRedirectedForInvalidSession(true);
+    redirectedForInvalidSession.current = true;
     showErrorToast("Reset session expired. Please request a new OTP.");
     router.replace("/auth/forgot-password");
-  }, [isSuccess, redirectedForInvalidSession, resetSessionValidation, router]);
+  }, [isSuccess, resetSessionValidation, router]);
 
   const clearError = (field: ResetPasswordFields) => {
     setVisibleErrors((prev) => {

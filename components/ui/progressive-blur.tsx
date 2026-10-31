@@ -71,12 +71,6 @@ export function PageBlurOverlay() {
     return () => window.removeEventListener("scroll", updateOpacity);
   }, [showBlur, pathname]);
 
-  // Reset on page change
-  useEffect(() => {
-    setTopOpacity(0);
-    setBottomOpacity(1);
-  }, [pathname]);
-
   if (!showBlur) return null;
 
   return (

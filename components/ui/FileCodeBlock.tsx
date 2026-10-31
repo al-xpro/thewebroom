@@ -1,21 +1,17 @@
 "use client";
 
-import { NodeViewWrapper, NodeViewContent } from "@tiptap/react";
+import { NodeViewWrapper, NodeViewContent, type NodeViewProps } from "@tiptap/react";
 import { Copy, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { highlighterPromise } from "@/lib/extension/shiki";
 import { motion } from "framer-motion";
 import { FileIcon } from "@/components/ui/file-icon";
+import { useIsClient } from "@/hooks/use-is-client";
 
-export default function FileCodeBlockComponent({ node, updateAttributes }: any) {
+export default function FileCodeBlockComponent({ node, updateAttributes }: NodeViewProps) {
   const [html, setHtml] = useState("");
   const [copied, setCopied] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [uniqueId] = useState(() => `code-block-${Math.random().toString(36).substr(2, 9)}`);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsClient();
 
   function normalizeLang(lang?: string) {
     if (!lang) return "tsx";
